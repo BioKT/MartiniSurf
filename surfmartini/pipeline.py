@@ -85,7 +85,7 @@ def main(argv=None) -> None:
     parser.add_argument("--anchor", nargs="+", type=int)
     parser.add_argument("--dist", type=float, default=10.0)
 
-    parser.add_argument("--outdir", default="Simulation")
+    parser.add_argument("--outdir", default="Simulation_Files")
 
     args = parser.parse_args(argv)
 
