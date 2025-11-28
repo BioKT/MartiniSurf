@@ -239,7 +239,7 @@ def main(argv=None) -> None:
     shutil.rmtree(tmpdir)
 
     print("\n============================================")
-    print("✔ FULL PIPELINE COMPLETE")
+    print("Finished Successfully!")
     print(f"  Final directory: {simdir}/")
     print("============================================\n")
 

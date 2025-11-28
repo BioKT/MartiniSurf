@@ -89,7 +89,12 @@ def main(argv: Iterable[str] | None = None) -> None:
     Lx = nx * Lx_cell
     Ly = ny * Ly_cell
 
-    print(f"• Building hexagonal surface: {Lx:.3f} × {Ly:.3f} × {args.lz:.3f} nm")
+
+    print(
+    f"• Building hexagonal surface: "
+    f"{Lx:.3f} × {Ly:.3f} × {args.lz:.3f} nm"
+)
+
 
     # ---------------------------------------------------------
     # Build all atom coordinates

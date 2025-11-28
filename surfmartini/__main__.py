@@ -6,7 +6,7 @@ import sys
 def main():
     parser = argparse.ArgumentParser(
         prog="martinisurf",
-        description="SurfMartini — Toolkit for building Martini/GōMartini " \
+        description="SurfMartini — Toolkit for building Martini/GōMartini " 
         "surface–enzyme systems",
     )
 
