@@ -44,7 +44,8 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     parser.add_argument("--charge", type=float, default=0.0)
 
-    args = parser.parse_args(argv)
+    args = parser.parse_args(list(argv) if argv is not None else None)
+
 
     # ---------------------------------------------------------
     # Resolve output directory and name
