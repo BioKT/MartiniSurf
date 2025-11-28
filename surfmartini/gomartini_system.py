@@ -55,7 +55,7 @@ def write_list(values: List[int], fh, chunk: int = 15) -> None:
         Number of entries per line.
     """
     for i in range(0, len(values), chunk):
-        fh.write(" ".join(str(v) for v in values[i : i + chunk]) + "\n")
+        fh.write(" ".join(str(v) for v in values[i: i + chunk]) + "\n")
 
 
 # ======================================================================
