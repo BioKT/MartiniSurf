@@ -2,11 +2,11 @@
 import argparse
 import sys
 
-def main():
 
+def main():
     parser = argparse.ArgumentParser(
         prog="martinisurf",
-        description="SurfMartini — Toolkit for building Martini/GōMartini surface–enzyme systems"
+        description="SurfMartini — Toolkit for building Martini/GōMartini surface–enzyme systems",
     )
 
     subparsers = parser.add_subparsers(dest="tool", required=True)
@@ -35,7 +35,7 @@ def main():
     p_orient.add_argument("--resB", nargs="+", type=int)
     p_orient.add_argument("--anchor", nargs="+", type=int)
     p_orient.add_argument("--dist", type=float, default=10.0)
-    p_orient.add_argument("--display", choices=["on","off"], default="off")
+    p_orient.add_argument("--display", choices=["on", "off"], default="off")
 
     # --------------------------
     # system
@@ -76,8 +76,8 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    tool = args[0]            # subcommand
-    subcmd_args = args[1:]    # all remaining args go to the module
+    tool = args[0]  # subcommand
+    subcmd_args = args[1:]  # all remaining args go to the module
 
     # --------------------------
     # route to modules
@@ -107,4 +107,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

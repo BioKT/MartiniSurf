@@ -12,11 +12,10 @@ This script automates the complete workflow:
 This is the highest-level entry point of MartiniSurf.
 """
 
+import argparse
 import shutil
 import subprocess
-import argparse
 from pathlib import Path
-import os
 
 
 # ======================================================================
@@ -120,12 +119,18 @@ def main(argv=None) -> None:
 
     martinize_cmd = [
         "martinize2",
-        "-f", str(pdb_abs),
-        "-x", str(enzyme_cg_out),
-        "-o", str(topfile_out),
-        "-dssp", args.dssp,
-        "-ff", args.ff,
-        "-name", args.moltype,
+        "-f",
+        str(pdb_abs),
+        "-x",
+        str(enzyme_cg_out),
+        "-o",
+        str(topfile_out),
+        "-dssp",
+        args.dssp,
+        "-ff",
+        args.ff,
+        "-name",
+        args.moltype,
     ]
 
     if args.go == "auto":
@@ -153,13 +158,20 @@ def main(argv=None) -> None:
     print("\n🌐 Building surface...\n")
     import surfmartini.surface_builder as sb
 
-    sb.main([
-        "--lx", str(args.lx),
-        "--ly", str(args.ly),
-        "--dx", str(args.dx),
-        "--bead", args.surface_bead,
-        "--output", str(system_dir / "surface"),
-    ])
+    sb.main(
+        [
+            "--lx",
+            str(args.lx),
+            "--ly",
+            str(args.ly),
+            "--dx",
+            str(args.dx),
+            "--bead",
+            args.surface_bead,
+            "--output",
+            str(system_dir / "surface"),
+        ]
+    )
 
     surface_itp_src = system_dir / "surface.itp"
     surface_itp_dst = active_itp_dir / "surface.itp"
@@ -175,8 +187,8 @@ def main(argv=None) -> None:
     # ==================================================================
     print("\n🧬 Orienting enzyme on surface...\n")
 
-    from surfmartini.enzyme_tethered import convert_pdb_to_gro
     import surfmartini.enzyme_tethered as orient_mod
+    from surfmartini.enzyme_tethered import convert_pdb_to_gro
 
     enzyme_cg_pdb = system_dir / "enzyme_cg.pdb"
     enzyme_cg_gro = system_dir / "enzyme_cg.gro"
@@ -185,10 +197,14 @@ def main(argv=None) -> None:
     convert_pdb_to_gro(str(enzyme_cg_pdb), str(enzyme_cg_gro))
 
     orient_args = [
-        "--surface", str(system_dir / "surface.gro"),
-        "--enzyme", str(enzyme_cg_gro),
-        "--out", str(system_dir / "Enzyme_Surface.gro"),
-        "--dist", str(args.dist),
+        "--surface",
+        str(system_dir / "surface.gro"),
+        "--enzyme",
+        str(enzyme_cg_gro),
+        "--out",
+        str(system_dir / "Enzyme_Surface.gro"),
+        "--dist",
+        str(args.dist),
     ]
 
     if args.resA:

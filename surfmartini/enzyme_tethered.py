@@ -13,9 +13,9 @@ All functions are documented for scientific and HPC workflows.
 """
 
 import argparse
-import numpy as np
-from pathlib import Path
 from typing import Iterable, List, Tuple
+
+import numpy as np
 
 
 # ======================================================================
@@ -219,11 +219,13 @@ def auto_orient_from_anchor_residues(
     if s < 1e-6:
         R = np.eye(3)
     else:
-        vx = np.array([
-            [0, -v[2], v[1]],
-            [v[2], 0, -v[0]],
-            [-v[1], v[0], 0],
-        ])
+        vx = np.array(
+            [
+                [0, -v[2], v[1]],
+                [v[2], 0, -v[0]],
+                [-v[1], v[0], 0],
+            ]
+        )
         R = np.eye(3) + vx + vx.dot(vx) * ((1 - c) / s**2)
 
     # Rotate around enzyme center
@@ -318,7 +320,6 @@ def save_full_system(
         z_box = np.ptp(enz_coords[:, 2]) / 10.0 + 10.0
 
         fh.write(f"{x_box:12.5f}{y_box:12.5f}{z_box:12.5f}\n")
-
 
     print(f"✔ Saved oriented system → {output_gro}")
 

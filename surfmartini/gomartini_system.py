@@ -13,13 +13,15 @@ This module prepares a complete GōMartini simulation directory:
 This is the final step of the MartiniSurf pipeline.
 """
 
+import argparse
 import os
 import shutil
-import argparse
-import MDAnalysis as mda
-import surfmartini
 from pathlib import Path
 from typing import Iterable, List
+
+import MDAnalysis as mda
+
+import surfmartini
 
 
 # ======================================================================
@@ -179,8 +181,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         print("  ✔ Found existing Active.itp")
     else:
         shutil.copy(source_active, active_alias)
-        #print("  ✔ Created Active.itp from martini_v3.0.0_Active.itp")
-
+        # print("  ✔ Created Active.itp from martini_v3.0.0_Active.itp")
 
     # ==================================================================
     # Build system.top

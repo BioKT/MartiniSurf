@@ -2,7 +2,7 @@
 """
 Generate a hexagonal surface and a minimal GROMACS topology (.itp).
 
-This module creates a 2D hexagonal lattice of beads to represent 
+This module creates a 2D hexagonal lattice of beads to represent
 a flat surface for Martini or GōMartini simulations. It outputs:
 
 - A .gro coordinate file
@@ -68,7 +68,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     # Generate hexagonal lattice parameters
     # ---------------------------------------------------------
     scale = args.dx / 0.142  # scaling from 0.142 nm reference
-    a = 0.246 * scale         # primitive lattice constant
+    a = 0.246 * scale  # primitive lattice constant
 
     # Unit-cell atom positions
     atoms_unit: List[Tuple[float, float, float]] = [
@@ -99,7 +99,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         for j in range(ny):
             dx = i * Lx_cell
             dy = j * Ly_cell
-            for (x, y, z) in atoms_unit:
+            for x, y, z in atoms_unit:
                 atoms.append((x + dx, y + dy, z))
 
     # ---------------------------------------------------------
@@ -108,9 +108,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     gro_path = Path(outdir, f"{basename}.gro")
 
     with gro_path.open("w") as fgro:
-        fgro.write(
-            f"Hexagonal surface {args.lx}x{args.ly} nm (d={args.dx:.2f} nm)\n"
-        )
+        fgro.write(f"Hexagonal surface {args.lx}x{args.ly} nm (d={args.dx:.2f} nm)\n")
         fgro.write(f"{len(atoms):5d}\n")
         for i, (x, y, z) in enumerate(atoms, start=1):
             fgro.write(
