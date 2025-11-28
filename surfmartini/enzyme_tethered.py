@@ -178,41 +178,62 @@ def auto_orient_from_anchor_residues(
     anchors = anchor_centroids.copy()
     centroid = anchors.mean(axis=0)
 
+    # Determine normal vector from anchor residues
     A = anchors - centroid
     _, _, vh = np.linalg.svd(A)
     normal = vh[2] / np.linalg.norm(vh[2])
 
+    # Rotate normal to point toward -Z
     target_normal = np.array([0.0, 0.0, -1.0])
     v = np.cross(normal, target_normal)
     s = np.linalg.norm(v)
     c = float(np.dot(normal, target_normal))
 
+    # Rodrigues rotation
     if s < 1e-6:
         R = np.eye(3)
     else:
         vx = np.array(
-            [[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]], dtype=float
+            [[0.0, -v[2], v[1]],
+             [v[2],  0.0, -v[0]],
+             [-v[1], v[0],  0.0]]
         )
         R = np.eye(3) + vx + vx @ vx * ((1 - c) / (s**2))
 
+    # Apply rotation around the enzyme center
     center = enzyme_coords.mean(axis=0)
     rot = (R @ (enzyme_coords - center).T).T + center
     anchors_rot = (R @ (anchors - center).T).T + center
 
-    if anchors_rot[:, 2].min() > rot[:, 2].mean():
+    # ------------------------------------------------------
+    # FIXED FLIP CHECK — robust and identical to old behavior
+    # ------------------------------------------------------
+    # If anchor residues end up ABOVE the protein center (wrong direction)
+    # flip the enzyme so that anchors face downward (-Z)
+    if anchors_rot[:, 2].mean() > center[2]:
         Rflip = np.diag([1.0, 1.0, -1.0])
-        rot = (Rflip @ (rot - center).T).T + center
 
+        rot = (Rflip @ (rot - center).T).T + center
+        anchors_rot = (Rflip @ (anchors_rot - center).T).T + center
+
+    # ------------------------------------------------------
+    # Vertical translation (place anchors at target_z above surface)
+    # ------------------------------------------------------
     z_anchor = anchors_rot[:, 2].min()
     z_surface = surface_coords[:, 2].max()
+
     dz = (z_surface + target_z) - z_anchor
     rot[:, 2] += dz
 
+    # ------------------------------------------------------
+    # XY alignment (center protein over surface)
+    # ------------------------------------------------------
     xy_shift = surface_coords[:, :2].mean(axis=0) - rot[:, :2].mean(axis=0)
     rot[:, 0] += xy_shift[0]
     rot[:, 1] += xy_shift[1]
 
     return rot
+
 
 
 # ======================================================================
