@@ -46,7 +46,6 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 
-
     # ---------------------------------------------------------
     # Resolve output directory and name
     # ---------------------------------------------------------

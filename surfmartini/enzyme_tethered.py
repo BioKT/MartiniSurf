@@ -66,7 +66,6 @@ def load_gro_coords(gro_file: str) -> Tuple[np.ndarray, List[Tuple[int, str, str
 
     return np.array(coords, dtype=float), atoms
 
-
 # ======================================================================
 # PDB → GRO CONVERSION
 # ======================================================================
@@ -126,7 +125,6 @@ def convert_pdb_to_gro(pdb_file: str, gro_file: str) -> str:
 
     return gro_file
 
-
 # ======================================================================
 # SELECT RESIDUES / CENTROIDS
 # ======================================================================
@@ -161,7 +159,6 @@ def summarize_selected_residues(
     print("================================\n")
 
     return np.array(centroids, dtype=float)
-
 
 # ======================================================================
 # ORIENTATION ENGINE
@@ -234,8 +231,6 @@ def auto_orient_from_anchor_residues(
 
     return rot
 
-
-
 # ======================================================================
 # SAVE SYSTEM
 # ======================================================================
@@ -290,7 +285,6 @@ def save_full_system(
         fh.write(f"{x_box:12.5f}{y_box:12.5f}{z_box:12.5f}\n")
 
     print(f"✔ Saved oriented system → {output_gro}")
-
 
 # ======================================================================
 # MAIN PROGRAM
