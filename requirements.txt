@@ -1,0 +1,6 @@
+numpy
+pyvista
+MDAnalysis
+scipy
+vermouth
+pytest
