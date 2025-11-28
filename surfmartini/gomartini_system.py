@@ -3,21 +3,23 @@
 GoMartini System Builder with Anchoring Restraints
 
 This module prepares a complete GōMartini simulation directory:
-- Detects input enzyme-on-surface system
-- Creates standard 0_topology / 1_mdp / 2_system layout
-- Copies the correct Martini GoITP and surface topologies
-- Generates system.top and system_res.top
-- Creates anchoring position restraints via Active_res.itp
-- Builds index.ndx groups for A/B anchor residues
+- Detects the enzyme-on-surface system
+- Creates the 0_topology / 1_mdp / 2_system structure
+- Copies Martini/GōMartini .itp files
+- Builds system.top and system_res.top
+- Generates Active_res.itp with position restraints
+- Generates index.ndx (Residues_A / Residues_B)
 
-This is the final step of the MartiniSurf pipeline.
+Final step of the MartiniSurf pipeline.
 """
+
+from __future__ import annotations
 
 import argparse
 import os
 import shutil
 from pathlib import Path
-from typing import Iterable, List
+from typing import List, Sequence
 
 import MDAnalysis as mda
 
@@ -27,46 +29,46 @@ import surfmartini
 # ======================================================================
 # UTILITIES
 # ======================================================================
-def ensure_dir(path: str) -> None:
+def ensure_dir(path: str | Path) -> None:
     """
-    Create directory if it does not already exist.
+    Create a directory if it does not already exist.
 
     Parameters
     ----------
-    path : str
-        Directory path to ensure exists.
+    path : str or Path
+        Directory path to create.
     """
-    os.makedirs(path, exist_ok=True)
+    Path(path).mkdir(parents=True, exist_ok=True)
 
 
 def write_list(values: List[int], fh, chunk: int = 15) -> None:
     """
-    Write integer values grouped in fixed-size chunks.
+    Write integers grouped in fixed-size chunks.
 
     Parameters
     ----------
-    values : list of int
-        Atom IDs or indices to write.
+    values : list[int]
+        Atom IDs to write.
     fh : file-like
         Output file handle.
     chunk : int
-        Number of values per line.
+        Number of entries per line.
     """
     for i in range(0, len(values), chunk):
-        fh.write(" ".join(str(x) for x in values[i: i + chunk]) + "\n")
+        fh.write(" ".join(str(v) for v in values[i : i + chunk]) + "\n")
 
 
 # ======================================================================
 # MAIN WORKFLOW
 # ======================================================================
-def main(argv: Iterable[str] | None = None) -> None:
+def main(argv: Sequence[str] | None = None) -> None:
     """
-    Build GoMartini simulation system with anchoring restraints.
+    Build a GōMartini simulation system with anchoring restraints.
 
     Parameters
     ----------
-    argv : iterable of str, optional
-        Command-line arguments. Default: sys.argv.
+    argv : sequence[str] or None
+        Command-line arguments.
     """
     parser = argparse.ArgumentParser(
         description="Build GoMartini system with anchoring restraints."
@@ -83,12 +85,13 @@ def main(argv: Iterable[str] | None = None) -> None:
     # Determine anchor residues
     # ==================================================================
     if args.resA or args.resB:
-        print("\n• Using explicit resA/resB selections")
-        resA = args.resA or []
-        resB = args.resB or []
+        print("\n• Using explicit resA / resB lists")
+        resA: List[int] = args.resA or []
+        resB: List[int] = args.resB or []
     elif args.anchor:
-        print("\n• Using unified --anchor list for both A and B")
-        resA = resB = list(args.anchor)
+        print("\n• Using unified --anchor list for both groups")
+        resA = list(args.anchor)
+        resB = list(args.anchor)
     else:
         raise ValueError("You must provide --resA/--resB or --anchor.")
 
@@ -102,13 +105,13 @@ def main(argv: Iterable[str] | None = None) -> None:
     activeitp_pkg = package_dir / "ActiveITP"
     mdp_pkg = package_dir / "mdp_templates"
 
-    print(f"• ActiveITP path:    {activeitp_pkg}")
-    print(f"• MDP templates path:{mdp_pkg}")
+    print(f"• ActiveITP path:     {activeitp_pkg}")
+    print(f"• MDP templates path: {mdp_pkg}")
 
     # ==================================================================
-    # Locate the Enzyme_Surface.gro file
+    # Locate Enzyme_Surface.gro
     # ==================================================================
-    cwd = Path(os.getcwd())
+    cwd = Path.cwd()
 
     candidates = [
         cwd / "Enzyme_Surface.gro",
@@ -116,11 +119,13 @@ def main(argv: Iterable[str] | None = None) -> None:
         Path(args.outdir).resolve() / "2_system" / "Enzyme_Surface.gro",
     ]
 
+    input_gro: Path | None = None
     for cand in candidates:
         if cand.exists():
             input_gro = cand
             break
-    else:
+
+    if input_gro is None:
         raise FileNotFoundError(
             "Could not find Enzyme_Surface.gro in any expected location."
         )
@@ -133,20 +138,20 @@ def main(argv: Iterable[str] | None = None) -> None:
     u = mda.Universe(str(input_gro))
 
     # ==================================================================
-    # Map residues to atom IDs (excluding backbone CA)
+    # Residue → atom ID mapping
     # ==================================================================
     residues_a_atoms = [
-        a.index + 1 for a in u.atoms if (a.resnum in resA and a.name != "CA")
+        int(a.index + 1) for a in u.atoms if (a.resnum in resA and a.name != "CA")
     ]
     residues_b_atoms = [
-        a.index + 1 for a in u.atoms if (a.resnum in resB and a.name != "CA")
+        int(a.index + 1) for a in u.atoms if (a.resnum in resB and a.name != "CA")
     ]
 
     print(f"  → Group A atoms: {len(residues_a_atoms)}")
     print(f"  → Group B atoms: {len(residues_b_atoms)}\n")
 
     # ==================================================================
-    # Create standard folder structure
+    # Create folder structure
     # ==================================================================
     topo_dir = output_root / "0_topology"
     mdp_dir = output_root / "1_mdp"
@@ -173,15 +178,15 @@ def main(argv: Iterable[str] | None = None) -> None:
             shutil.copy(src, dst)
             print(f"  ✔ Copied {fname}")
 
-    # Ensure Active.itp exists (tests + real workflows)
-    active_alias = os.path.join(dst_active, "Active.itp")
-    source_active = os.path.join(dst_active, "martini_v3.0.0_Active.itp")
+    # Ensure Active.itp exists
+    active_alias = dst_active / "Active.itp"
+    source_active = dst_active / "martini_v3.0.0_Active.itp"
 
-    if os.path.exists(active_alias):
+    if active_alias.exists():
         print("  ✔ Found existing Active.itp")
     else:
         shutil.copy(source_active, active_alias)
-        # print("  ✔ Created Active.itp from martini_v3.0.0_Active.itp")
+        print("  ✔ Created Active.itp from martini_v3.0.0_Active.itp")
 
     # ==================================================================
     # Build system.top
@@ -219,8 +224,8 @@ def main(argv: Iterable[str] | None = None) -> None:
     active_src = dst_active / "Active.itp"
     active_res = dst_active / "Active_res.itp"
 
+    new_content: List[str] = []
     inside_posres = False
-    new_content = []
 
     with open(active_src) as fin:
         for line in fin:
@@ -239,8 +244,8 @@ def main(argv: Iterable[str] | None = None) -> None:
     new_content.append("\n[ position_restraints ]\n")
     new_content.append("#ifdef POSRES\n")
 
-    for atom in residues_a_atoms + residues_b_atoms:
-        new_content.append(f"{atom} 1 1000 1000 0\n")
+    for atomid in residues_a_atoms + residues_b_atoms:
+        new_content.append(f"{atomid} 1 1000 1000 0\n")
 
     new_content.append("#endif\n")
 
@@ -291,8 +296,9 @@ def main(argv: Iterable[str] | None = None) -> None:
         if src.exists():
             shutil.copy(src, dst)
         else:
-            print(f"  ⚠ Template not found: {src}")
+            print(f"  ⚠ Missing MDP template: {src}")
 
+    # ==================================================================
     print("\n========================================")
     print("✔ GoMartini SYSTEM SUCCESSFULLY BUILT")
     print(f"  Output directory: {output_root}")

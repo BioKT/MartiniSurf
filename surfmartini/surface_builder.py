@@ -3,7 +3,7 @@
 Generate a hexagonal surface and a minimal GROMACS topology (.itp).
 
 This module creates a 2D hexagonal lattice of beads to represent
-a flat surface for Martini or GōMartini simulations. It outputs:
+a flat surface for Martini or GōMartini simulations. It outputs:
 
 - A .gro coordinate file
 - A minimal .itp topology file
@@ -15,27 +15,15 @@ import math
 import os
 import shutil
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import List, Tuple, Sequence
 
 
 # ======================================================================
 # Main entry point
 # ======================================================================
-def main(argv: Iterable[str] | None = None) -> None:
+def main(argv: Sequence[str] | None = None) -> None:
     """
     Entry point for the hexagonal-surface generator.
-
-    Parameters
-    ----------
-    argv : iterable of str or None
-        Command-line arguments. If None, argparse parses sys.argv.
-
-    Notes
-    -----
-    This function also handles correct placement of the generated
-    `surface.itp` file depending on whether the script is run in:
-        - Standalone mode
-        - MartiniSurf pipeline mode (inside Simulation/<...>)
     """
     parser = argparse.ArgumentParser(
         description="Generate a hexagonal surface and minimal surface.itp"
@@ -67,10 +55,9 @@ def main(argv: Iterable[str] | None = None) -> None:
     # ---------------------------------------------------------
     # Generate hexagonal lattice parameters
     # ---------------------------------------------------------
-    scale = args.dx / 0.142  # scaling from 0.142 nm reference
+    scale = args.dx / 0.142
     a = 0.246 * scale  # primitive lattice constant
 
-    # Unit-cell atom positions
     atoms_unit: List[Tuple[float, float, float]] = [
         (0.0, 0.0, 0.0),
         (a, 0.0, 0.0),
@@ -92,7 +79,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     print(f"• Building hexagonal surface: {Lx:.3f} × {Ly:.3f} × {args.lz:.3f} nm")
 
     # ---------------------------------------------------------
-    # Build all atom coordinates
+    # Build atom coordinates
     # ---------------------------------------------------------
     atoms: List[Tuple[float, float, float]] = []
     for i in range(nx):
@@ -110,11 +97,13 @@ def main(argv: Iterable[str] | None = None) -> None:
     with gro_path.open("w") as fgro:
         fgro.write(f"Hexagonal surface {args.lx}x{args.ly} nm (d={args.dx:.2f} nm)\n")
         fgro.write(f"{len(atoms):5d}\n")
+
         for i, (x, y, z) in enumerate(atoms, start=1):
             fgro.write(
                 f"{i:5d}{args.resname:<4}{args.bead:>4}{i:6d}"
                 f"{x:8.3f}{y:8.3f}{z:8.3f}\n"
             )
+
         fgro.write(f"{Lx:10.5f}{Ly:10.5f}{args.lz:10.5f}\n")
 
     print(f"✔ Wrote {gro_path}  ({len(atoms)} beads)")
@@ -131,14 +120,18 @@ def main(argv: Iterable[str] | None = None) -> None:
         fitp.write(f"  {args.resname}        1\n\n")
         fitp.write("[ atoms ]\n")
         fitp.write("; id  type     resnr  residu  atom  cgnr  charge\n")
+
         fitp.write(
-            f"  1   {args.bead:<6}   1   {args.resname:<4}   C     1     {args.charge:.3f}\n"
+            (
+                f"  1   {args.bead:<6}   1   {args.resname:<4}   C     1     "
+                f"{args.charge:.3f}\n"
+            )
         )
 
     print(f"✔ Wrote {itp_path}")
 
     # ---------------------------------------------------------
-    # Copy surface.itp to ActiveITP/
+    # Copy surface.itp → correct ActiveITP path
     # ---------------------------------------------------------
     final_dst = resolve_activeitp_destination(outdir)
     final_dst.parent.mkdir(parents=True, exist_ok=True)
@@ -148,36 +141,23 @@ def main(argv: Iterable[str] | None = None) -> None:
 
 
 # ======================================================================
-# Helper: detect correct output destination for surface.itp
+# Helper: detect ActiveITP destination
 # ======================================================================
 def resolve_activeitp_destination(outdir: str) -> Path:
     """
-    Determine the correct destination path for surface.itp depending on
-    standalone or pipeline execution.
-
-    Parameters
-    ----------
-    outdir : str
-        Directory where output files were generated.
-
-    Returns
-    -------
-    Path
-        Final destination for ActiveITP/surface.itp.
+    Determine the correct destination path for surface.itp depending
+    on standalone or pipeline execution.
     """
     outdir_path = Path(outdir)
-
-    # Default: standalone mode
     default_dst = outdir_path / "ActiveITP" / "surface.itp"
 
-    # Pipeline detection
     if "Simulation" in str(outdir_path):
         parts = list(outdir_path.parts)
         if "Simulation" in parts:
             idx = parts.index("Simulation")
             simulation_root = Path(*parts[: idx + 1])
-
             topology_dir = simulation_root / "0_topology" / "ActiveITP"
+
             if topology_dir.exists():
                 return topology_dir / "surface.itp"
 
