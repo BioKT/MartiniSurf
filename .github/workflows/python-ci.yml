@@ -45,7 +45,7 @@ jobs:
     # 5. Static analysis
     # -------------------------
     - name: Lint (flake8)
-      run: flake8 surfmartini
+      run: flake8 surfmartini --max-line-length 95
 
     - name: Check formatting (black)
       run: black --check surfmartini

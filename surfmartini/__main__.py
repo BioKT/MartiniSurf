@@ -6,7 +6,7 @@ import sys
 def main():
     parser = argparse.ArgumentParser(
         prog="martinisurf",
-        description="SurfMartini — Toolkit for building Martini/GōMartini " 
+        description="SurfMartini — Toolkit for building Martini/GōMartini" 
         "surface–enzyme systems",
     )
 
@@ -104,7 +104,6 @@ def main():
     # Run module
     # --------------------------
     module.main()
-
 
 if __name__ == "__main__":
     main()
