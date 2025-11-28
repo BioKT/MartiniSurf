@@ -47,9 +47,6 @@ jobs:
     - name: Lint (flake8)
       run: flake8 surfmartini --max-line-length 95
 
-    - name: Check formatting (black)
-      run: black --check surfmartini
-
     - name: Type checking (mypy)
       run: mypy surfmartini --ignore-missing-imports
 

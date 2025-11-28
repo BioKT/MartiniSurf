@@ -69,16 +69,24 @@ def main():
     p_build.add_argument("--outdir", default="SurfMartini_System")
 
     # --------------------------
-    # Parse only the subcommand
+    # Parse tool with BUILD as default
     # --------------------------
-    args = sys.argv[1:]  # everything except script name
+    args = sys.argv[1:]
 
     if len(args) == 0:
-        parser.print_help()
-        sys.exit(1)
+        # No arguments → default to build
+        tool = "build"
+        subcmd_args = []
+    else:
+        # If first argument starts with --, user wants implicit build
+        if args[0].startswith("--"):
+            tool = "build"
+            subcmd_args = args
+        else:
+            # User gave explicit subcommand
+            tool = args[0]
+            subcmd_args = args[1:]
 
-    tool = args[0]  # subcommand
-    subcmd_args = args[1:]  # all remaining args go to the module
 
     # --------------------------
     # route to modules
