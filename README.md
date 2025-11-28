@@ -18,9 +18,6 @@ and Gō–Martini coarse-grained simulation setup.
   </a>
 
   <!-- Code style -->
-  <a href="https://github.com/psf/black">
-    <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Black style">
-  </a>
 
   <!-- flake8 -->
   <img src="https://img.shields.io/badge/lint-flake8-blue" alt="flake8">
