@@ -55,7 +55,7 @@ It provides:
 - ⚙️ **Automated construction of hexagonal surfaces** (GRO + ITP)
 - 📐 **Automatic protein orientation** on surfaces using anchors
 - 🔗 **Multi-anchor support** (Custom residues)
-- 🧱 **Integration with martinize2 and Gō–Martini**
+- 🧱 **Integration with martinize3 and Gō–Martini**
 - 🧰 **Full pipeline mode:**  
   Generates *all* topology, index, restraints, and MDP files
 - 🧬 **Python API** + **command-line interface**
@@ -88,7 +88,7 @@ It provides:
 # 🚀 Quickstart
 
 ```bash
-martinisurf build \
+martinisurf \
     --pdb enzyme.pdb \
     --surface C1 --lx 20 --ly 20 \
     --ResA --ResB --dist 10
