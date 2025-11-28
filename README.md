@@ -9,13 +9,40 @@ A Python toolkit for automatic protein orientation, surface generation,
 and Gō–Martini coarse-grained simulation setup.
 </p>
 
+
 <p align="center">
+
+  <!-- Build status -->
   <a href="https://github.com/jjimenezgar/MartiniSurf/actions/workflows/python-ci.yml">
-    <img src="https://github.com/jjimenezgar/MartiniSurf/actions/workflows/python-ci.yml/badge.svg" alt="CI Status">
+    <img src="https://github.com/jjimenezgar/MartiniSurf/actions/workflows/python-ci.yml/badge.svg" alt="CI">
   </a>
-  <img src="https://img.shields.io/badge/python-3.9%20|%203.10%20|%203.11-blue.svg" alt="Python versions">
-  <img src="https://img.shields.io/badge/platform-linux-lightgrey.svg" alt="Platform">
+
+  <!-- Code style -->
+  <a href="https://github.com/psf/black">
+    <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Black style">
+  </a>
+
+  <!-- flake8 -->
+  <img src="https://img.shields.io/badge/lint-flake8-blue" alt="flake8">
+
+  <!-- ruff -->
+  <img src="https://img.shields.io/badge/lint-ruff-red" alt="ruff">
+
+  <!-- mypy -->
+  <img src="https://img.shields.io/badge/types-mypy-green" alt="mypy">
+
+  <!-- Pytest -->
+  <img src="https://img.shields.io/badge/tests-passing-brightgreen" alt="tests">
+
+  <!-- Coverage -->
+  <a href="https://codecov.io/gh/jjimenezgar/MartiniSurf">
+    <img src="https://codecov.io/gh/jjimenezgar/MartiniSurf/branch/master/graph/badge.svg" alt="Coverage">
+  </a>
+
+  <!-- Python versions -->
+  <img src="https://img.shields.io/badge/python-3.9%20|%203.10%20|%203.11-blue.svg">
 </p>
+
 
 
 
