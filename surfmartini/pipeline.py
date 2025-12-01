@@ -32,7 +32,7 @@ def build_parser():
     # --------------------------
     parser.add_argument(
         "--pdb", required=True,
-        help="Input structure: path/to/file.pdb or RCSB ID (e.g. 1A2B)"
+        help="Input structure: path/to/file.pdb or RCSB ID (e.g. 1RJW)"
     )
 
     parser.add_argument("--moltype", required=True,
@@ -101,17 +101,22 @@ def build_parser():
     # --------------------------
     # SURFACE
     # --------------------------
+
     parser.add_argument("--surface-bead", default="P4",
         help="Martini bead used for the surface")
 
     parser.add_argument("--dx", type=float, default=0.47,
         help="Surface lattice spacing (nm)")
 
-    parser.add_argument("--lx", type=float, required=True,
+    parser.add_argument("--lx", type=float, required=False,
         help="Surface X length (nm)")
 
-    parser.add_argument("--ly", type=float, required=True,
+    parser.add_argument("--ly", type=float, required=False,
         help="Surface Y length (nm)")
+
+    parser.add_argument(
+    "--surface",
+    help="Use an existing surface GRO file instead of generating a new one")
 
     # --------------------------
     # ORIENTATION
@@ -270,20 +275,47 @@ def main(argv=None):
     shutil.copy(enzyme_cg_out, system_dir / "enzyme_cg.pdb")
 
     # =========================================================================
-    # 3) Build surface
+    # 3) Surface: generate or use user-supplied file
     # =========================================================================
-    import surfmartini.surface_builder as sb
+    surface_gro = system_dir / "surface.gro"
+    surface_itp = system_dir / "surface.itp"
 
-    sb.main([
-        "--lx", str(args.lx),
-        "--ly", str(args.ly),
-        "--dx", str(args.dx),
-        "--bead", args.surface_bead,
-        "--output", str(system_dir / "surface"),
-    ])
+    if args.surface:
+        # =====================================
+        # USER-SUPPLIED SURFACE (no generation)
+        # =====================================
+        user_surface = Path(args.surface).resolve()
 
-    if (system_dir / "surface.itp").exists():
-        shutil.move(system_dir / "surface.itp", active_itp_dir / "surface.itp")
+        if not user_surface.exists():
+            raise FileNotFoundError(f"Provided --surface file not found: {user_surface}")
+
+        print(f"\n🌐 Using existing surface: {user_surface}\n")
+        shutil.copy(user_surface, surface_gro)
+
+        # Try find matching ITP (same folder or same basename)
+        possible_itp = user_surface.with_suffix(".itp")
+        if possible_itp.exists():
+            shutil.copy(possible_itp, active_itp_dir / "surface.itp")
+        else:
+            print("⚠ WARNING: No matching .itp file found next to provided surface.")
+    else:
+        # =====================================
+        # GENERATE NEW SURFACE
+        # =====================================
+        print("\n🌐 Generating new surface...\n")
+        import surfmartini.surface_builder as sb
+
+        sb.main([
+            "--lx", str(args.lx),
+            "--ly", str(args.ly),
+            "--dx", str(args.dx),
+            "--bead", args.surface_bead,
+            "--output", str(system_dir / "surface"),
+        ])
+
+        # Move the surface.itp into topology folder
+        if surface_itp.exists():
+            shutil.move(surface_itp, active_itp_dir / "surface.itp")
 
     # =========================================================================
     # 4) Orientation
