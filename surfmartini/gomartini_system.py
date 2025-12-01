@@ -179,14 +179,14 @@ def main(argv: Sequence[str] | None = None) -> None:
             shutil.copy(src, dst)
             print(f"  ✔ Copied {fname}")
 
-    # Ensure Active.itp exists
-    # source_active = dst_active / "martini_v3.0.0_Active.itp"
+    #Ensure Active.itp exists
+    #source_active = dst_active / "martini_v3.0.0_Active.itp"
 
     #if active_alias.exists():
-    #    print("  ✔ Found existing Active.itp")
+    #print("  ✔ Found existing Active.itp")
     #else:
-    #    shutil.copy(source_active, active_alias)
-    #    print("  ✔ Created Active.itp from martini_v3.0.0_Active.itp")
+    #shutil.copy(source_active, active_alias)
+    #print("  ✔ Created Active.itp from martini_v3.0.0_Active.itp")
 
     # ==================================================================
     # Build system.top
@@ -290,7 +290,15 @@ def main(argv: Sequence[str] | None = None) -> None:
     # ==================================================================
     print("• Copying MDP templates ...")
 
-    for fname in ["gromacs_workflow","minimization.mdp","nvt.mdp", "npt.mdp", "deposition.mdp", "production.mdp"]:
+    for fname in [
+    "gromacs_workflow",
+    "minimization.mdp",
+    "nvt.mdp",
+    "npt.mdp",
+    "deposition.mdp",
+    "production.mdp",
+    ]:
+
         src = mdp_pkg / fname
         dst = mdp_dir / fname
         if src.exists():
