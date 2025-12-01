@@ -5,12 +5,19 @@ import sys
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="martinisurf",
-        description="SurfMartini — Toolkit for building Martini/GōMartini"
-        "surface–enzyme systems",
+    prog="martinisurf",
+    description="SurfMartini — Toolkit for building Martini/GōMartini surface–enzyme systems",
+    add_help=False
     )
 
-    subparsers = parser.add_subparsers(dest="tool", required=True)
+    # Custom help so that -h shows BUILD flags
+    parser.add_argument(
+        "-h", "--help",
+        action="store_true",
+        help="Show this help message and exit"
+    )
+
+    subparsers = parser.add_subparsers(dest="tool")
 
     # --------------------------
     # surface
@@ -94,6 +101,13 @@ def main():
     # Parse tool with BUILD as default
     # --------------------------
     args = sys.argv[1:]
+
+    # If -h or --help is passed at top level → show build help
+    if "-h" in args or "--help" in args:
+        import surfmartini.pipeline as build_module
+        build_parser = build_module.build_parser()   # <-- lo explico abajo
+        build_parser.print_help()
+        return
 
     # No arguments → show help
     if len(args) == 0:

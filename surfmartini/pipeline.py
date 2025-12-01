@@ -17,6 +17,122 @@ import shutil
 import subprocess
 from pathlib import Path
 
+# ======================================================================
+# Exposed parser for "martinisurf -h"
+# ======================================================================
+def build_parser():
+    parser = argparse.ArgumentParser(
+        description="Full MartiniSurf pipeline: martinize2 → surface → orient → GoMartini system",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    # -------------------------------
+    # Input / Output
+    # -------------------------------
+    parser.add_argument("--pdb", required=True,
+        help="Input all-atom PDB file")
+
+    parser.add_argument("--moltype", default="Active",
+        help="Name assigned to the molecule in topology files")
+
+    parser.add_argument("--merge", default=None,
+        help="Merge chains: e.g. 'A,B' or 'all'")
+
+    # -------------------------------
+    # Force field
+    # -------------------------------
+    parser.add_argument("--ff", default="martini3001",
+        help="Martini force field to use")
+
+    # -------------------------------
+    # Position restraints
+    # -------------------------------
+    parser.add_argument("--p", choices=["none", "all", "backbone"], default="none",
+        help="Position restraints to write (none/all/backbone)")
+
+    parser.add_argument("--pf", type=float, default=1000,
+        help="Position restraint force constant (kJ/mol/nm^2)")
+
+    # -------------------------------
+    # Secondary structure (DSSP)
+    # -------------------------------
+    parser.add_argument("--dssp", nargs="?", const="mkdssp", default="mkdssp",
+        help="DSSP executable for secondary structure assignment")
+
+    # -------------------------------
+    # Elastic network
+    # -------------------------------
+    parser.add_argument("--elastic", action="store_true",
+        help="Enable elastic network")
+
+    parser.add_argument("--ef", type=float, default=700,
+        help="Elastic bond force constant (kJ/mol/nm^2)")
+
+    # -------------------------------
+    # GoMartini
+    # -------------------------------
+    parser.add_argument("--go", nargs="?", const="auto",
+        help="Enable GoMartini model; optional input contact map")
+
+    parser.add_argument("--go-eps", type=float, default=9.414,
+        help="Strength of GoMartini bias (kJ/mol)")
+
+    parser.add_argument("--go-low", type=float, default=0.3,
+        help="Minimum contact distance (nm)")
+
+    parser.add_argument("--go-up", type=float, default=1.1,
+        help="Maximum contact distance (nm)")
+
+    parser.add_argument("--go-write-file", nargs="?", const=True, default=False,
+        help="Write GoMartini contact map to file")
+
+    # -------------------------------
+    # Protein description
+    # -------------------------------
+    parser.add_argument("--cys", default="auto",
+        help="Cysteine bridge mode (auto/none/custom)")
+
+    parser.add_argument("--mutate", nargs="+", default=[],
+        help="Mutation specification e.g. A-PHE45:ALA")
+
+    # -------------------------------
+    # Surface
+    # -------------------------------
+    parser.add_argument("--surface-bead", default="P4",
+        help="Martini bead type for the surface")
+
+    parser.add_argument("--dx", type=float, default=0.47,
+        help="Mesh spacing of hexagonal lattice (nm)")
+
+    parser.add_argument("--lx", type=float, required=True,
+        help="Surface length along X (nm)")
+
+    parser.add_argument("--ly", type=float, required=True,
+        help="Surface length along Y (nm)")
+
+    # -------------------------------
+    # Orientation
+    # -------------------------------
+    parser.add_argument("--resA", nargs="+", type=int,
+        help="Anchor residues (set A)")
+
+    parser.add_argument("--resB", nargs="+", type=int,
+        help="Anchor residues (set B)")
+
+    parser.add_argument("--anchor", nargs="+", type=int,
+        help="Explicit anchor residues (override resA/resB)")
+
+    parser.add_argument("--dist", type=float, default=10.0,
+        help="Vertical distance between enzyme anchors and surface (Å)")
+
+    # -------------------------------
+    # Output directory
+    # -------------------------------
+    parser.add_argument("--outdir", default="Simulation_Files",
+        help="Output directory for the generated system")
+
+    return parser
+
 
 # ======================================================================
 # Utility: run shell command
