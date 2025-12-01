@@ -16,6 +16,7 @@ import argparse
 import shutil
 import subprocess
 from pathlib import Path
+from utils.pdb_rscb import load_clean_pdb
 
 # ======================================================================
 # Exposed parser for "martinisurf -h"
@@ -29,8 +30,10 @@ def build_parser():
     # -------------------------------
     # Input / Output
     # -------------------------------
-    parser.add_argument("--pdb", required=True,
-        help="Input all-atom PDB file")
+    parser.add_argument(
+    "--pdb", required=True,
+    help="Input structure: local PDB file or 4-letter RCSB PDB ID (e.g. 1A2B)"
+     )
 
     parser.add_argument("--moltype", default="Active",
         help="Name assigned to the molecule in topology files")
@@ -231,7 +234,17 @@ def main(argv=None) -> None:
     enzyme_cg_out = (tmpdir / "enzyme_cg.pdb").resolve()
     topfile_out = (tmpdir / "enzyme_cg.top").resolve()
 
-    pdb_abs = Path(args.pdb).resolve()
+    # ------------------------------
+    # Resolve and clean PDB (file or RCSB ID)
+    # ------------------------------
+    from utils.pdb_rscb import load_clean_pdb
+
+    selected_chain = getattr(args, "chain", None)
+    pdb_abs = load_clean_pdb(
+        args.pdb,
+        workdir=simdir,
+        chain=selected_chain
+    )
 
     martinize_cmd = [
         "martinize2",
