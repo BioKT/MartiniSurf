@@ -1,0 +1,16 @@
+#define GO_VIRT
+
+#include "system_itp/martini_v3.0.0_Active.itp"
+#include "system_itp/martini_v3.0.0_solvents_v1.itp"
+#include "system_itp/martini_v3.0.0_ions_v1.itp"
+#include "system_itp/Protein_anchor.itp"
+#include "system_itp/surface.itp"
+
+[ system ]
+GoMartini Surface Simulation (restr)
+
+[ molecules ]
+Protein   1
+SRF      672
+W        0
+Na       0
