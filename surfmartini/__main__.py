@@ -5,23 +5,23 @@ import sys
 
 def main():
     parser = argparse.ArgumentParser(
-    prog="martinisurf",
-    description="SurfMartini — Toolkit for building Martini/GōMartini surface–enzyme systems",
-    add_help=False
+        prog="martinisurf",
+        description="SurfMartini — Toolkit for building Martini/GōMartini surface–enzyme systems",
+        add_help=False
     )
 
-    # Custom help so that -h shows BUILD flags
+    # Custom help: top-level -h shows BUILD flags
     parser.add_argument(
         "-h", "--help",
         action="store_true",
-        help="Show this help message and exit"
+        help="Show detailed help (build flags)"
     )
 
     subparsers = parser.add_subparsers(dest="tool")
 
-    # --------------------------
+    # ================================================================
     # surface
-    # --------------------------
+    # ================================================================
     p_surface = subparsers.add_parser("surface")
     p_surface.add_argument("--bead", default="P4")
     p_surface.add_argument("--dx", type=float, default=0.47)
@@ -32,9 +32,9 @@ def main():
     p_surface.add_argument("--output", default="surface")
     p_surface.add_argument("--charge", type=float, default=0.0)
 
-    # --------------------------
+    # ================================================================
     # orient
-    # --------------------------
+    # ================================================================
     p_orient = subparsers.add_parser("orient")
     p_orient.add_argument("--surface", required=True)
     p_orient.add_argument("--enzyme", required=True)
@@ -45,81 +45,50 @@ def main():
     p_orient.add_argument("--dist", type=float, default=10.0)
     p_orient.add_argument("--display", choices=["on", "off"], default="off")
 
-    # --------------------------
+    # ================================================================
     # system
-    # --------------------------
+    # ================================================================
     p_system = subparsers.add_parser("system")
     p_system.add_argument("--resA", nargs="+", type=int)
     p_system.add_argument("--resB", nargs="+", type=int)
     p_system.add_argument("--anchor", nargs="+", type=int)
     p_system.add_argument("--outdir", type=str, default="GoMartini_System")
 
-    # --------------------------
-    # build (pipeline)
-    # --------------------------
+    # ================================================================
+    # build (pipeline) — minimal parser, full help inside pipeline
+    # ================================================================
     p_build = subparsers.add_parser("build")
+
+    # The build parser here ONLY defines basic structure.
+    # Full help and full argument list is loaded from pipeline.build_parser().
     p_build.add_argument("--pdb", required=True)
-    # Force field
-    p_build.add_argument("--ff", default="martini3001")
-    # Merge chains
-    p_build.add_argument("--merge", default=None)
-    # Position restraints
-    p_build.add_argument("--p", choices=["none", "all", "backbone"], default="none")
-    p_build.add_argument("--pf", type=float, default=1000)
-    # DSSP
-    p_build.add_argument("--dssp", nargs="?", const="mkdssp", default="mkdssp")
-    # Elastic network
-    p_build.add_argument("--elastic", action="store_true")
-    p_build.add_argument("--ef", type=float, default=700)
-    # GoMartini options
-    p_build.add_argument("--go", nargs="?", const="auto")
-    p_build.add_argument("--go-eps", type=float, default=9.414)
-    p_build.add_argument("--go-low", type=float, default=0.3)
-    p_build.add_argument("--go-up", type=float, default=1.1)
-    p_build.add_argument("--go-write-file", nargs="?", const=True, default=False)
-    # Protein description
-    p_build.add_argument("--cys", default="auto")
-    p_build.add_argument("--mutate", nargs="+", default=[])
-    # Passthrough for advanced Martinize2 args
-    p_build.add_argument("--surface-bead", default="P4")
-    p_build.add_argument("--dx", type=float, default=0.47)
-    p_build.add_argument("--lx", type=float, required=True)
-    p_build.add_argument("--ly", type=float, required=True)
-    p_build.add_argument("--resA", nargs="+", type=int)
-    p_build.add_argument("--resB", nargs="+", type=int)
-    p_build.add_argument("--anchor", nargs="+", type=int)
-    p_build.add_argument("--dist", type=float, default=10.0)
-    p_build.add_argument("--outdir", default="SurfMartini_System")
-    p_build.add_argument(
-    "--m2-args",
-    nargs=argparse.REMAINDER,
-    help="Extra arguments passed directly to Martinize2"
-    )
+    p_build.add_argument("--m2-args", nargs=argparse.REMAINDER)
 
-
-    # --------------------------
-    # Parse tool with BUILD as default
-    # --------------------------
+    # ================================================================
+    # Parse top-level CLI
+    # ================================================================
     args = sys.argv[1:]
 
-    # If -h or --help is passed at top level → show build help
+    # CASE 1 → top level help → show FULL BUILD HELP
     if "-h" in args or "--help" in args:
-        import surfmartini.pipeline as build_module
-        build_parser = build_module.build_parser()   # <-- lo explico abajo
-        build_parser.print_help()
+        from surfmartini.pipeline import build_parser
+        build_parser().print_help()
         return
 
-    # No arguments → show help
+    # CASE 2 → no arguments → general help
     if len(args) == 0:
         parser.print_help()
         return
 
-    # Help flag at top level → show help
-    if args[0] in ("-h", "--help"):
-        parser.print_help()
+    # CASE 3 → Explicit help for subcommands
+    if args[0] in ("surface", "orient", "system", "build") and (
+        "-h" in args or "--help" in args
+    ):
+        # Normal argparse help for subcommands
+        parser.parse_args(args)  # will print help automatically
         return
 
-    # If first argument starts with "--", this means implicit build mode
+    # CASE 4 → If the first arg begins with "--", this is an implicit "build"
     if args[0].startswith("--"):
         tool = "build"
         subcmd_args = args
@@ -127,10 +96,9 @@ def main():
         tool = args[0]
         subcmd_args = args[1:]
 
-
-    # --------------------------
-    # route to modules
-    # --------------------------
+    # ================================================================
+    # Route execution to correct module
+    # ================================================================
     if tool == "surface":
         import surfmartini.surface_builder as module
 
@@ -143,14 +111,16 @@ def main():
     elif tool == "build":
         import surfmartini.pipeline as module
 
-    # --------------------------
-    # FIX sys.argv for submodule
-    # --------------------------
+    else:
+        print(f"❌ Unknown command: {tool}")
+        return
+
+    # ================================================================
+    # Fix sys.argv for submodule execution
+    # ================================================================
     sys.argv = ["martinisurf " + tool] + subcmd_args
 
-    # --------------------------
-    # Run module
-    # --------------------------
+    # Call module
     module.main()
 
 

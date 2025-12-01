@@ -143,7 +143,7 @@ def load_clean_pdb(pdb_input: str, workdir: Path, chain: str | None = None) -> P
         • Cleans using simple_clean_pdb
 
     Parameters
-    ----------
+    ----------a
     pdb_input : str
         The string passed via --pdb
     workdir : Path
@@ -157,5 +157,5 @@ def load_clean_pdb(pdb_input: str, workdir: Path, chain: str | None = None) -> P
         Absolute path to cleaned PDB ready for Martinize2
     """
     raw_pdb = resolve_pdb_input(pdb_input, workdir)
-    cleaned = workdir / "cleaned_input.pdb"
+    cleaned = workdir / "2_system/cleaned_input.pdb"
     return simple_clean_pdb(raw_pdb, cleaned, chain=chain).resolve()

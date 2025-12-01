@@ -8,7 +8,7 @@ a flat surface for Martini or GōMartini simulations.
 It outputs:
 - A .gro coordinate file
 - A minimal .itp topology file
-- (Standalone mode only) Automatic copy of surface.itp into ActiveITP/
+- (Standalone mode only) Automatic copy of surface.itp into system_itp/
 """
 
 import argparse
@@ -146,18 +146,18 @@ def main(argv: Iterable[str] | None = None) -> None:
 def resolve_activeitp_destination(outdir: str) -> Path:
     """
     Determine correct surface.itp destination:
-    - Standalone mode: outdir/ActiveITP/surface.itp
+    - Standalone mode: outdir/system_itp/surface.itp
     - Pipeline mode:   SKIP (return a path inside 2_system but caller won't use it)
     """
     outdir_path = Path(outdir)
-    default_dst = outdir_path / "ActiveITP" / "surface.itp"
+    default_dst = outdir_path / "system_itp" / "surface.itp"
 
     # Pipeline detection
     if "Simulation" in str(outdir_path):
         parts = list(outdir_path.parts)
         if "Simulation" in parts:
             sim_root = Path(*parts[: parts.index("Simulation") + 1])
-            topology_dir = sim_root / "0_topology" / "ActiveITP"
+            topology_dir = sim_root / "0_topology" / "system_itp"
             if topology_dir.exists():
                 return topology_dir / "surface.itp"
 

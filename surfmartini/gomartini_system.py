@@ -6,8 +6,8 @@ This module prepares a complete GōMartini simulation directory:
 - Detects the enzyme-on-surface system
 - Creates the 0_topology / 1_mdp / 2_system structure
 - Copies Martini/GōMartini .itp files
-- Builds system.top and system_res.top
-- Generates Active_res.itp with position restraints
+- Builds system.top and system_anchor.top
+- Generates Active_anchor.itp with position restraints
 - Generates index.ndx (Residues_A / Residues_B)
 
 Final step of the MartiniSurf pipeline.
@@ -74,6 +74,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         description="Build GoMartini system with anchoring restraints."
     )
 
+    parser.add_argument("--moltype", required=True)
     parser.add_argument("--resA", nargs="+", type=int)
     parser.add_argument("--resB", nargs="+", type=int)
     parser.add_argument("--anchor", nargs="+", type=int)
@@ -102,21 +103,21 @@ def main(argv: Sequence[str] | None = None) -> None:
     # Detect package paths
     # ==================================================================
     package_dir = Path(surfmartini.__file__).parent
-    activeitp_pkg = package_dir / "ActiveITP"
+    activeitp_pkg = package_dir / "system_itp"
     mdp_pkg = package_dir / "mdp_templates"
 
-    print(f"• ActiveITP path:     {activeitp_pkg}")
+    print(f"• system_itp path:     {activeitp_pkg}")
     print(f"• MDP templates path: {mdp_pkg}")
 
     # ==================================================================
-    # Locate Enzyme_Surface.gro
+    # Locate immobilized_system.gro
     # ==================================================================
     cwd = Path.cwd()
 
     candidates = [
-        cwd / "Enzyme_Surface.gro",
-        cwd / "2_system" / "Enzyme_Surface.gro",
-        Path(args.outdir).resolve() / "2_system" / "Enzyme_Surface.gro",
+        cwd / "immobilized_system.gro",
+        cwd / "2_system" / "immobilized_system.gro",
+        Path(args.outdir).resolve() / "2_system" / "immobilized_system.gro",
     ]
 
     input_gro: Path | None = None
@@ -127,7 +128,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     if input_gro is None:
         raise FileNotFoundError(
-            "Could not find Enzyme_Surface.gro in any expected location."
+            "Could not find immobilized_system.gro in any expected location."
         )
 
     output_root = input_gro.parent.parent.resolve()
@@ -166,10 +167,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     # ==================================================================
     # Copy ActiveITP files
     # ==================================================================
-    dst_active = topo_dir / "ActiveITP"
+    dst_active = topo_dir / "system_itp"
     ensure_dir(dst_active)
 
-    print("• Copying ActiveITP files...")
+    print("• Copying system_itp files...")
     for fname in os.listdir(activeitp_pkg):
         src = activeitp_pkg / fname
         dst = dst_active / fname
@@ -179,14 +180,13 @@ def main(argv: Sequence[str] | None = None) -> None:
             print(f"  ✔ Copied {fname}")
 
     # Ensure Active.itp exists
-    active_alias = dst_active / "Active.itp"
-    source_active = dst_active / "martini_v3.0.0_Active.itp"
+    # source_active = dst_active / "martini_v3.0.0_Active.itp"
 
-    if active_alias.exists():
-        print("  ✔ Found existing Active.itp")
-    else:
-        shutil.copy(source_active, active_alias)
-        print("  ✔ Created Active.itp from martini_v3.0.0_Active.itp")
+    #if active_alias.exists():
+    #    print("  ✔ Found existing Active.itp")
+    #else:
+    #    shutil.copy(source_active, active_alias)
+    #    print("  ✔ Created Active.itp from martini_v3.0.0_Active.itp")
 
     # ==================================================================
     # Build system.top
@@ -199,30 +199,30 @@ def main(argv: Sequence[str] | None = None) -> None:
     n_surf = len({a.resid for a in u2.atoms if a.resname == "SRF"})
     n_water = len({a.resid for a in u2.atoms if a.resname in ["W", "WAT"]})
     n_ions = len({a.resid for a in u2.atoms if a.resname.upper() in ["NA", "CL"]})
+    mol = args.moltype
 
     topfile = topo_dir / "system.top"
     with open(topfile, "w") as ftop:
         ftop.write("#define GO_VIRT\n\n")
-        ftop.write('#include "ActiveITP/martini_v3.0.0_Active.itp"\n')
-        ftop.write('#include "ActiveITP/martini_v3.0.0_solvents_v1.itp"\n')
-        ftop.write('#include "ActiveITP/martini_v3.0.0_ions_v1.itp"\n')
-        ftop.write('#include "ActiveITP/Active.itp"\n')
-        ftop.write('#include "ActiveITP/surface.itp"\n\n')
-
+        ftop.write('#include "system_itp/martini_v3.0.0_Active.itp"\n')
+        ftop.write('#include "system_itp/martini_v3.0.0_solvents_v1.itp"\n')
+        ftop.write('#include "system_itp/martini_v3.0.0_ions_v1.itp"\n')
+        ftop.write(f'#include "system_itp/{mol}.itp"\n')
+        ftop.write('#include "system_itp/surface.itp"\n\n')
         ftop.write("[ system ]\nGoMartini Surface Simulation\n\n")
         ftop.write("[ molecules ]\n")
-        ftop.write(f"Active   {n_active}\n")
+        ftop.write(f"{mol}   {n_active}\n")
         ftop.write(f"SRF      {n_surf}\n")
         ftop.write(f"W        {n_water}\n")
         ftop.write(f"Na       {n_ions}\n")
 
     # ==================================================================
-    # Build Active_res.itp
+    # Build Active_anchor.itp
     # ==================================================================
-    print("• Generating Active_res.itp ...")
+    print("• Generating Active_anchor.itp ...")
 
-    active_src = dst_active / "Active.itp"
-    active_res = dst_active / "Active_res.itp"
+    active_src = dst_active / f"{mol}.itp"
+    active_res = dst_active / f"{mol}_anchor.itp"
 
     new_content: List[str] = []
     inside_posres = False
@@ -253,22 +253,22 @@ def main(argv: Sequence[str] | None = None) -> None:
         fout.write("".join(new_content))
 
     # ==================================================================
-    # Build system_res.top
+    # Build system_anchor.top
     # ==================================================================
-    print("• Generating system_res.top ...")
+    print("• Generating system_anchor.top ...")
 
-    topfile_res = topo_dir / "system_res.top"
+    topfile_res = topo_dir / "system_anchor.top"
     with open(topfile_res, "w") as ftop:
         ftop.write("#define GO_VIRT\n\n")
-        ftop.write('#include "ActiveITP/martini_v3.0.0_Active.itp"\n')
-        ftop.write('#include "ActiveITP/martini_v3.0.0_solvents_v1.itp"\n')
-        ftop.write('#include "ActiveITP/martini_v3.0.0_ions_v1.itp"\n')
-        ftop.write('#include "ActiveITP/Active_res.itp"\n')
-        ftop.write('#include "ActiveITP/surface.itp"\n\n')
+        ftop.write('#include "system_itp/martini_v3.0.0_Active.itp"\n')
+        ftop.write('#include "system_itp/martini_v3.0.0_solvents_v1.itp"\n')
+        ftop.write('#include "system_itp/martini_v3.0.0_ions_v1.itp"\n')
+        ftop.write(f'#include "system_itp/{mol}_anchor.itp"\n')
+        ftop.write('#include "system_itp/surface.itp"\n\n')
 
         ftop.write("[ system ]\nGoMartini Surface Simulation (restr)\n\n")
         ftop.write("[ molecules ]\n")
-        ftop.write(f"Active   {n_active}\n")
+        ftop.write(f"{mol}   {n_active}\n")
         ftop.write(f"SRF      {n_surf}\n")
         ftop.write(f"W        {n_water}\n")
         ftop.write(f"Na       {n_ions}\n")
@@ -290,7 +290,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     # ==================================================================
     print("• Copying MDP templates ...")
 
-    for fname in ["nvt.mdp", "npt.mdp", "deposition.mdp", "production.mdp"]:
+    for fname in ["gromacs_workflow","minimization.mdp","nvt.mdp", "npt.mdp", "deposition.mdp", "production.mdp"]:
         src = mdp_pkg / fname
         dst = mdp_dir / fname
         if src.exists():
