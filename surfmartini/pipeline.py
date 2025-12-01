@@ -16,7 +16,7 @@ import argparse
 import shutil
 import subprocess
 from pathlib import Path
-from utils.pdb_rscb import load_clean_pdb
+from surfmartini.utils.pdb_rscb import load_clean_pdb
 
 # ======================================================================
 # Exposed parser for "martinisurf -h"
@@ -237,7 +237,6 @@ def main(argv=None) -> None:
     # ------------------------------
     # Resolve and clean PDB (file or RCSB ID)
     # ------------------------------
-    from utils.pdb_rscb import load_clean_pdb
 
     selected_chain = getattr(args, "chain", None)
     pdb_abs = load_clean_pdb(
