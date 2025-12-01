@@ -95,19 +95,24 @@ def main():
     # --------------------------
     args = sys.argv[1:]
 
+    # No arguments → show help
     if len(args) == 0:
-        # No arguments → default to build
+        parser.print_help()
+        return
+
+    # Help flag at top level → show help
+    if args[0] in ("-h", "--help"):
+        parser.print_help()
+        return
+
+    # If first argument starts with "--", this means implicit build mode
+    if args[0].startswith("--"):
         tool = "build"
-        subcmd_args = []
+        subcmd_args = args
     else:
-        # If first argument starts with --, user wants implicit build
-        if args[0].startswith("--"):
-            tool = "build"
-            subcmd_args = args
-        else:
-            # User gave explicit subcommand
-            tool = args[0]
-            subcmd_args = args[1:]
+        tool = args[0]
+        subcmd_args = args[1:]
+
 
     # --------------------------
     # route to modules
