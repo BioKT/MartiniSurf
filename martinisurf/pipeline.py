@@ -15,7 +15,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from surfmartini.utils.pdb_rscb import load_clean_pdb
+from martinisurf.utils.pdb_rscb import load_clean_pdb
 
 
 # ======================================================================
@@ -303,7 +303,7 @@ def main(argv=None):
         # GENERATE NEW SURFACE
         # =====================================
         print("\n🌐 Generating new surface...\n")
-        import surfmartini.surface_builder as sb
+        import martinisurf.surface_builder as sb
 
         sb.main([
             "--lx", str(args.lx),
@@ -320,8 +320,8 @@ def main(argv=None):
     # =========================================================================
     # 4) Orientation
     # =========================================================================
-    import surfmartini.enzyme_tethered as orient_mod
-    from surfmartini.enzyme_tethered import convert_pdb_to_gro
+    import martinisurf.enzyme_tethered as orient_mod
+    from martinisurf.enzyme_tethered import convert_pdb_to_gro
 
     enzyme_gro = system_dir / "enzyme_cg.gro"
     convert_pdb_to_gro(str(system_dir / "enzyme_cg.pdb"), str(enzyme_gro))
@@ -347,7 +347,7 @@ def main(argv=None):
     # =========================================================================
     # 5) Final system
     # =========================================================================
-    import surfmartini.gomartini_system as gsm
+    import martinisurf.gomartini_system as gsm
 
     final_args = ["--outdir", str(simdir)]
 

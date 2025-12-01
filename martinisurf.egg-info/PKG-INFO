@@ -1,0 +1,8 @@
+Metadata-Version: 2.1
+Name: martinisurf
+Version: 1.0.0
+Requires-Dist: numpy
+Requires-Dist: pyvista
+Requires-Dist: MDAnalysis
+Requires-Dist: scipy
+Requires-Dist: vermouth

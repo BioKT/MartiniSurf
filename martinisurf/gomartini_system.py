@@ -23,7 +23,7 @@ from typing import List, Sequence
 
 import MDAnalysis as mda
 
-import surfmartini
+import martinisurf
 
 
 # ======================================================================
@@ -102,7 +102,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     # ==================================================================
     # Detect package paths
     # ==================================================================
-    package_dir = Path(surfmartini.__file__).parent
+    package_dir = Path(martinisurf.__file__).parent
     activeitp_pkg = package_dir / "system_itp"
     mdp_pkg = package_dir / "mdp_templates"
 

@@ -74,7 +74,7 @@ def main():
 
     # CASE 1 → top level help → show FULL BUILD HELP
     if "-h" in args or "--help" in args:
-        from surfmartini.pipeline import build_parser
+        from martinisurf.pipeline import build_parser
         build_parser().print_help()
         return
 
@@ -103,16 +103,16 @@ def main():
     # Route execution to correct module
     # ================================================================
     if tool == "surface":
-        import surfmartini.surface_builder as module
-
+        import martinisurf.surface_builder as module
+    
     elif tool == "orient":
-        import surfmartini.enzyme_tethered as module
+        import martinisurf.enzyme_tethered as module
 
     elif tool == "system":
-        import surfmartini.gomartini_system as module
+        import martinisurf.gomartini_system as module
 
     elif tool == "build":
-        import surfmartini.pipeline as module
+        import martinisurf.pipeline as module
 
     else:
         print(f"❌ Unknown command: {tool}")

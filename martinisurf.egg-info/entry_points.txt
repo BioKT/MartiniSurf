@@ -1,0 +1,2 @@
+[console_scripts]
+martinisurf = martinisurf.__main__:main

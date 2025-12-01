@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="surfmartini",
+    name="martinisurf",
     version="1.0.0",
     packages=find_packages(),
     include_package_data=True,
@@ -14,7 +14,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "martinisurf = surfmartini.__main__:main",
+            "martinisurf = martinisurf.__main__:main",
         ]
     }
 )
