@@ -1,0 +1,9 @@
+;;;;;; Minimal surface topology
+
+[ moleculetype ]
+; molname   nrexcl
+  SRF        1
+
+[ atoms ]
+; id  type  resnr  residu  atom  cgnr  charge
+  1   C1       1   SRF    C     1     0.000

@@ -5,13 +5,13 @@ import sys
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="martinisurf",
-        description=(
-    "SurfMartini — Toolkit for building Martini/GōMartini "
-    "surface–enzyme systems"
+    prog="martinisurf",
+    description=(
+        "SurfMartini — Toolkit for building Martini/GōMartini "
+        "surface–enzyme systems"
     ),
-        add_help=False
-    )
+    add_help=False,
+)
 
     # Custom help: top-level -h shows BUILD flags
     parser.add_argument(
