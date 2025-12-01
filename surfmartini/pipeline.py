@@ -133,15 +133,33 @@ def main(argv=None) -> None:
         args.moltype,
     ]
 
-    if args.go == "auto":
-        martinize_cmd += ["-go"]
-    elif args.go != "none":
-        martinize_cmd += ["-go", args.go]
+    # Position restraints
+    if args.p != "none":
+        martinize_cmd += ["-p", args.p]
+    martinize_cmd += ["-pf", str(args.pf)]
 
-    martinize_cmd += ["-go-eps", str(args.eps)]
+    # Elastic network
+    if args.elastic:
+        martinize_cmd.append("-elastic")
+    martinize_cmd += ["-ef", str(args.ef)]
 
-    if args.merge:
-        martinize_cmd += ["-merge", args.merge]
+    # GoMartini options
+    if args.go is not None:
+        martinize_cmd += ["-go", args.go] if args.go != "auto" else ["-go"]
+    martinize_cmd += ["-go-eps", str(args.go_eps)]
+    martinize_cmd += ["-go-low", str(args.go_low)]
+    martinize_cmd += ["-go-up", str(args.go_up)]
+    if args.go_write_file:
+        martinize_cmd += ["-go-write-file"]
+
+    # Protein options
+    martinize_cmd += ["-cys", args.cys]
+    for mut in args.mutate:
+        martinize_cmd += ["-mutate", mut]
+
+    # Extra raw args (hidden)
+    if args.m2_args:
+        martinize_cmd += args.m2_args
 
     run(martinize_cmd)
 

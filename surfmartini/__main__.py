@@ -52,12 +52,28 @@ def main():
     # --------------------------
     p_build = subparsers.add_parser("build")
     p_build.add_argument("--pdb", required=True)
-    p_build.add_argument("--go", nargs="?", default="auto")
-    p_build.add_argument("--eps", type=float, default=9.414)
-    p_build.add_argument("--dssp", default="mkdssp")
+    # Force field
     p_build.add_argument("--ff", default="martini3001")
-    p_build.add_argument("--moltype", default="Active")
+    # Merge chains
     p_build.add_argument("--merge", default=None)
+    # Position restraints
+    p_build.add_argument("--p", choices=["none", "all", "backbone"], default="none")
+    p_build.add_argument("--pf", type=float, default=1000)
+    # DSSP
+    p_build.add_argument("--dssp", nargs="?", const="mkdssp", default="mkdssp")
+    # Elastic network
+    p_build.add_argument("--elastic", action="store_true")
+    p_build.add_argument("--ef", type=float, default=700)
+    # GoMartini options
+    p_build.add_argument("--go", nargs="?", const="auto")
+    p_build.add_argument("--go-eps", type=float, default=9.414)
+    p_build.add_argument("--go-low", type=float, default=0.3)
+    p_build.add_argument("--go-up", type=float, default=1.1)
+    p_build.add_argument("--go-write-file", nargs="?", const=True, default=False)
+    # Protein description
+    p_build.add_argument("--cys", default="auto")
+    p_build.add_argument("--mutate", nargs="+", default=[])
+    # Passthrough for advanced Martinize2 args
     p_build.add_argument("--surface-bead", default="P4")
     p_build.add_argument("--dx", type=float, default=0.47)
     p_build.add_argument("--lx", type=float, required=True)
@@ -67,6 +83,12 @@ def main():
     p_build.add_argument("--anchor", nargs="+", type=int)
     p_build.add_argument("--dist", type=float, default=10.0)
     p_build.add_argument("--outdir", default="SurfMartini_System")
+    p_build.add_argument(
+    "--m2-args",
+    nargs=argparse.REMAINDER,
+    help="Extra arguments passed directly to Martinize2"
+    )
+
 
     # --------------------------
     # Parse tool with BUILD as default

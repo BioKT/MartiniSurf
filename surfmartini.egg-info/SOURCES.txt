@@ -1,3 +1,4 @@
+README.md
 setup.py
 surfmartini/__init__.py
 surfmartini/__main__.py
@@ -11,4 +12,6 @@ surfmartini.egg-info/dependency_links.txt
 surfmartini.egg-info/entry_points.txt
 surfmartini.egg-info/requires.txt
 surfmartini.egg-info/top_level.txt
+tests/test_enzyme_tethered.py
 tests/test_surface_builder.py
+tests/test_system.py
