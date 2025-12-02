@@ -62,15 +62,15 @@ It provides:
 
 ## 🔧 **Installation**
 
-conda create -n martinisurf
+- conda create -n martinisurf
 
-conda activate martinisurf
+- conda activate martinisurf
 
-pip install -r surfmartini
+- pip install -r surfmartini
 
-conda install pip
+- conda install pip
 
-pip install .
+- pip install .
 
 ### 🔍 What this does
 
