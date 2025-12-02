@@ -311,8 +311,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     with open(indexfile, "w") as ndx:
 
         # First: all anchors merged
-        ndx.write("[ Anchor_All ]\n")
-        write_list([atom for lst in anchor_atoms.values() for atom in lst], ndx)
+        #ndx.write("[ Anchor_All ]\n")
+        #write_list([atom for lst in anchor_atoms.values() for atom in lst], ndx)
 
         # Then: individual groups
         for group_id, atom_list in anchor_atoms.items():

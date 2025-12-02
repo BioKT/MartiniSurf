@@ -15,7 +15,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from martinisurf.utils.pdb_rscb import load_clean_pdb
+from martinisurf.utils.pdb_generation import load_clean_pdb
 
 
 # ======================================================================
@@ -32,7 +32,10 @@ def build_parser():
     # --------------------------
     parser.add_argument(
         "--pdb", required=True,
-        help="Input structure: path/to/file.pdb or RCSB ID (e.g. 1RJW)"
+        help=(
+    "Input structure: local PDB file, RCSB ID (4 letters) or UniProt ID (6 letters for AlphaFold)."
+    )
+
     )
 
     parser.add_argument("--moltype", required=True,
