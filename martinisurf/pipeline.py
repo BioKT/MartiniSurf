@@ -121,14 +121,18 @@ def build_parser():
     # --------------------------
     # ORIENTATION
     # --------------------------
-    parser.add_argument("--resA", nargs="+", type=int,
-        help="Anchor residues (set A)")
+    # Multi-anchor input system
+    parser.add_argument(
+    "--anchor",
+    nargs="+",
+    action="append",
+    metavar=("GROUP", "RESID"),
+    help=(
+        "Define an anchor group as: GROUP RESID [RESID ...]. "
+        "You can repeat this flag multiple times."
+    ),
+)
 
-    parser.add_argument("--resB", nargs="+", type=int,
-        help="Anchor residues (set B)")
-
-    parser.add_argument("--anchor", nargs="+", type=int,
-        help="Explicit anchors (override resA/resB)")
 
     parser.add_argument("--dist", type=float, default=10.0,
         help="Vertical enzyme–surface distance (Å)")
@@ -333,14 +337,10 @@ def main(argv=None):
         "--dist",    str(args.dist),
     ]
 
-    if args.resA:
-        orient_args += ["--resA"] + [str(x) for x in args.resA]
-
-    if args.resB:
-        orient_args += ["--resB"] + [str(x) for x in args.resB]
-
+    # Multi-anchor forwarding to orientation
     if args.anchor:
-        orient_args += ["--anchor"] + [str(x) for x in args.anchor]
+        for group in args.anchor:
+            orient_args += ["--anchor"] + [str(x) for x in group]
 
     orient_mod.main(orient_args)
 
@@ -351,20 +351,15 @@ def main(argv=None):
 
     final_args = ["--outdir", str(simdir)]
 
-    if args.resA:
-        final_args += ["--resA"] + [str(x) for x in args.resA]
-
-    if args.resB:
-        final_args += ["--resB"] + [str(x) for x in args.resB]
-
+    # Multi-anchor forwarding to GoMartini builder
     if args.anchor:
-        final_args += ["--anchor"] + [str(x) for x in args.anchor]
+        for group in args.anchor:
+            final_args += ["--anchor"] + [str(x) for x in group]
 
     final_args += ["--moltype", args.moltype]
 
-
     gsm.main(final_args)
-
+    
     shutil.rmtree(tmpdir)
 
     print("\n=====================================")

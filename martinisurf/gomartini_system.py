@@ -75,29 +75,51 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
 
     parser.add_argument("--moltype", required=True)
-    parser.add_argument("--resA", nargs="+", type=int)
-    parser.add_argument("--resB", nargs="+", type=int)
-    parser.add_argument("--anchor", nargs="+", type=int)
+    #parser.add_argument("--resA", nargs="+", type=int)
+    #parser.add_argument("--resB", nargs="+", type=int)
+    #parser.add_argument("--anchor", nargs="+", type=int)
     parser.add_argument("--outdir", default="Simulation")
+    # Multi-anchor input system 
+    parser.add_argument(
+    "--anchor",
+    nargs="+",
+    action="append",
+    metavar=("GROUP", "RESID"),
+    help=(
+        "Define an anchor group as: GROUP RESID [RESID ...]. "
+        "Repeat this flag to define multiple groups."
+    ),
+)
 
     args = parser.parse_args(argv) if argv is not None else parser.parse_args()
 
-    # ==================================================================
-    # Determine anchor residues
-    # ==================================================================
-    if args.resA or args.resB:
-        print("\n• Using explicit resA / resB lists")
-        resA: List[int] = args.resA or []
-        resB: List[int] = args.resB or []
-    elif args.anchor:
-        print("\n• Using unified --anchor list for both groups")
-        resA = list(args.anchor)
-        resB = list(args.anchor)
-    else:
-        raise ValueError("You must provide --resA/--resB or --anchor.")
+    # ===============================================================
+    # Collect unlimited anchor groups
+    # ===============================================================
+ 
+    if args.anchor is None:
+        raise ValueError("❌ No anchors provided. Use --anchor GROUP RES ... (repeatable)")
 
-    print(f"  → Residues A = {resA}")
-    print(f"  → Residues B = {resB}\n")
+    # Convert to dict: { group_id: [res1, res2...] }
+    anchor_groups = {}
+
+    for group in args.anchor:
+        group_id = int(group[0])
+        residues = list(map(int, group[1:]))
+
+        if group_id in anchor_groups:
+            raise ValueError(f"❌ Duplicate group ID {group_id} in --anchor")
+
+        anchor_groups[group_id] = residues
+
+    # Sort numerically by group ID
+    anchor_groups = dict(sorted(anchor_groups.items()))
+
+    print("\n=== Anchor Groups Provided ===")
+    for gid, reslist in anchor_groups.items():
+        print(f"  Anchor_{gid}: {reslist}")
+    print()
+
 
     # ==================================================================
     # Detect package paths
@@ -138,18 +160,21 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     u = mda.Universe(str(input_gro))
 
-    # ==================================================================
-    # Residue → atom ID mapping
-    # ==================================================================
-    residues_a_atoms = [
-        int(a.index + 1) for a in u.atoms if (a.resnum in resA and a.name != "CA")
-    ]
-    residues_b_atoms = [
-        int(a.index + 1) for a in u.atoms if (a.resnum in resB and a.name != "CA")
-    ]
+    # ===============================================================
+    # Build atom lists for each anchor group
+    # ===============================================================
+    anchor_atoms = {}  # {group_id: [atom_ids]}
 
-    print(f"  → Group A atoms: {len(residues_a_atoms)}")
-    print(f"  → Group B atoms: {len(residues_b_atoms)}\n")
+    for group_id, residues in anchor_groups.items():
+
+        atom_list = [
+            int(a.index + 1)
+            for a in u.atoms
+            if (a.resnum in residues and a.name != "CA")
+        ]
+
+        anchor_atoms[group_id] = atom_list
+        print(f"  → Anchor_{group_id}: {len(atom_list)} atoms")
 
     # ==================================================================
     # Create folder structure
@@ -244,8 +269,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     new_content.append("\n[ position_restraints ]\n")
     new_content.append("#ifdef POSRES\n")
 
-    for atomid in residues_a_atoms + residues_b_atoms:
-        new_content.append(f"{atomid} 1 1000 1000 0\n")
+    new_content.append("\n[ position_restraints ]\n")
+    new_content.append("#ifdef POSRES\n")
+
+    for group_id, atom_list in anchor_atoms.items():
+        for atomid in atom_list:
+            new_content.append(f"{atomid} 1 1000 1000 0\n")
 
     new_content.append("#endif\n")
 
@@ -280,10 +309,15 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     indexfile = topo_dir / "index.ndx"
     with open(indexfile, "w") as ndx:
-        ndx.write("[ Residues_A ]\n")
-        write_list(residues_a_atoms, ndx)
-        ndx.write("\n[ Residues_B ]\n")
-        write_list(residues_b_atoms, ndx)
+
+        # First: all anchors merged
+        ndx.write("[ Anchor_All ]\n")
+        write_list([atom for lst in anchor_atoms.values() for atom in lst], ndx)
+
+        # Then: individual groups
+        for group_id, atom_list in anchor_atoms.items():
+            ndx.write(f"\n[ Anchor_{group_id} ]\n")
+            write_list(atom_list, ndx)
 
     # ==================================================================
     # Copy MDP files

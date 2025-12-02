@@ -5,15 +5,17 @@ import sys
 
 def main():
     parser = argparse.ArgumentParser(
-    prog="martinisurf",
-    description=(
-        "MartiniSurf — Toolkit for building Martini/GōMartini "
-        "surface–enzyme systems"
-    ),
-    add_help=False,
-)
+        prog="martinisurf",
+        description=(
+            "MartiniSurf — Toolkit for building Martini/GōMartini "
+            "surface–enzyme systems"
+        ),
+        add_help=False,
+    )
 
-    # Custom help: top-level -h shows BUILD flags
+    # ---------------------------------------------------------------
+    # TOP-LEVEL HELP
+    # ---------------------------------------------------------------
     parser.add_argument(
         "-h", "--help",
         action="store_true",
@@ -42,56 +44,70 @@ def main():
     p_orient.add_argument("--surface", required=True)
     p_orient.add_argument("--enzyme", required=True)
     p_orient.add_argument("--out", default="Enzyme_Surface.gro")
-    p_orient.add_argument("--resA", nargs="+", type=int)
-    p_orient.add_argument("--resB", nargs="+", type=int)
-    p_orient.add_argument("--anchor", nargs="+", type=int)
     p_orient.add_argument("--dist", type=float, default=10.0)
     p_orient.add_argument("--display", choices=["on", "off"], default="off")
+
+    # ---- MULTI-ANCHOR INPUT ----
+    p_orient.add_argument(
+        "--anchor",
+        nargs="+",
+        metavar=("GROUP", "RESID"),
+        action="append",
+        help=(
+            "Define an anchor group as: GROUP RESID [RESID ...]. "
+            "Repeat this flag to define multiple groups."
+        ),
+    )
 
     # ================================================================
     # system
     # ================================================================
     p_system = subparsers.add_parser("system")
-    p_system.add_argument("--resA", nargs="+", type=int)
-    p_system.add_argument("--resB", nargs="+", type=int)
-    p_system.add_argument("--anchor", nargs="+", type=int)
     p_system.add_argument("--outdir", type=str, default="GoMartini_System")
 
+    # ---- MULTI-ANCHOR INPUT ----
+    p_system.add_argument(
+        "--anchor",
+        nargs="+",
+        metavar=("GROUP", "RESID"),
+        action="append",
+        help=(
+            "Define an anchor group as: GROUP RESID [RESID ...]. "
+            "Repeat this flag to define multiple groups."
+        ),
+    )
+
     # ================================================================
-    # build (pipeline) — minimal parser, full help inside pipeline
+    # build (pipeline)
     # ================================================================
     p_build = subparsers.add_parser("build")
-
-    # The build parser here ONLY defines basic structure.
-    # Full help and full argument list is loaded from pipeline.build_parser().
     p_build.add_argument("--pdb", required=True)
     p_build.add_argument("--m2-args", nargs=argparse.REMAINDER)
 
     # ================================================================
-    # Parse top-level CLI
+    # PARSE TOP-LEVEL ARGS
     # ================================================================
     args = sys.argv[1:]
 
-    # CASE 1 → top level help → show FULL BUILD HELP
+    # CASE 1 → top-level help shows the full BUILD parser
     if "-h" in args or "--help" in args:
         from martinisurf.pipeline import build_parser
         build_parser().print_help()
         return
 
-    # CASE 2 → no arguments → general help
+    # CASE 2 → no arguments
     if len(args) == 0:
         parser.print_help()
         return
 
-    # CASE 3 → Explicit help for subcommands
+    # CASE 3 → subcommand + help
     if args[0] in ("surface", "orient", "system", "build") and (
         "-h" in args or "--help" in args
     ):
-        # Normal argparse help for subcommands
-        parser.parse_args(args)  # will print help automatically
+        parser.parse_args(args)
         return
 
-    # CASE 4 → If the first arg begins with "--", this is an implicit "build"
+    # CASE 4 → implicit "build"
     if args[0].startswith("--"):
         tool = "build"
         subcmd_args = args
@@ -100,30 +116,23 @@ def main():
         subcmd_args = args[1:]
 
     # ================================================================
-    # Route execution to correct module
+    # ROUTE MODULE
     # ================================================================
     if tool == "surface":
         import martinisurf.surface_builder as module
-    
     elif tool == "orient":
         import martinisurf.enzyme_tethered as module
-
     elif tool == "system":
         import martinisurf.gomartini_system as module
-
     elif tool == "build":
         import martinisurf.pipeline as module
-
     else:
         print(f"❌ Unknown command: {tool}")
         return
 
-    # ================================================================
-    # Fix sys.argv for submodule execution
-    # ================================================================
+    # FIX argv for module
     sys.argv = ["martinisurf " + tool] + subcmd_args
 
-    # Call module
     module.main()
 
 
