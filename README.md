@@ -68,6 +68,16 @@ It provides:
 - conda install pip
 - pip install .
 
+## ⚡ **Quickstart**
+martinisurf \
+    --pdb 1RJW \
+    --moltype Protein \
+    --lx 20 --ly 20 \
+    --surface-bead C1 \
+    --anchor 1 8 10 11 \
+    --anchor 2 1025 1027 1028 \
+    --dist 10
+
 ### 🔍 What this does
 
 - 📥 Downloads **1RJW** from RCSB  
