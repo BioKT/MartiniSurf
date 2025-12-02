@@ -1,5 +1,0 @@
-numpy
-pyvista
-MDAnalysis
-scipy
-vermouth

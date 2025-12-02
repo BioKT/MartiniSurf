@@ -1,2 +1,0 @@
-[console_scripts]
-martinisurf = surfmartini.__main__:main
