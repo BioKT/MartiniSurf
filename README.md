@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo_martini.png" alt="MartiniSurf Logo" width="240">
+  <img src="logo_martini.png" alt="MartiniSurf Logo">
 </p>
 
 <h1 align="center">MartiniSurf</h1>
