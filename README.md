@@ -63,9 +63,13 @@ It provides:
 ## 🔧 **Installation**
 
 conda create -n martinisurf
+
 conda activate martinisurf
+
 pip install -r surfmartini
+
 conda install pip
+
 pip install .
 
 ### 🔍 What this does
