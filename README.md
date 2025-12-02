@@ -62,11 +62,8 @@ It provides:
 
 ## 🔧 **Installation**
 
-# Create environment
 conda create -n martinisurf
 conda activate martinisurf
-
-# Install dependencies
 pip install -r surfmartini
 conda install pip
 pip install .
