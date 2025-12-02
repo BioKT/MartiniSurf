@@ -58,38 +58,24 @@ It provides:
 - 🧱 **Integration with martinize2 and Gō–Martini**
 - 🧰 **Full pipeline mode:**  
   Generates *all* topology, index, restraints, and MDP files
-- 🧬 **Python API** + **command-line interface**
-- 🚀 Reproducible simulation folders for HPC clusters (SLURM-ready)
 
 
----
+## 🔧 **Installation**
 
-# ✨ Features
+# Create environment
+conda create -n martinisurf
+conda activate martinisurf
 
-- 🧱 Build Martini-compatible **hex-lattice surfaces**
-- 🧬 **Convert and orient enzymes** using PDB/GRO inputs
-- ⛓️ Define **anchor residues** for directional immobilization
-- 📦 Create **GROMACS-ready** directories:
-  - `0_topology/`
-  - `1_mdp/`
-  - `2_system/`
-- 🔧 Generate:
-  - `system.top`
-  - `system_res.top`
-  - `Active.itp`
-  - `Active_res.itp`
-  - `surface.itp`
-  - `index.ndx`
-  - all `.mdp` files
-- 🚀 Fully automated *one-command* workflow
+# Install dependencies
+pip install -r surfmartini
+conda install pip
+pip install .
 
----
+### 🔍 What this does
 
-# 🚀 Quickstart
-
-```bash
-martinisurf \
-    --pdb enzyme.pdb \
-    --surface C1 --lx 20 --ly 20 \
-    --ResA --ResB --dist 10
+- 📥 Downloads **1RJW** from RCSB  
+- 🧬 Runs **martinize2** to generate the coarse-grained model  
+- 🧱 Builds a **20 × 20 nm** Martini surface  
+- 📐 Orients the enzyme using **two anchor groups**  
+- 🧰 Generates complete **GROMACS-ready simulation files**  
 
