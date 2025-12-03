@@ -39,12 +39,14 @@ and Gō–Martini coarse-grained simulation setup.
   <!-- Python versions -->
   <img src="https://img.shields.io/badge/python-3.9%20|%203.10%20|%203.11-blue.svg">
   
-  <!-- Google Colab -->
-  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](
-  https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/colab_demo.ipynb)
 
 </p>
 
+<p>
+  <!-- Google Colab -->
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](
+  https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/colab_demo.ipynb)
+</p>
 
 
 
