@@ -206,7 +206,7 @@ def main(argv=None):
         "-f", str(pdb_abs),
         "-x", str(enzyme_cg_out),
         "-o", str(topfile_out),
-       # "-dssp", args.dssp,
+        # "-dssp", args.dssp,
         "-ff", args.ff,
         "-name", args.moltype,
     ]
