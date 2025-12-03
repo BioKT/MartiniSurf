@@ -62,8 +62,8 @@ def build_parser():
     # --------------------------
     # DSSP
     # --------------------------
-    parser.add_argument("--dssp", nargs="?", const="mkdssp", default="mkdssp",
-        help="DSSP executable or mdtraj fallback")
+    #parser.add_argument("--dssp", nargs="?", const="mkdssp", default="mkdssp",
+    #    help="DSSP executable")
 
     # --------------------------
     # ELASTIC NETWORK
