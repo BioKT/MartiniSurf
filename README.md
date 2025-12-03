@@ -35,10 +35,14 @@ and Gō–Martini coarse-grained simulation setup.
   <a href="https://codecov.io/gh/jjimenezgar/MartiniSurf">
     <img src="https://codecov.io/gh/jjimenezgar/MartiniSurf/branch/master/graph/badge.svg" alt="Coverage">
   </a>
+
+  <!-- Python versions -->
+  <img src="https://img.shields.io/badge/python-3.9%20|%203.10%20|%203.11-blue.svg">
   
   <!-- Google Colab -->
-  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](
-  https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/colab_demo.ipynb)
+  <a href="https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/colab_demo.ipynb">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab">
+  </a>
 
 </p>
 
