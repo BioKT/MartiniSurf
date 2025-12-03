@@ -100,6 +100,13 @@ def build_parser():
 
     parser.add_argument("--mutate", nargs="+", default=[],
         help="Residue mutations: e.g. A-THR6:ALA")
+    
+    # --------------------------
+    # maxwarn
+    # --------------------------
+    
+    parser.add_argument("--maxwarn", type=int, default=False,
+        help="The maximum number of allowed warnings.")
 
     # --------------------------
     # SURFACE
@@ -209,6 +216,7 @@ def main(argv=None):
         # "-dssp", args.dssp,
         "-ff", args.ff,
         "-name", args.moltype,
+        "-maxwarn", args.moltype,
     ]
 
     # Position restraints
