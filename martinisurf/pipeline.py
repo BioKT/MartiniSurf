@@ -105,8 +105,8 @@ def build_parser():
     # maxwarn
     # --------------------------
     
-    parser.add_argument("--maxwarn", type=int, default=False,
-        help="The maximum number of allowed warnings.")
+    parser.add_argument("--maxwarn", type=int, default=0,
+        help="The maximum number of allowed warnings")
 
     # --------------------------
     # SURFACE
@@ -216,7 +216,7 @@ def main(argv=None):
         # "-dssp", args.dssp,
         "-ff", args.ff,
         "-name", args.moltype,
-        "-maxwarn", args.moltype,
+        "-maxwarn", str(args.maxwarn),
     ]
 
     # Position restraints
