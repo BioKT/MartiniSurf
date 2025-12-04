@@ -62,8 +62,24 @@ def build_parser():
     # --------------------------
     # DSSP
     # --------------------------
-    #parser.add_argument("--dssp", nargs="?", const="mkdssp", default="mkdssp",
+    #parser.add_argument("--dssp", nargs="?", const="dssp/mkdssp", default="dssp/mkdssp",
     #    help="DSSP executable")
+
+    parser.add_argument(
+        "--dssp",
+        action="store_true",
+        help="Enable DSSP secondary structure assignment."
+    )
+
+    parser.add_argument(
+        "--no-dssp",
+        dest="dssp",
+        action="store_false",
+        help="Disable DSSP secondary structure assignment."
+    )
+
+    # Default: DSSP ON (puedes cambiarlo a False si quieres lo contrario)
+    parser.set_defaults(dssp=True)
 
     # --------------------------
     # ELASTIC NETWORK
@@ -208,16 +224,52 @@ def main(argv=None):
     # =========================================================================
     # 2) MARTINIZE2 COMMAND
     # =========================================================================
+
     martinize_cmd = [
         "martinize2",
         "-f", str(pdb_abs),
         "-x", str(enzyme_cg_out),
         "-o", str(topfile_out),
-        # "-dssp", args.dssp,
         "-ff", args.ff,
         "-name", args.moltype,
         "-maxwarn", str(args.maxwarn),
     ]
+
+    # --------------------------
+    # DSSP handling
+    # --------------------------
+    # =========================================================================
+    # 2) MARTINIZE2 COMMAND
+    # =========================================================================
+
+    martinize_cmd = [
+        "martinize2",
+        "-f", str(pdb_abs),
+        "-x", str(enzyme_cg_out),
+        "-o", str(topfile_out),
+        "-ff", args.ff,
+        "-name", args.moltype,
+        "-maxwarn", str(args.maxwarn),
+    ]
+
+    # --------------------------
+    # DSSP handling
+    # --------------------------
+    if args.dssp:
+        # Path to bundled mkdssp inside martinisurf/dssp/
+        dssp_bin = Path(__file__).resolve().parent / "dssp" / "mkdssp"
+
+        if not dssp_bin.exists():
+            raise FileNotFoundError(
+                f"DSSP was enabled, but binary not found: {dssp_bin}\n"
+                f"Please ensure martinisurf/dssp/mkdssp exists and has +x permissions."
+            )
+
+        martinize_cmd += ["-dssp", str(dssp_bin)]
+        print(f"✔ DSSP enabled → Using: {dssp_bin}")
+
+    else:
+        print("⚠️ DSSP disabled (--no-dssp)")
 
     # Position restraints
     if args.p != "none":
