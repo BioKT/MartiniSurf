@@ -133,8 +133,8 @@ def build_parser():
     # SURFACE
     # --------------------------
 
-    parser.add_argument("--surface-bead", default=[],
-        help="Martini bead used for the surface")
+    parser.add_argument("--surface-bead", default="C1",
+        help="Martini bead used for the surface (e.g., P1, C1..)")
     
     parser.add_argument("--charge", type=int, default=0,
         help="Bead charge used for the surface")
