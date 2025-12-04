@@ -78,6 +78,11 @@ def build_parser():
         help="Disable DSSP secondary structure assignment."
     )
 
+    parser.add_argument(
+    "--ss",
+    help="Secondary structure file (.ssd) to skip DSSP and use custom SS",
+    default=None)
+
     # Default: DSSP ON (puedes cambiarlo a False si quieres lo contrario)
     parser.set_defaults(dssp=True)
 
@@ -255,7 +260,13 @@ def main(argv=None):
     # --------------------------
     # DSSP handling
     # --------------------------
-    if args.dssp:
+    
+    if args.ss:
+        # User provided a custom .ssd → override everything
+        martinize_cmd += ["-ss", args.ss]
+        print(f"✔ Using provided secondary structure file: {args.ss}")
+
+    elif args.dssp:
         # Path to bundled mkdssp inside martinisurf/dssp/
         dssp_bin = Path(__file__).resolve().parent / "dssp" / "mkdssp"
 
@@ -270,7 +281,7 @@ def main(argv=None):
 
     else:
         print("⚠️ DSSP disabled (--no-dssp)")
-
+    
     # Position restraints
     if args.p != "none":
         martinize_cmd += ["-p", args.p]
