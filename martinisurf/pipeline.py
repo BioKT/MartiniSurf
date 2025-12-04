@@ -133,8 +133,11 @@ def build_parser():
     # SURFACE
     # --------------------------
 
-    parser.add_argument("--surface-bead", default="P4",
+    parser.add_argument("--surface-bead", default=[],
         help="Martini bead used for the surface")
+    
+    parser.add_argument("--charge", type=int, default=0,
+        help="Bead charge used for the surface")
 
     parser.add_argument("--dx", type=float, default=0.47,
         help="Surface lattice spacing (nm)")
@@ -388,6 +391,7 @@ def main(argv=None):
             "--ly", str(args.ly),
             "--dx", str(args.dx),
             "--bead", args.surface_bead,
+            "--charge", args.charge,
             "--output", str(system_dir / "surface"),
         ])
 
