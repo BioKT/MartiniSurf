@@ -10,7 +10,8 @@ setup(
         "pyvista",
         "MDAnalysis",
         "scipy",
-        "vermouth" 
+        "vermouth" ,
+        "mdtraj",
     ],
     entry_points={
         "console_scripts": [

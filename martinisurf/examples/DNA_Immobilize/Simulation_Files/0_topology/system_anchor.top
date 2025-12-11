@@ -1,0 +1,14 @@
+#include "system_itp/martini_v2.1-dna.itp"
+#include "system_itp/martini_v2.1P-dna.itp"
+#include "system_itp/martini_v2.0_ions.itp"
+#include "system_itp/DNA_A+DNA_B_anchor.itp"
+#include "system_itp/surface.itp"
+
+[ system ]
+GoMartini Surface Simulation (restr)
+
+[ molecules ]
+DNA   1
+SRF      672
+W        0
+Na       0

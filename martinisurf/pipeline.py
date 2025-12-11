@@ -1,193 +1,110 @@
 #!/usr/bin/env python3
 """
-MartiniSurf Full Pipeline
+MartiniSurf Full Pipeline (Protein + DNA Compatible)
 
 This script automates the complete workflow:
 
-1. Martinize2  → Coarse-grained enzyme model
-2. Surface     → Build hexagonal Martini surface
-3. Orientation → Position enzyme above surface using anchor residues
-4. GoMartini   → Build full simulation system (topology, restraints, mdp)
+1. martinize2 or martinize-dna.py → Coarse-grained model
+2. Surface                        → Build hexagonal Martini surface
+3. Orientation                    → Position molecule above surface using anchor residues
+4. GoMartini                      → Build full simulation system (topology, restraints, mdp)
 """
 
 import argparse
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from martinisurf.utils.pdb_generation import load_clean_pdb
-
+from martinisurf.utils.pdb_to_gro import pdb_to_gro
 
 # ======================================================================
-# 1) Parser exposed to main CLI (martinisurf -h)
+# PARSER
 # ======================================================================
 def build_parser():
     parser = argparse.ArgumentParser(
-        description="Full MartiniSurf pipeline: martinize2 → surface → orient → GoMartini system",
+        description="Full MartiniSurf pipeline: martinize → surface → orient → GoMartini system",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
-    # --------------------------
-    # INPUTPDB
-    # --------------------------
+    # DNA MODE FLAG
     parser.add_argument(
-        "--pdb", required=True,
-        help=(
-    "Input structure: local PDB file, RCSB ID (4 letters) or UniProt ID (6 letters for AlphaFold)."
-    )
-
-    )
-
-    parser.add_argument("--moltype", required=True,
-        help="Name assigned to molecule in topology files")
-
-    parser.add_argument("--merge", default=None,
-        help="Merge chains: e.g. 'A,B' or 'all'")
-
-    # --------------------------
-    # FORCE FIELD
-    # --------------------------
-    parser.add_argument("--ff", default="martini3001",
-        help="Martini force field")
-
-    # --------------------------
-    # POSITION RESTRAINTS
-    # --------------------------
-    parser.add_argument("--p", choices=["none", "all", "backbone"], default="backbone",
-        help="Position restraints")
-
-    parser.add_argument("--pf", type=float, default=1000,
-        help="Position restraint force constant (kJ/mol/nm^2)")
-
-    # --------------------------
-    # DSSP
-    # --------------------------
-    #parser.add_argument("--dssp", nargs="?", const="dssp/mkdssp", default="dssp/mkdssp",
-    #    help="DSSP executable")
-
-    parser.add_argument(
-        "--dssp",
+        "--dna",
         action="store_true",
-        help="Enable DSSP secondary structure assignment."
+        help="Use martinize-dna.py instead of martinize2 to coarse-grain DNA."
     )
 
+    #parser.add_argument("--ff", default="elnedyn22dna", help="Force field for DNA martinization.")
+
     parser.add_argument(
-        "--no-dssp",
-        dest="dssp",
-        action="store_false",
-        help="Disable DSSP secondary structure assignment."
+        "--dnatype",
+        default="ds-stiff",
+        help="DNA topology type: ss / ds / ds-soft / ds-stiff / ss-stiff"
     )
 
-    parser.add_argument(
-    "--ss",
-    help="Secondary structure file (.ssd) to skip DSSP and use custom SS",
-    default=None)
+    # INPUT
+    parser.add_argument("--pdb", required=True)
+    parser.add_argument("--moltype", required=True)
+    parser.add_argument("--merge", default=None)
 
-    # Default: DSSP ON (puedes cambiarlo a False si quieres lo contrario)
+    # FF
+    parser.add_argument("--ff", default="martini3001")
+
+    # RESTRAINTS
+    parser.add_argument("--p", choices=["none", "all", "backbone"], default="backbone")
+    parser.add_argument("--pf", type=float, default=1000)
+
+    # DSSP / SS
+    parser.add_argument("--dssp", action="store_true", help="Enable DSSP")
+    parser.add_argument("--no-dssp", dest="dssp", action="store_false")
+    parser.add_argument("--ss", required=False)
     parser.set_defaults(dssp=True)
 
-    # --------------------------
-    # ELASTIC NETWORK
-    # --------------------------
-    parser.add_argument("--elastic", action="store_true",
-        help="Enable elastic network")
+    # ELASTIC
+    parser.add_argument("--elastic", action="store_true")
+    parser.add_argument("--ef", type=float, default=700)
 
-    parser.add_argument("--ef", type=float, default=700,
-        help="Elastic force constant (kJ/mol/nm^2)")
+    # GoMartini
+    parser.add_argument("--go", nargs="?", const="auto")
+    parser.add_argument("--go-eps",  type=float, default=9.414)
+    parser.add_argument("--go-low",  type=float, default=0.3)
+    parser.add_argument("--go-up",   type=float, default=1.1)
+    parser.add_argument("--go-write-file", nargs="?", const=True, default=False)
 
-    # --------------------------
-    # GoMARTINI
-    # --------------------------
-    parser.add_argument("--go", nargs="?", const="auto",
-        help="Enable GoMartini; optional contact map file")
+    # PROTEIN MODS
+    parser.add_argument("--cys", default="auto")
+    parser.add_argument("--mutate", nargs="+", default=[])
+    parser.add_argument("--maxwarn", type=int, default=0)
 
-    parser.add_argument("--go-eps", type=float, default=9.414,
-        help="GoMartini interaction energy")
-
-    parser.add_argument("--go-low", type=float, default=0.3,
-        help="Min Go contact distance (nm)")
-
-    parser.add_argument("--go-up", type=float, default=1.1,
-        help="Max Go contact distance (nm)")
-
-    parser.add_argument("--go-write-file", nargs="?", const=True, default=False,
-        help="Write Go contact map")
-
-    # --------------------------
-    # PROTEIN OPTIONS
-    # --------------------------
-    parser.add_argument("--cys", default="auto",
-        help="Cysteine bridges (auto/none/custom)")
-
-    parser.add_argument("--mutate", nargs="+", default=[],
-        help="Residue mutations: e.g. A-THR6:ALA")
-    
-    # --------------------------
-    # maxwarn
-    # --------------------------
-    
-    parser.add_argument("--maxwarn", type=int, default=0,
-        help="The maximum number of allowed warnings")
-
-    # --------------------------
     # SURFACE
-    # --------------------------
+    parser.add_argument("--surface-bead", default="C1")
+    parser.add_argument("--charge", type=int, default=0)
+    parser.add_argument("--dx", type=float, default=0.47)
+    parser.add_argument("--lx", type=float)
+    parser.add_argument("--ly", type=float)
+    parser.add_argument("--surface")
 
-    parser.add_argument("--surface-bead", default="C1",
-        help="Martini bead used for the surface (e.g., P1, C1..)")
-    
-    parser.add_argument("--charge", type=int, default=0,
-        help="Bead charge used for the surface")
-
-    parser.add_argument("--dx", type=float, default=0.47,
-        help="Surface lattice spacing (nm)")
-
-    parser.add_argument("--lx", type=float, required=False,
-        help="Surface X length (nm)")
-
-    parser.add_argument("--ly", type=float, required=False,
-        help="Surface Y length (nm)")
-
-    parser.add_argument(
-    "--surface",
-    help="Use an existing surface GRO file instead of generating a new one")
-
-    # --------------------------
     # ORIENTATION
-    # --------------------------
-    # Multi-anchor input system
     parser.add_argument(
-    "--anchor",
-    nargs="+",
-    action="append",
-    metavar=("GROUP", "RESID"),
-    help=(
-        "Define an anchor group as: GROUP RESID [RESID ...]. "
-        "You can repeat this flag multiple times."
-    ),
-)
+        "--anchor",
+        nargs="+",
+        action="append",
+        metavar=("GROUP", "RESID"),
+    )
+    parser.add_argument("--dist", type=float, default=10.0)
 
-
-    parser.add_argument("--dist", type=float, default=10.0,
-        help="Vertical enzyme–surface distance (Å)")
-
-    # --------------------------
     # OUTPUT
-    # --------------------------
-    parser.add_argument("--outdir", default="Simulation_Files",
-        help="Output directory")
+    parser.add_argument("--outdir", default="Simulation_Files")
 
-    # --------------------------
-    # Raw passthrough
-    # --------------------------
-    parser.add_argument("--m2-args", nargs=argparse.REMAINDER,
-        help="Extra raw arguments passed directly to Martinize2")
+    # RAW passthrough
+    parser.add_argument("--m2-args", nargs=argparse.REMAINDER)
 
     return parser
 
 
 # ======================================================================
-# Utility: run command
+# UTILITY RUNNER
 # ======================================================================
 def run(cmd):
     print("\n▶ Running command:\n ", " ".join(cmd), "\n")
@@ -198,15 +115,15 @@ def run(cmd):
 
 
 # ======================================================================
-# MAIN pipeline
+# MAIN PIPELINE
 # ======================================================================
 def main(argv=None):
-
-    # Use the unified parser
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    # Create directories
+    # ---------------------------------------------------------
+    # SETUP
+    # ---------------------------------------------------------
     simdir = Path(args.outdir).resolve()
     if simdir.exists():
         shutil.rmtree(simdir)
@@ -216,228 +133,216 @@ def main(argv=None):
     (simdir / "2_system").mkdir()
 
     active_itp_dir = simdir / "0_topology" / "system_itp"
-    system_dir = simdir / "2_system"
+    system_dir     = simdir / "2_system"
 
-    # =========================================================================
-    # 1) CLEAN OR DOWNLOAD PDB
-    # =========================================================================
-    pdb_abs = load_clean_pdb(args.pdb, workdir=simdir)
 
     tmpdir = simdir / "_martinize_tmp"
     tmpdir.mkdir()
 
-    enzyme_cg_out = tmpdir / "enzyme_cg.pdb"
-    topfile_out   = tmpdir / "enzyme_cg.top"
+    mol = args.moltype
 
-    # =========================================================================
-    # 2) MARTINIZE2 COMMAND
-    # =========================================================================
+    system_cg_out = tmpdir / f"{mol}_cg.pdb"
+    topfile_out   = tmpdir / f"{mol}_cg.top"
 
-    martinize_cmd = [
-        "martinize2",
-        "-f", str(pdb_abs),
-        "-x", str(enzyme_cg_out),
-        "-o", str(topfile_out),
-        "-ff", args.ff,
-        "-name", args.moltype,
-        "-maxwarn", str(args.maxwarn),
-    ]
+    # ---------------------------------------------------------
+    # 1) CLEAN OR DOWNLOAD PDB
+    # ---------------------------------------------------------
+    pdb_abs = load_clean_pdb(args.pdb, workdir=simdir)
 
-    # --------------------------
-    # DSSP handling
-    # --------------------------
-    # =========================================================================
-    # 2) MARTINIZE2 COMMAND
-    # =========================================================================
+    # ---------------------------------------------------------
+    # DNA branch → convert PDB → GRO (required by martinize-dna.py)
+    # ---------------------------------------------------------
+    if args.dna:
+        dna_input_gro = tmpdir / "dna_input.gro"
+        pdb_to_gro(str(pdb_abs), str(dna_input_gro))
+        pdb_abs = dna_input_gro   # important: from now on use GRO file
+        print(f"🧬 DNA mode: martinize-dna.py will use {pdb_abs}")
 
-    martinize_cmd = [
-        "martinize2",
-        "-f", str(pdb_abs),
-        "-x", str(enzyme_cg_out),
-        "-o", str(topfile_out),
-        "-ff", args.ff,
-        "-name", args.moltype,
-        "-maxwarn", str(args.maxwarn),
-    ]
+    # =====================================================================
+    # 1) BUILD MARTINIZE COMMAND (Protein vs DNA)
+    # =====================================================================
+    if args.dna:
+        print("🧬 DNA mode enabled → using martinize-dna.py")
 
-    # --------------------------
-    # DSSP handling
-    # --------------------------
-    
-    if args.ss:
-        # User provided a custom .ssd → override everything
-        martinize_cmd += ["-ss", args.ss]
-        print(f"✔ Using provided secondary structure file: {args.ss}")
+        dna_script = Path(__file__).resolve().parent / "utils" / "martinize-dna.py"
+        if not dna_script.exists():
+            raise FileNotFoundError(f"martinize-dna.py not found at: {dna_script}")
 
-    elif args.dssp:
-        # Path to bundled mkdssp inside martinisurf/dssp/
-        dssp_bin = Path(__file__).resolve().parent / "dssp" / "mkdssp"
+        from martinisurf.utils.use_python2 import find_python2
+        python2 = find_python2()
 
-        if not dssp_bin.exists():
-            raise FileNotFoundError(
-                f"DSSP was enabled, but binary not found: {dssp_bin}\n"
-                f"Please ensure martinisurf/dssp/mkdssp exists and has +x permissions."
-            )
+        martinize_cmd = [
+            python2,
+            str(dna_script),
+            "-f", str(pdb_abs),
+            "-x", str(system_cg_out),
+            "-o", str(topfile_out),
+            "-name", args.moltype,
+            "-dnatype", args.dnatype,
+            "-p", args.p.capitalize(),
+            "-pf", str(args.pf),
+        ]
 
-        martinize_cmd += ["-dssp", str(dssp_bin)]
-        print(f"✔ DSSP enabled → Using: {dssp_bin}")
+        if args.elastic:
+            martinize_cmd += ["-elastic", "-ef", str(args.ef)]
 
     else:
-        print("⚠️ DSSP disabled (--no-dssp)")
-    
-    # Position restraints
-    if args.p != "none":
-        martinize_cmd += ["-p", args.p]
+        print("🧬 Protein mode → using martinize2")
 
-    martinize_cmd += ["-pf", str(args.pf)]
+        martinize_cmd = [
+            "martinize2",
+            "-f", str(pdb_abs),
+            "-x", str(system_cg_out),
+            "-o", str(topfile_out),
+            "-ff", args.ff,
+            "-name", args.moltype,
+            "-maxwarn", str(args.maxwarn),
+        ]
 
-    # Elastic
-    if args.elastic:
-        martinize_cmd.append("-elastic")
+        if args.p != "none":
+            martinize_cmd += ["-p", args.p]
+        martinize_cmd += ["-pf", str(args.pf)]
 
-    if args.elastic:
-        martinize_cmd += ["-ef", str(args.ef)]
+        if args.elastic:
+            martinize_cmd += ["-elastic", "-ef", str(args.ef)]
 
-    # GoMartini
-    if args.go is not None:
-        martinize_cmd += ["-go"] if args.go == "auto" else ["-go", args.go]
+    # =====================================================================
+    # 2) DSSP / SS HANDLING (allowed for both Protein + DNA)
+    # =====================================================================
+    if args.ss:
+        martinize_cmd += ["-ss", args.ss]
 
-    martinize_cmd += [
-        "-go-eps", str(args.go_eps),
-        "-go-low", str(args.go_low),
-        "-go-up",  str(args.go_up)
-    ]
+    elif args.dssp:
+        dssp_bin = Path(__file__).resolve().parent / "dssp" / "mkdssp"
+        if not dssp_bin.exists():
+            raise FileNotFoundError(f"DSSP requested but binary not found: {dssp_bin}")
+        print(f"✔ DSSP enabled → using: {dssp_bin}")
+        martinize_cmd += ["-dssp", str(dssp_bin)]
 
-    if args.go_write_file:
-        martinize_cmd.append("-go-write-file")
 
-    # MERGE CHAINS
+    # =====================================================================
+    # 3) MERGE, CYS (Protein + DNA) | MUTATE (Protein only)
+    # =====================================================================
     if args.merge:
         martinize_cmd += ["-merge", args.merge]
 
-    # Cysteines
     martinize_cmd += ["-cys", args.cys]
 
-    # Mutations
-    for mut in args.mutate:
-        martinize_cmd += ["-mutate", mut]
+    if args.mutate:
+        if args.dna:
+            print("⚠ WARNING: --mutate ignored for DNA (not supported).")
+        else:
+            for mut in args.mutate:
+                martinize_cmd += ["-mutate", mut]
 
-    # Extra Martinize2 arguments
-    if args.m2_args:
+    if not args.dna and args.m2_args:
         martinize_cmd += args.m2_args
 
-    # Debug print
-    #print("\n🧩 Martinize2 flags used:")
-    #for a in martinize_cmd:
-    #    print("   ", a)
 
-    # Run Martinize2
+    # =====================================================================
+    # 4) GoMartini (Protein only)
+    # =====================================================================
+    if args.dna:
+        print("🧬 DNA mode: GoMartini skipped.")
+    else:
+        if args.go is not None:
+            martinize_cmd += ["-go"] if args.go == "auto" else ["-go", args.go]
+
+        martinize_cmd += [
+            "-go-eps", str(args.go_eps),
+            "-go-low", str(args.go_low),
+            "-go-up",  str(args.go_up),
+        ]
+
+        if args.go_write_file:
+            martinize_cmd.append("-go-write-file")
+
+
+    # =====================================================================
+    # 5) RUN MARTINIZATION
+    # =====================================================================
     run(martinize_cmd)
 
-    # Move generated itps
     for f in Path(".").glob("*.itp"):
         shutil.move(str(f), active_itp_dir / f.name)
-    
-    # Move generated ssd
+
     for f in Path(".").glob("*.ssd"):
         shutil.move(str(f), active_itp_dir / f.name)
 
-    # ============================================
-    # FIX: Rename mol_0.itp → mol.itp
-    # ============================================
-    mol = args.moltype
-    src = active_itp_dir / f"{mol}_0.itp"
-    dst = active_itp_dir / f"{mol}.itp"
+    # Rename mol_0.itp → mol.itp (protein only)
+    if not args.dna:
+        src = active_itp_dir / f"{args.moltype}_0.itp"
+        dst = active_itp_dir / f"{args.moltype}.itp"
+        if src.exists():
+            src.rename(dst)
+            print(f"✔ Renamed {src.name} → {dst.name}")
 
-    if src.exists():
-        src.rename(dst)
-        print(f"✔ Renamed {src.name} → {dst.name}")
+    shutil.copy(system_cg_out, system_dir / f"{mol}_cg.pdb")
 
-    shutil.copy(enzyme_cg_out, system_dir / "enzyme_cg.pdb")
 
-    # =========================================================================
-    # 3) Surface: generate or use user-supplied file
-    # =========================================================================
+    # =====================================================================
+    # 6) SURFACE GENERATION
+    # =====================================================================
     surface_gro = system_dir / "surface.gro"
-    surface_itp = system_dir / "surface.itp"
 
     if args.surface:
-        # =====================================
-        # USER-SUPPLIED SURFACE (no generation)
-        # =====================================
-        user_surface = Path(args.surface).resolve()
-
-        if not user_surface.exists():
-            raise FileNotFoundError(f"Provided --surface file not found: {user_surface}")
-
-        print(f"\n🌐 Using existing surface: {user_surface}\n")
-        shutil.copy(user_surface, surface_gro)
-
-        # Try find matching ITP (same folder or same basename)
-        possible_itp = user_surface.with_suffix(".itp")
+        shutil.copy(args.surface, surface_gro)
+        possible_itp = Path(args.surface).with_suffix(".itp")
         if possible_itp.exists():
             shutil.copy(possible_itp, active_itp_dir / "surface.itp")
-        else:
-            print("⚠ WARNING: No matching .itp file found next to provided surface.")
     else:
-        # =====================================
-        # GENERATE NEW SURFACE
-        # =====================================
-        print("\n🌐 Generating new surface...\n")
+        print("\n🌐 Generating surface…\n")
         import martinisurf.surface_builder as sb
-
         sb.main([
             "--lx", str(args.lx),
             "--ly", str(args.ly),
             "--dx", str(args.dx),
             "--bead", args.surface_bead,
-            "--charge", args.charge,
+            "--charge", str(args.charge),
             "--output", str(system_dir / "surface"),
         ])
 
-        # Move the surface.itp into topology folder
+        surface_itp = system_dir / "surface.itp"
         if surface_itp.exists():
             shutil.move(surface_itp, active_itp_dir / "surface.itp")
 
-    # =========================================================================
-    # 4) Orientation
-    # =========================================================================
-    import martinisurf.enzyme_tethered as orient_mod
-    from martinisurf.enzyme_tethered import convert_pdb_to_gro
 
-    enzyme_gro = system_dir / "enzyme_cg.gro"
-    convert_pdb_to_gro(str(system_dir / "enzyme_cg.pdb"), str(enzyme_gro))
+    # =====================================================================
+    # 7) ORIENTATION
+    # =====================================================================
+    import martinisurf.system_tethered as orient_mod
+    from martinisurf.system_tethered import convert_pdb_to_gro
+
+    system_gro = system_dir / f"{mol}_cg.gro"
+    convert_pdb_to_gro(str(system_dir / f"{mol}_cg.pdb"), str(system_gro))
 
     orient_args = [
-        "--surface", str(system_dir / "surface.gro"),
-        "--enzyme",  str(enzyme_gro),
+        "--surface", str(surface_gro),
+        "--system",  str(system_gro),
         "--out",     str(system_dir / "immobilized_system.gro"),
         "--dist",    str(args.dist),
     ]
 
-    # Multi-anchor forwarding to orientation
     if args.anchor:
         for group in args.anchor:
             orient_args += ["--anchor"] + [str(x) for x in group]
 
     orient_mod.main(orient_args)
 
-    # =========================================================================
-    # 5) Final system
-    # =========================================================================
-    import martinisurf.gomartini_system as gsm
 
-    final_args = ["--outdir", str(simdir)]
+    # =====================================================================
+    # 8) FINAL GoMartini SYSTEM ASSEMBLY
+    # =====================================================================
+    import martinisurf.gromacs_inputs as gsm
 
-    # Multi-anchor forwarding to GoMartini builder
+    final_args = ["--outdir", str(simdir), "--moltype", args.moltype]
+
     if args.anchor:
         for group in args.anchor:
             final_args += ["--anchor"] + [str(x) for x in group]
 
-    final_args += ["--moltype", args.moltype]
-
     gsm.main(final_args)
-    
+
     shutil.rmtree(tmpdir)
 
     print("\n=====================================")
@@ -446,6 +351,5 @@ def main(argv=None):
     print("=====================================\n")
 
 
-# ======================================================================
 if __name__ == "__main__":
     main()

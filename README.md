@@ -51,17 +51,26 @@ and Gō–Martini coarse-grained simulation setup.
 
 # 🧬 Overview
 
-**MartiniSurf** is a high-level toolkit that automates the complete workflow
-required to simulate enzyme immobilization using **Martini 3** and **Gō–Martini**.
+**MartiniSurf** is a complete, automated pipeline for preparing **Martini 3**,  
+**Gō–Martini**, and **Martini2-DNA** simulation systems involving:
 
-It provides:
+✔️ Proteins  
+✔️ DNA (single- and double-stranded)  
+✔️ Hybrid protein–surface or DNA–surface systems  
 
-- ⚙️ **Automated construction of hexagonal surfaces** (GRO + ITP)
-- 📐 **Automatic protein orientation** on surfaces using anchors
-- 🔗 **Multi-anchor support** (Custom residues)
-- 🧱 **Integration with martinize2 and Gō–Martini**
-- 🧰 **Full pipeline mode:**  
-  Generates *all* topology, index, restraints, and MDP files
+It provides a modular yet fully automatic way to:
+
+- ⚙️ **Generate coarse-grained models** using  
+  - `martinize2` (proteins)  
+  - `martinize-dna.py` (DNA, Python-2 compatible)
+- 🧱 **Build Martini surfaces** (custom bead type, charge, spacing)
+- 📐 **Orient biomolecules** on surfaces via multi-anchor geometry
+- 🔗 **Define unlimited anchor groups**
+- 🔒 **Generate position restraints** for Gō–Martini anchoring
+- 🧰 **Produce full GROMACS-ready directories**
+  - Minimization, NVT, NPT, production `.mdp` files
+
+---
 
 
 ## 🔧 **Installation**
@@ -73,6 +82,7 @@ It provides:
 - pip install .
 
 ## ⚡ **Quickstart**
+### 🧬 Protein-Support
 martinisurf \
     --pdb 1RJW \
     --moltype Protein \
@@ -90,3 +100,57 @@ martinisurf \
 - 📐 Orients the enzyme using **two anchor groups**  
 - 🧰 Generates complete **GROMACS-ready simulation files**  
 
+
+### 🧬 DNA-Support
+
+martinisurf \
+    --dna \
+    --pdb 4C64 \
+    --moltype DNA \
+    --dnatype ds-stiff \
+    --lx 5 --ly 5 \
+    --surface-bead C1 \
+    --anchor 1 1 \
+    --anchor 2 24 \
+    --dist 10
+
+### 🔍 What this does
+
+- 📥 Downloads **4C64** from RCSB  
+- 🧬 Runs **martinize-dna.py** to generate the coarse-grained model  
+- 🧱 Builds a **5 × 5 nm** Martini surface  
+- 📐 Orients the enzyme using **two anchor groups**  
+- 🧰 Generates complete **GROMACS-ready simulation files**  
+
+---
+
+📜 Third-Party Software and Licensing Notice
+
+MartiniSurf relies on several external open-source tools and scientific libraries.
+These components are not included in this repository (unless explicitly stated) and remain governed by their original licenses.
+
+Users must ensure that they comply with the licenses of all dependencies when using MartiniSurf.
+
+🔧 Core Python Dependencies
+
+MartiniSurf depends on the following libraries:
+
+Package	License	Purpose
+NumPy	        BSD-3-Clause	Scientific computing
+SciPy	        BSD-3-Clause	Numerical routines
+MDTraj	        BSD-3-Clause	Trajectory handling
+MDAnalysis	LGPL-2.1	Atomistic topology & trajectory analysis
+PyVista	MIT	        3D visualization
+Vermouth/martinize2	Apache-2.0	Martini CG model construction
+
+
+🧬 Martini and DNA Martini Tools
+
+MartiniSurf interfaces with external Martini tooling, including:
+
+martinize2 (Apache-2.0), used for protein coarse-graining
+
+martinize-dna.py, originally developed within the Marrink Lab, distributed under research-friendly open licensing (GPL-based in earlier versions)
+
+⚠️ These tools are not distributed within MartiniSurf.
+They are invoked only when present on the user’s system, and their licenses remain fully applicable.
