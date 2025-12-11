@@ -24,84 +24,255 @@ from martinisurf.utils.pdb_to_gro import pdb_to_gro
 # ======================================================================
 def build_parser():
     parser = argparse.ArgumentParser(
-        description="Full MartiniSurf pipeline: martinize → surface → orient → GoMartini system",
+        description=(
+            "MartiniSurf: Full pipeline for Protein/DNA coarse-graining, "
+            "surface construction, orientation, and Gō–Martini system building."
+        ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
-    # DNA MODE FLAG
+    # --------------------------------------------------------------
+    # 🧬 DNA MODE
+    # --------------------------------------------------------------
     parser.add_argument(
         "--dna",
         action="store_true",
-        help="Use martinize-dna.py instead of martinize2 to coarse-grain DNA."
+        help="Enable DNA workflow. Uses martinize-dna.py (Python 2.7) instead of martinize2."
     )
-
-    #parser.add_argument("--ff", default="elnedyn22dna", help="Force field for DNA martinization.")
 
     parser.add_argument(
         "--dnatype",
         default="ds-stiff",
-        help="DNA topology type: ss / ds / ds-soft / ds-stiff / ss-stiff"
+        help=(
+            "Type of DNA elastic topology: "
+            "ss | ds | ds-soft | ds-stiff | ss-stiff."
+        )
     )
 
-    # INPUT
-    parser.add_argument("--pdb", required=True)
-    parser.add_argument("--moltype", required=True)
-    parser.add_argument("--merge", default=None)
+    # --------------------------------------------------------------
+    # 📥 INPUT STRUCTURES
+    # --------------------------------------------------------------
+    parser.add_argument(
+        "--pdb",
+        required=True,
+        help=(
+            "Input structure. Can be: local file, RCSB ID (4 letters), "
+            "or UniProt ID. Automatically cleaned before use."
+        )
+    )
 
-    # FF
-    parser.add_argument("--ff", default="martini3001")
+    parser.add_argument(
+        "--moltype",
+        required=True,
+        help="Name of the molecule (used for generated filenames and topology)."
+    )
 
-    # RESTRAINTS
-    parser.add_argument("--p", choices=["none", "all", "backbone"], default="backbone")
-    parser.add_argument("--pf", type=float, default=1000)
+    parser.add_argument(
+        "--merge",
+        default=None,
+        help="Merge chain identifiers (martinize-compatible syntax: e.g., A,B)."
+    )
 
-    # DSSP / SS
-    parser.add_argument("--dssp", action="store_true", help="Enable DSSP")
-    parser.add_argument("--no-dssp", dest="dssp", action="store_false")
-    parser.add_argument("--ss", required=False)
+    # --------------------------------------------------------------
+    # ⚗️ MARTINI FORCE FIELD
+    # --------------------------------------------------------------
+    parser.add_argument(
+        "--ff",
+        default="martini3001",
+        help="Martini force field for protein martinization (ignored for DNA)."
+    )
+
+    # --------------------------------------------------------------
+    # 🔗 POSITION RESTRAINTS
+    # --------------------------------------------------------------
+    parser.add_argument(
+        "--p",
+        choices=["none", "all", "backbone"],
+        default="backbone",
+        help="Which atoms to restrain during martinization."
+    )
+
+    parser.add_argument(
+        "--pf",
+        type=float,
+        default=1000,
+        help="Force constant for position restraints (kJ/mol/nm²)."
+    )
+
+    # --------------------------------------------------------------
+    # 🧬 SECONDARY STRUCTURE
+    # --------------------------------------------------------------
+    parser.add_argument(
+        "--dssp",
+        action="store_true",
+        help="Enable DSSP for secondary structure assignment."
+    )
+
+    parser.add_argument(
+        "--no-dssp",
+        dest="dssp",
+        action="store_false",
+        help="Disable DSSP (useful for DNA or custom ss assignment)."
+    )
+
+    parser.add_argument(
+        "--ss",
+        required=False,
+        help="Provide your own secondary-structure file/string (overrides DSSP)."
+    )
+
     parser.set_defaults(dssp=True)
 
-    # ELASTIC
-    parser.add_argument("--elastic", action="store_true")
-    parser.add_argument("--ef", type=float, default=700)
+    # --------------------------------------------------------------
+    # 🧱 ELASTIC NETWORK
+    # --------------------------------------------------------------
+    parser.add_argument(
+        "--elastic",
+        action="store_true",
+        help="Enable elastic network restraints during martinization."
+    )
 
-    # GoMartini
-    parser.add_argument("--go", nargs="?", const="auto")
-    parser.add_argument("--go-eps",  type=float, default=9.414)
-    parser.add_argument("--go-low",  type=float, default=0.3)
-    parser.add_argument("--go-up",   type=float, default=1.1)
-    parser.add_argument("--go-write-file", nargs="?", const=True, default=False)
+    parser.add_argument(
+        "--ef",
+        type=float,
+        default=700,
+        help="Elastic network force constant (kJ/mol/nm²)."
+    )
 
-    # PROTEIN MODS
-    parser.add_argument("--cys", default="auto")
-    parser.add_argument("--mutate", nargs="+", default=[])
-    parser.add_argument("--maxwarn", type=int, default=0)
+    # --------------------------------------------------------------
+    # 🧲 Gō–Martini OPTIONS (Protein only)
+    # --------------------------------------------------------------
+    parser.add_argument(
+        "--go",
+        nargs="?",
+        const="auto",
+        help=(
+            "Enable the Gō–Martini potential. "
+            "Use --go or --go auto for automatic contact detection."
+        )
+    )
 
-    # SURFACE
-    parser.add_argument("--surface-bead", default="C1")
-    parser.add_argument("--charge", type=int, default=0)
-    parser.add_argument("--dx", type=float, default=0.47)
-    parser.add_argument("--lx", type=float)
-    parser.add_argument("--ly", type=float)
-    parser.add_argument("--surface")
+    parser.add_argument(
+        "--go-eps",
+        type=float,
+        default=9.414,
+        help="Gō–Martini epsilon parameter (interaction strength)."
+    )
 
-    # ORIENTATION
+    parser.add_argument(
+        "--go-low",
+        type=float,
+        default=0.3,
+        help="Lower bound for Gō–Martini contact distances (nm)."
+    )
+
+    parser.add_argument(
+        "--go-up",
+        type=float,
+        default=1.1,
+        help="Upper bound for Gō–Martini contact distances (nm)."
+    )
+
+    parser.add_argument(
+        "--go-write-file",
+        nargs="?",
+        const=True,
+        default=False,
+        help="Export Gō contact map into an external file."
+    )
+
+    # --------------------------------------------------------------
+    # 🔧 PROTEIN MODIFICATIONS
+    # --------------------------------------------------------------
+    parser.add_argument(
+        "--cys",
+        default="auto",
+        help="Cysteine bridge detection: auto or explicit pairs."
+    )
+
+    parser.add_argument(
+        "--mutate",
+        nargs="+",
+        default=[],
+        help="Apply amino acid mutations before CG conversion (Protein only)."
+    )
+
+    parser.add_argument(
+        "--maxwarn",
+        type=int,
+        default=0,
+        help="Maximum warnings allowed from martinize2."
+    )
+
+    # --------------------------------------------------------------
+    # 🌐 SURFACE GENERATION
+    # --------------------------------------------------------------
+    parser.add_argument(
+        "--surface-bead",
+        default="C1",
+        help="Martini bead type used for the surface."
+    )
+
+    parser.add_argument(
+        "--charge",
+        type=int,
+        default=0,
+        help="Net charge per surface bead (integer)."
+    )
+
+    parser.add_argument(
+        "--dx",
+        type=float,
+        default=0.47,
+        help="Surface bead spacing (nm). Controls surface density."
+    )
+
+    parser.add_argument("--lx", type=float, help="Surface size in x direction (nm).")
+    parser.add_argument("--ly", type=float, help="Surface size in y direction (nm).")
+
+    parser.add_argument(
+        "--surface",
+        help="Provide an external surface GRO file instead of generating one."
+    )
+
+    # --------------------------------------------------------------
+    # 📐 ORIENTATION
+    # --------------------------------------------------------------
     parser.add_argument(
         "--anchor",
         nargs="+",
         action="append",
         metavar=("GROUP", "RESID"),
+        help=(
+            "Define anchor groups for orientation. "
+            "Example: --anchor 1 8 10 11  (Group 1 uses residues 8,10,11). "
+            "Repeat to define multiple groups."
+        )
     )
-    parser.add_argument("--dist", type=float, default=10.0)
 
-    # OUTPUT
-    parser.add_argument("--outdir", default="Simulation_Files")
+    parser.add_argument(
+        "--dist",
+        type=float,
+        default=10.0,
+        help="Distance (nm) between the system and the surface."
+    )
 
-    # RAW passthrough
-    parser.add_argument("--m2-args", nargs=argparse.REMAINDER)
+    # --------------------------------------------------------------
+    # 📁 OUTPUT CONTROL
+    # --------------------------------------------------------------
+    parser.add_argument(
+        "--outdir",
+        default="Simulation_Files",
+        help="Directory where all output files will be written."
+    )
+
+    parser.add_argument(
+        "--m2-args",
+        nargs=argparse.REMAINDER,
+        help="Additional raw arguments passed directly to martinize2."
+    )
 
     return parser
-
 
 # ======================================================================
 # UTILITY RUNNER
