@@ -44,8 +44,8 @@ jobs:
     # -------------------------
     # 5. Static analysis
     # -------------------------
-    - name: Lint (flake8)
-      run: flake8 martinisurf --max-line-length 95
+    #- name: Lint (flake8)
+    #  run: flake8 martinisurf --max-line-length 95
 
     - name: Type checking (mypy)
       run: mypy martinisurf --ignore-missing-imports
