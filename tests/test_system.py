@@ -60,7 +60,10 @@ def test_gomartini_inside_2_system(tmp_path, monkeypatch):
 
     monkeypatch.chdir(sys2)
 
-    gms.main(["--anchor", "1", "2", "3"])
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "2", "3"
+    ])
 
     assert (sim / "0_topology/system.top").exists()
     assert (sim / "0_topology/system_res.top").exists()
@@ -74,7 +77,10 @@ def test_gomartini_inside_Simulation(tmp_path, monkeypatch):
 
     monkeypatch.chdir(sim)
 
-    gms.main(["--anchor", "1", "2", "3"])
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "2", "3"
+    ])
 
     assert (sim / "0_topology/system.top").exists()
 
@@ -84,7 +90,11 @@ def test_gomartini_with_outdir(tmp_path, monkeypatch):
 
     monkeypatch.chdir(tmp_path)
 
-    gms.main(["--anchor", "1", "2", "3", "--outdir", str(sim)])
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "2", "3",
+        "--outdir", str(sim)
+    ])
 
     assert (sim / "0_topology/system.top").exists()
     assert (sim / "system_itp/Active_res.itp").exists()
