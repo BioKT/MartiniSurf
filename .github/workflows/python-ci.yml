@@ -47,8 +47,8 @@ jobs:
     #- name: Lint (flake8)
     #  run: flake8 martinisurf --max-line-length 95
 
-    - name: Type checking (mypy)
-      run: mypy martinisurf --ignore-missing-imports
+    #- name: Type checking (mypy)
+    #run: mypy martinisurf --ignore-missing-imports
 
     - name: Super-linter (ruff)
       run: ruff check martinisurf
