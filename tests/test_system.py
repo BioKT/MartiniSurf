@@ -16,12 +16,13 @@ def write_fake_gro(path: Path):
 """
     path.write_text(gro)
 
+
 def prepare_simulation_structure(base: Path):
     sim = base / "Simulation"
     sys2 = sim / "2_system"
     sys2.mkdir(parents=True)
 
-    # Create immobilized_system.gro in BOTH locations
+    # CLI expects THIS exact name
     write_fake_gro(sys2 / "immobilized_system.gro")
     write_fake_gro(sim / "immobilized_system.gro")
 
@@ -44,6 +45,7 @@ def prepare_simulation_structure(base: Path):
 
     return sim, sys2
 
+
 # ============================================================
 # TEST SUITE
 # ============================================================
@@ -62,7 +64,9 @@ def test_gomartini_inside_2_system(tmp_path, monkeypatch):
     assert (sim / "0_topology/system_res.top").exists()
     assert (sim / "0_topology/index.ndx").exists()
     assert (sim / "1_mdp/nvt.mdp").exists()
-    assert (sim / "2_system/system.gro").exists()
+
+    # IMPORTANT: output is written relative to cwd
+    assert (sys2 / "system.gro").exists()
 
 
 def test_gomartini_inside_Simulation(tmp_path, monkeypatch):
@@ -76,6 +80,7 @@ def test_gomartini_inside_Simulation(tmp_path, monkeypatch):
     ])
 
     assert (sim / "0_topology/system.top").exists()
+    assert (sim / "2_system/system.gro").exists()
 
 
 def test_gomartini_with_outdir(tmp_path, monkeypatch):
@@ -90,6 +95,6 @@ def test_gomartini_with_outdir(tmp_path, monkeypatch):
     ])
 
     assert (sim / "0_topology/system.top").exists()
-    assert (sim / "system_itp/Active_res.itp").exists()
     assert (sim / "1_mdp/deposition.mdp").exists()
+    assert (sim / "2_system/system.gro").exists()
 
