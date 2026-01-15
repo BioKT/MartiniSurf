@@ -45,19 +45,19 @@ jobs:
     # 5. Static analysis
     # -------------------------
     - name: Lint (flake8)
-      run: flake8 surfmartini --max-line-length 95
+      run: flake8 martinisurf --max-line-length 95
 
     - name: Type checking (mypy)
-      run: mypy surfmartini --ignore-missing-imports
+      run: mypy martinisurf --ignore-missing-imports
 
     - name: Super-linter (ruff)
-      run: ruff check surfmartini
+      run: ruff check martinisurf
 
     # -------------------------
     # 6. Run tests with coverage
     # -------------------------
     - name: Run tests
-      run: pytest -v --cov=surfmartini --cov-report=xml
+      run: pytest -v --cov=martinisurf --cov-report=xml
 
     # -------------------------
     # 7. Upload coverage (Codecov)
