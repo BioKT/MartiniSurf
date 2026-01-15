@@ -16,25 +16,20 @@ def write_fake_gro(path: Path):
 """
     path.write_text(gro)
 
-
 def prepare_simulation_structure(base: Path):
-    """
-    Create a minimal Simulation layout expected by gromacs_inputs.
-    """
     sim = base / "Simulation"
     sys2 = sim / "2_system"
     sys2.mkdir(parents=True)
 
-    # IMPORTANT: this is the file gromacs_inputs looks for
-    gro = sys2 / "immobilized_system.gro"
-    write_fake_gro(gro)
+    # Create immobilized_system.gro in BOTH locations
+    write_fake_gro(sys2 / "immobilized_system.gro")
+    write_fake_gro(sim / "immobilized_system.gro")
 
     # Required folders
     (sim / "0_topology").mkdir()
     (sim / "1_mdp").mkdir()
     (sim / "system_itp").mkdir()
 
-    # Minimal ITPs
     itp = sim / "system_itp"
     (itp / "surface.itp").write_text("dummy surface")
     (itp / "Active.itp").write_text("dummy active")
@@ -42,14 +37,12 @@ def prepare_simulation_structure(base: Path):
     (itp / "martini_v3.0.0_solvents_v1.itp").write_text("dummy")
     (itp / "martini_v3.0.0_ions_v1.itp").write_text("dummy")
 
-    # MDP templates
     mdp = sim / "mdp_templates"
     mdp.mkdir()
     for name in ["nvt.mdp", "npt.mdp", "deposition.mdp", "production.mdp"]:
         (mdp / name).write_text("integrator = md\n")
 
     return sim, sys2
-
 
 # ============================================================
 # TEST SUITE
