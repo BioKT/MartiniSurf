@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 import MDAnalysis as mda
-import martinisurf.gomartini_system as gms
+import martinisurf.gromacs_inputs as gms
 
 
 # ============================================================
