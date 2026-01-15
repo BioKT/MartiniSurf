@@ -25,8 +25,8 @@ def prepare_simulation_structure(base: Path):
     sys2 = sim / "2_system"
     sys2.mkdir(parents=True)
 
-    # Fake enzyme–surface structure
-    gro = sys2 / "Enzyme_Surface.gro"
+    # IMPORTANT: this is the file gromacs_inputs looks for
+    gro = sys2 / "immobilized_system.gro"
     write_fake_gro(gro)
 
     # Required folders
