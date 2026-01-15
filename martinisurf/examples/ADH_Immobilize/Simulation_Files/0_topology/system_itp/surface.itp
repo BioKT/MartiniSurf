@@ -6,4 +6,4 @@
 
 [ atoms ]
 ; id  type  resnr  residu  atom  cgnr  charge
-  1   C1       1   SRF    C     1     0.000
+  1   P4       1   SRF    C     1     0.000

@@ -2,10 +2,10 @@ README.md
 setup.py
 martinisurf/__init__.py
 martinisurf/__main__.py
-martinisurf/enzyme_tethered.py
-martinisurf/gomartini_system.py
+martinisurf/gromacs_inputs.py
 martinisurf/pipeline.py
 martinisurf/surface_builder.py
+martinisurf/system_tethered.py
 martinisurf.egg-info/PKG-INFO
 martinisurf.egg-info/SOURCES.txt
 martinisurf.egg-info/dependency_links.txt

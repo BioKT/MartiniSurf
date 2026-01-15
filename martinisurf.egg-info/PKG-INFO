@@ -6,3 +6,4 @@ Requires-Dist: pyvista
 Requires-Dist: MDAnalysis
 Requires-Dist: scipy
 Requires-Dist: vermouth
+Requires-Dist: mdtraj

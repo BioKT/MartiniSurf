@@ -128,35 +128,50 @@ def auto_orient_from_anchor_residues(system_coords, anchor_centroids, surface_co
     rot[:,1]+=xy_shift[1]
     return rot
 
+### READ SURFACE BOX DIMENSIONS
+def read_box_from_gro(gro_file):
+    with open(gro_file) as fh:
+        lines = fh.readlines()
+    return lines[-1].strip()
+
 # ======================================================================
 # SAVE SYSTEM
 # ======================================================================
-def save_full_system(output_gro,surf_atoms,surf_coords,enz_atoms,enz_coords):
-    total=len(surf_coords)+len(enz_coords)
-    with open(output_gro,"w") as fh:
+def save_full_system(output_gro, surf_atoms, surf_coords,
+                     enz_atoms, enz_coords, box_line):
+
+    total = len(surf_coords) + len(enz_coords)
+
+    with open(output_gro, "w") as fh:
         fh.write("MartiniSurf oriented system\n")
         fh.write(f"{total:5d}\n")
 
-        next_resid=1
-        next_atom=1
-        enz_map={}
+        next_resid = 1
+        next_atom = 1
+        enz_map = {}
 
         for (r,rn,a,aid),(x,y,z) in zip(enz_atoms,enz_coords):
             if r not in enz_map:
-                enz_map[r]=next_resid
-                next_resid+=1
-            fh.write(f"{enz_map[r]:5d}{rn:<5}{a:>5}{next_atom:5d}{x/10:8.3f}{y/10:8.3f}{z/10:8.3f}\n")
-            next_atom+=1
+                enz_map[r] = next_resid
+                next_resid += 1
+            fh.write(
+                f"{enz_map[r]:5d}{rn:<5}{a:>5}{next_atom:5d}"
+                f"{x/10:8.3f}{y/10:8.3f}{z/10:8.3f}\n"
+            )
+            next_atom += 1
 
-        surf_map={}
+        surf_map = {}
         for (r,rn,a,aid),(x,y,z) in zip(surf_atoms,surf_coords):
             if r not in surf_map:
-                surf_map[r]=next_resid
-                next_resid+=1
-            fh.write(f"{surf_map[r]:5d}{rn:<5}{a:>5}{next_atom:5d}{x/10:8.3f}{y/10:8.3f}{z/10:8.3f}\n")
-            next_atom+=1
+                surf_map[r] = next_resid
+                next_resid += 1
+            fh.write(
+                f"{surf_map[r]:5d}{rn:<5}{a:>5}{next_atom:5d}"
+                f"{x/10:8.3f}{y/10:8.3f}{z/10:8.3f}\n"
+            )
+            next_atom += 1
 
-        fh.write(" 10 10 10\n")
+        fh.write(box_line + "\n")
 
     print(f"✔ Saved oriented system → {output_gro}")
 
@@ -228,13 +243,21 @@ def main(argv=None):
     surf_coords,surf_atoms = load_gro_coords(args.surface)
     enz_coords, enz_atoms = load_gro_coords(args.system)
 
+    box_line = read_box_from_gro(args.surface)
+
     centroids = summarize_selected_residues(all_res, enz_atoms, enz_coords)
 
     oriented = auto_orient_from_anchor_residues(
         enz_coords, centroids, surf_coords, args.dist
     )
 
-    save_full_system(args.out, surf_atoms, surf_coords, enz_atoms, oriented)
+    save_full_system(
+    args.out,
+    surf_atoms, surf_coords,
+    enz_atoms, oriented,
+    box_line
+    )
+
 
 # ======================================================================
 if __name__=="__main__":

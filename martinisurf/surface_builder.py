@@ -32,7 +32,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     parser.add_argument("--dx", type=float, default=0.47)
     parser.add_argument("--lx", type=float, required=True)
     parser.add_argument("--ly", type=float, required=True)
-    parser.add_argument("--lz", type=float, default=5.0)
+    parser.add_argument("--lz", type=float, default=10.0)
     parser.add_argument("--resname", type=str, default="SRF")
 
     parser.add_argument(

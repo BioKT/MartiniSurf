@@ -3,3 +3,4 @@ pyvista
 MDAnalysis
 scipy
 vermouth
+mdtraj
