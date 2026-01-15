@@ -18,7 +18,7 @@ def test_surface_builder_basic(tmp_path):
 
     gro = tmp_path / "mysurface.gro"
     itp = tmp_path / "mysurface.itp"
-    dst = tmp_path / "ActiveITP" / "surface.itp"
+    dst = tmp_path / "system_itp" / "surface.itp"
 
     assert gro.exists()
     assert itp.exists()
@@ -115,6 +115,6 @@ def test_standalone_mode_copy(tmp_path):
         "--output", str(out)
     ])
 
-    dst = tmp_path / "ActiveITP" / "surface.itp"
+    dst = tmp_path / "system_itp" / "surface.itp"
     assert dst.exists()
 

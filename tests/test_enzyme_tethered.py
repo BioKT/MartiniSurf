@@ -118,11 +118,25 @@ def test_save_full_system(tmp_path):
     enz_atoms = [(1, "ALA", "CA", 1), (2, "ALA", "CA", 2)]
     enz_coords = np.array([[10.0, 10.0, 10.0], [20.0, 20.0, 20.0]])
 
-    enz.save_full_system(out, surf_atoms, surf_coords, enz_atoms, enz_coords)
+    # NEW: explicit box line (same format as GRO last line)
+    box_line = "2.00000 2.00000 2.00000"
+
+    enz.save_full_system(
+        out,
+        surf_atoms,
+        surf_coords,
+        enz_atoms,
+        enz_coords,
+        box_line,
+    )
 
     assert out.exists()
     text = out.read_text()
-    assert "MartiniSurf oriented system" in text
-    assert "4" in text.splitlines()[1]  # total atoms
+    lines = text.splitlines()
+
+    assert "MartiniSurf oriented system" in lines[0]
+    assert int(lines[1]) == 4  # total atoms
+    assert lines[-1].strip() == box_line
+
 
 
