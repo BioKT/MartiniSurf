@@ -1,6 +1,6 @@
 import numpy as np
 from pathlib import Path
-import surfmartini.enzyme_tethered as enz
+import martinisurf.enzyme_tethered as enz
 
 
 # --------------------------------------------------------------

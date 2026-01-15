@@ -1,6 +1,6 @@
 import os
 import math
-from surfmartini.surface_builder import main
+from martinisurf.surface_builder import main
 
 
 # ============================================================
