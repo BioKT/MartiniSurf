@@ -63,7 +63,7 @@ def build_parser():
 
     parser.add_argument(
         "--moltype",
-        required=True,
+        required=False,
         help="Name of the molecule (used for generated filenames and topology)."
     )
 
@@ -310,7 +310,7 @@ def main(argv=None):
     tmpdir = simdir / "_martinize_tmp"
     tmpdir.mkdir()
 
-    mol = args.moltype
+    mol = args.moltype if args.moltype else "DNA"
 
     system_cg_out = tmpdir / f"{mol}_cg.pdb"
     topfile_out   = tmpdir / f"{mol}_cg.top"
@@ -348,7 +348,6 @@ def main(argv=None):
             "-f", str(pdb_abs),
             "-x", str(system_cg_out),
             "-o", str(topfile_out),
-            "-name", args.moltype,
             "-dnatype", args.dnatype,
             "-p", args.p.capitalize(),
             "-pf", str(args.pf),
@@ -506,7 +505,10 @@ def main(argv=None):
     # =====================================================================
     import martinisurf.gromacs_inputs as gsm
 
-    final_args = ["--outdir", str(simdir), "--moltype", args.moltype]
+    final_args = ["--outdir", str(simdir)]
+
+    if not args.dna:
+        final_args += ["--moltype", args.moltype]
 
     if args.anchor:
         for group in args.anchor:

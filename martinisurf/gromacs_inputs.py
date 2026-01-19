@@ -46,7 +46,7 @@ def write_list(values: List[int], fh, chunk: int = 15) -> None:
 def main(argv: Sequence[str] | None = None) -> None:
 
     parser = argparse.ArgumentParser(description="Build GoMartini system with anchoring restraints.")
-    parser.add_argument("--moltype", required=True)
+    parser.add_argument("--moltype", required=False)
     parser.add_argument("--outdir", default="Simulation")
 
     parser.add_argument(
@@ -176,19 +176,30 @@ def main(argv: Sequence[str] | None = None) -> None:
     # Protein: simple
     mol = args.moltype
 
-    if not is_dna:
-        possible_itps = list(dst_itp_dir.glob(f"{mol}.itp"))
+    if is_dna:
+        possible_itps = [
+            p for p in dst_itp_dir.glob("*.itp")
+            if not p.name.startswith("martini_")
+            and p.name != "surface.itp"
+        ]
+
+        if len(possible_itps) != 1:
+            raise RuntimeError(
+                f"❌ Ambiguous DNA ITP files: {[p.name for p in possible_itps]}"
+            )
+
+        mol_itp = possible_itps[0]
+        moltype = mol_itp.stem
     else:
-        possible_itps = (
-            list(dst_itp_dir.glob("*DNA*.itp"))
-            + list(dst_itp_dir.glob("*Nucleic*.itp"))
-        )
+        if not args.moltype:
+            raise ValueError("❌ --moltype is required for protein systems")
 
-    if not possible_itps:
-        raise FileNotFoundError(f"❌ No ITP found for molecule {mol} in {dst_itp_dir}")
+        moltype = args.moltype
+        mol_itp = dst_itp_dir / f"{moltype}.itp"
 
-    mol_itp = possible_itps[0]
-    print(f"✔ Using molecule ITP: {mol_itp.name}")
+        if not mol_itp.exists():
+            raise FileNotFoundError(f"❌ No ITP found for molecule {moltype}")
+
 
     # ===============================================================
     # Build system.top
@@ -220,7 +231,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
         f.write("[ system ]\nGoMartini Surface Simulation\n\n")
         f.write("[ molecules ]\n")
-        f.write(f"{args.moltype}   {n_mol}\n")
+        f.write(f"{moltype}   {n_mol}\n")
         f.write(f"SRF      {n_surf}\n")
         f.write(f"W        {n_water}\n")
         f.write(f"Na       {n_ions}\n")
@@ -280,7 +291,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
         f.write("[ system ]\nGoMartini Surface Simulation (restr)\n\n")
         f.write("[ molecules ]\n")
-        f.write(f"{args.moltype}   {n_mol}\n")
+        f.write(f"{args.moltype}   {n_mol}\n")   
         f.write(f"SRF      {n_surf}\n")
         f.write(f"W        {n_water}\n")
         f.write(f"Na       {n_ions}\n")
