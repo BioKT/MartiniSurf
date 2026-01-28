@@ -221,6 +221,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 f.write('#include "system_itp/martini_v2.1P-dna.itp"\n')
             f.write('#include "system_itp/martini_v2.0_ions.itp"\n')
         else:
+            f.write('#include "#define GO_VIRT"\n')
             f.write('#include "system_itp/martini_v3.0.0.itp"\n')
             f.write('#include "system_itp/martini_v3.0.0_Active.itp"\n')
             f.write('#include "system_itp/martini_v3.0.0_solvents_v1.itp"\n')
@@ -281,6 +282,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 f.write('#include "system_itp/martini_v2.1P-dna.itp"\n')
             f.write('#include "system_itp/martini_v2.0_ions.itp"\n')
         else:
+            f.write('#include "#define GO_VIRT"\n')
             f.write('#include "system_itp/martini_v3.0.0.itp"\n')
             f.write('#include "system_itp/martini_v3.0.0_Active.itp"\n')
             f.write('#include "system_itp/martini_v3.0.0_solvents_v1.itp"\n')
@@ -312,19 +314,39 @@ def main(argv: Sequence[str] | None = None) -> None:
     print("• Copying MDP templates ...")
 
     mdp_pkg = pkg_dir / "mdp_templates"
-    for fname in [
-        "gromacs_workflow",
-        "minimization.mdp",
-        "nvt.mdp",
-        "npt.mdp",
-        "deposition.mdp",
-        "production.mdp",
-    ]:
-        src = mdp_pkg / fname
+
+    if is_dna:
+        mdp_files = {
+            "minimization_dna.mdp": "minimization.mdp",
+            "nvt_dna.mdp": "nvt.mdp",
+            "npt_dna.mdp": "npt.mdp",
+            "deposition_dna.mdp": "deposition.mdp",
+            "production_dna.mdp": "production.mdp",
+        }
+    else:
+        mdp_files = {
+            "minimization.mdp": "minimization.mdp",
+            "nvt.mdp": "nvt.mdp",
+            "npt.mdp": "npt.mdp",
+            "deposition.mdp": "deposition.mdp",
+            "production.mdp": "production.mdp",
+        }
+
+    # workflow común
+    workflow = mdp_pkg / "gromacs_workflow"
+    if workflow.exists():
+        shutil.copy(workflow, mdp_dir / "gromacs_workflow")
+    else:
+        print("⚠ Missing gromacs_workflow")
+
+    # copiar MDPs
+    for src_name, dst_name in mdp_files.items():
+        src = mdp_pkg / src_name
         if src.exists():
-            shutil.copy(src, mdp_dir / fname)
+            shutil.copy(src, mdp_dir / dst_name)
+            print(f"  ✔ {src_name} → {dst_name}")
         else:
-            print(f"⚠ Missing MDP template: {fname}")
+            print(f"⚠ Missing MDP template: {src_name}")
 
     # ===============================================================
     print("\n========================================")

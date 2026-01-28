@@ -181,6 +181,19 @@ def build_parser():
         help="Export Gō contact map into an external file."
     )
 
+
+    parser.add_argument(
+        "--go-backbone",
+        default="BB",
+        help="Backbone bead name used for Gō–Martini (default: BB)."
+    )
+
+    parser.add_argument(
+        "--go-atomname",
+        default="CA",
+        help="Atom name used for native contacts in Gō–Martini (default: CA)."
+    )
+
     # --------------------------------------------------------------
     # 🔧 PROTEIN MODIFICATIONS
     # --------------------------------------------------------------
@@ -418,14 +431,16 @@ def main(argv=None):
         if args.go is not None:
             martinize_cmd += ["-go"] if args.go == "auto" else ["-go", args.go]
 
-        martinize_cmd += [
-            "-go-eps", str(args.go_eps),
-            "-go-low", str(args.go_low),
-            "-go-up",  str(args.go_up),
-        ]
+            martinize_cmd += [
+                "-go-eps", str(args.go_eps),
+                "-go-low", str(args.go_low),
+                "-go-up",  str(args.go_up),
+                "-go-backbone", args.go_backbone,
+                "-go-atomname", args.go_atomname,
+            ]
 
-        if args.go_write_file:
-            martinize_cmd.append("-go-write-file")
+            if args.go_write_file:
+                martinize_cmd.append("-go-write-file")
 
 
     # =====================================================================
