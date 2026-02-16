@@ -11,7 +11,9 @@ Stable architecture:
 """
 
 import argparse
+import importlib.util
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -260,6 +262,67 @@ def run(cmd, cwd=None):
     print("✔ Done\n")
 
 
+def _parse_version_triplet(text: str) -> tuple[int, int, int] | None:
+    match = re.search(r"(\d+)\.(\d+)\.(\d+)", text or "")
+    if not match:
+        return None
+    return int(match.group(1)), int(match.group(2)), int(match.group(3))
+
+
+def _version_leq(found: tuple[int, int, int], limit: tuple[int, int, int]) -> bool:
+    return found <= limit
+
+
+def _is_dssp_binary_compatible(binary_path: str) -> bool:
+    try:
+        res = subprocess.run(
+            [binary_path, "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return False
+
+    version_text = f"{res.stdout}\n{res.stderr}"
+    parsed = _parse_version_triplet(version_text)
+    if parsed is None:
+        # If version cannot be parsed, avoid hard-failing and let martinize2 retry logic handle it.
+        print(f"⚠ Could not parse DSSP version for {binary_path}.")
+        return True
+
+    compatible = _version_leq(parsed, (3, 1, 4))
+    if not compatible:
+        print(
+            f"⚠ DSSP at {binary_path} is version {parsed[0]}.{parsed[1]}.{parsed[2]}, "
+            "but martinize2 is only compatible with DSSP <= 3.1.4."
+        )
+    return compatible
+
+
+def _select_dssp_flags() -> list[str]:
+    # Martinize2 recommendation: prefer mdtraj for secondary structure assignment.
+    if importlib.util.find_spec("mdtraj") is not None:
+        return ["-dssp"]
+
+    # Fallback to binary DSSP only when compatible.
+    dssp_env = os.environ.get("DSSP", "").strip()
+    if dssp_env and _is_dssp_binary_compatible(dssp_env):
+        return ["-dssp", dssp_env]
+
+    system_mkdssp = shutil.which("mkdssp")
+    if system_mkdssp and _is_dssp_binary_compatible(system_mkdssp):
+        return ["-dssp", system_mkdssp]
+
+    dssp_bin = Path(__file__).resolve().parent / "dssp" / "mkdssp"
+    if dssp_bin.exists() and _is_dssp_binary_compatible(str(dssp_bin)):
+        return ["-dssp", str(dssp_bin)]
+
+    print("⚠ DSSP requested but no compatible setup found. Continuing without DSSP.")
+    print("  Install `mdtraj` (recommended) or provide DSSP <= 3.1.4 via $DSSP.")
+    return []
+
+
 # ======================================================================
 # MAIN
 # ======================================================================
@@ -353,19 +416,7 @@ def main(argv=None):
             martinize_cmd += ["-go"]
 
         if args.dssp:
-            # Prefer explicit DSSP env var (common in Colab), then system mkdssp,
-            # and only then fallback to bundled binary.
-            dssp_env = os.environ.get("DSSP", "").strip()
-            if dssp_env:
-                martinize_cmd += ["-dssp", dssp_env]
-            else:
-                system_mkdssp = shutil.which("mkdssp")
-                if system_mkdssp:
-                    martinize_cmd += ["-dssp", system_mkdssp]
-                else:
-                    dssp_bin = Path(__file__).resolve().parent / "dssp" / "mkdssp"
-                    if dssp_bin.exists():
-                        martinize_cmd += ["-dssp", str(dssp_bin)]
+            martinize_cmd += _select_dssp_flags()
 
     # martinize2 in some Colab/runtime setups fails when DSSP binary is present
     # but not functional. In that case retry once without DSSP.
@@ -376,8 +427,10 @@ def main(argv=None):
             print("⚠ martinize2 failed with DSSP. Retrying without DSSP...")
             retry_cmd = martinize_cmd[:]
             dssp_idx = retry_cmd.index("-dssp")
-            # Remove: -dssp <binary_path>
-            del retry_cmd[dssp_idx:dssp_idx + 2]
+            # Remove -dssp and optional binary path if present.
+            del retry_cmd[dssp_idx]
+            if dssp_idx < len(retry_cmd) and not retry_cmd[dssp_idx].startswith("-"):
+                del retry_cmd[dssp_idx]
             run(retry_cmd, cwd=tmpdir)
         else:
             raise

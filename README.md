@@ -51,6 +51,13 @@ MartiniSurf expects the following tools in your environment:
 - Python 2.7 for DNA mode (`martinize-dna.py`)
 - GROMACS for running the generated workflows
 
+### DSSP / Secondary Structure Notes (Protein Mode)
+- `--dssp` is enabled by default in MartiniSurf protein mode.
+- Following martinize2 recommendations, MartiniSurf prefers `mdtraj` for secondary-structure assignment.
+- If `mdtraj` is not available, MartiniSurf can use a DSSP binary via `-dssp /path/to/dssp`.
+- Important: martinize2 is only compatible with DSSP versions `3.1.4` or lower.
+- In Colab, if DSSP causes failures, install `mdtraj` and avoid newer `mkdssp` binaries.
+
 ## Quick Start
 ### 1) Protein, classical anchor mode
 ```bash
