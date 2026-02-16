@@ -163,6 +163,34 @@ def test_auto_orient_prevents_surface_penetration_when_anchors_are_high():
     assert result[:, 2].min() >= 1.0
 
 
+def test_auto_orient_respects_anchor_distance_after_flip():
+    # Geometry chosen so anchor normal can trigger the flip branch.
+    enzyme = np.array([
+        [0.0, 0.0, 0.0],   # anchor atom
+        [1.0, 0.0, 0.0],   # anchor atom
+        [0.0, 1.0, 5.0],   # high point
+        [0.0, 0.0, -5.0],  # low point
+    ])
+    anchors = np.array([
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+    ])
+    surface = np.array([
+        [0.0, 0.0, 0.0],
+        [2.0, 2.0, 0.0],
+    ])
+
+    target = 10.0
+    result = enz.auto_orient_from_anchor_residues(
+        enzyme, anchors, surface, target_z=target
+    )
+
+    # Anchor atoms are indices 0 and 1 in this synthetic setup.
+    transformed_anchor_min = result[[0, 1], 2].min()
+    # Allow a small tolerance due to rotation/format precision.
+    assert transformed_anchor_min >= target - 1e-6
+
+
 # --------------------------------------------------------------
 # Test save_full_system
 # --------------------------------------------------------------

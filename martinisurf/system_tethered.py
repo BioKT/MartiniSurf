@@ -149,6 +149,9 @@ def auto_orient_from_anchor_residues(system_coords,
     if anchors_rot[:,2].mean() > center[2]:
         Rflip = np.diag([1,1,-1])
         rot = (Rflip @ (rot - center).T).T + center
+        # Keep anchor coordinates consistent with the flipped system before
+        # computing z-translation.
+        anchors_rot = (Rflip @ (anchors_rot - center).T).T + center
 
     z_anchor  = anchors_rot[:,2].min()
     z_surface = surface_coords[:,2].max()
