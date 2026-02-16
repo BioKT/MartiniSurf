@@ -142,6 +142,27 @@ def test_auto_orient_from_anchor_residues():
     assert result[:, 2].min() >= 5.0   # enzyme must be above surface
 
 
+def test_auto_orient_prevents_surface_penetration_when_anchors_are_high():
+    enzyme = np.array([
+        [0.0, 0.0, 0.0],
+        [1.0, 1.0, 100.0],
+    ])
+    anchors = np.array([
+        [1.0, 1.0, 100.0],
+    ])
+    surface = np.array([
+        [0.0, 0.0, 0.0],
+        [2.0, 2.0, 0.0],
+    ])
+
+    result = enz.auto_orient_from_anchor_residues(
+        enzyme, anchors, surface, target_z=10.0
+    )
+
+    # Even with very high anchors, the full system must stay above the surface.
+    assert result[:, 2].min() >= 1.0
+
+
 # --------------------------------------------------------------
 # Test save_full_system
 # --------------------------------------------------------------

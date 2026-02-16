@@ -155,6 +155,15 @@ def auto_orient_from_anchor_residues(system_coords,
 
     rot[:,2] += (z_surface + target_z) - z_anchor
 
+    # Safety guard: anchor-based placement can still leave parts of large/asymmetric
+    # proteins below the surface if selected anchors are not the lowest points.
+    # Enforce a minimal global clearance to avoid surface penetration artifacts.
+    min_clearance = 1.0  # Angstrom
+    min_system_z = rot[:, 2].min()
+    required_min_z = z_surface + min_clearance
+    if min_system_z < required_min_z:
+        rot[:, 2] += (required_min_z - min_system_z)
+
     xy_shift = surface_coords[:,:2].mean(0) - rot[:,:2].mean(0)
     rot[:,0] += xy_shift[0]
     rot[:,1] += xy_shift[1]
