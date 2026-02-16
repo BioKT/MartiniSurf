@@ -29,6 +29,44 @@ Test GRO
     path.write_text(gro)
 
 
+def write_system_gro(path: Path):
+    gro = """\
+System GRO
+    2
+    1MOL    B1    1   0.500   0.500   1.000
+    1MOL    B2    2   0.700   0.700   1.100
+   2.00000   2.00000   2.00000
+"""
+    path.write_text(gro)
+
+
+def write_linker_gro(path: Path):
+    gro = """\
+Linker GRO
+    3
+    1LNK    L1    1   0.000   0.000   0.000
+    1LNK    L2    2   0.000   0.000   0.100
+    1LNK    L3    3   0.000   0.000   0.200
+   2.00000   2.00000   2.00000
+"""
+    path.write_text(gro)
+
+
+def atom_z_by_name(gro_path: Path, atom_name: str) -> float:
+    for line in gro_path.read_text().splitlines()[2:-1]:
+        if line[10:15].strip() == atom_name:
+            return float(line[36:44])
+    raise ValueError(f"Atom {atom_name} not found")
+
+
+def linker_atom_sequence(gro_path: Path) -> list[str]:
+    names = []
+    for line in gro_path.read_text().splitlines()[2:-1]:
+        if line[5:10].strip() == "LNK":
+            names.append(line[10:15].strip())
+    return names
+
+
 # --------------------------------------------------------------
 # Test convert_pdb_to_gro
 # --------------------------------------------------------------
@@ -139,4 +177,37 @@ def test_save_full_system(tmp_path):
     assert lines[-1].strip() == box_line
 
 
+def test_invert_linker_switches_attachment_side(tmp_path):
+    surface = tmp_path / "surface.gro"
+    system = tmp_path / "system.gro"
+    linker = tmp_path / "linker.gro"
+    out_default = tmp_path / "out_default.gro"
+    out_invert = tmp_path / "out_invert.gro"
 
+    write_minimal_gro(surface)
+    write_system_gro(system)
+    write_linker_gro(linker)
+
+    enz.main([
+        "--surface", str(surface),
+        "--system", str(system),
+        "--out", str(out_default),
+        "--linker-gro", str(linker),
+        "--linker-group", "1", "1",
+        "--linker-prot-dist", "0.0",
+        "--linker-surf-dist", "0.0",
+    ])
+
+    enz.main([
+        "--surface", str(surface),
+        "--system", str(system),
+        "--out", str(out_invert),
+        "--linker-gro", str(linker),
+        "--linker-group", "1", "1",
+        "--linker-prot-dist", "0.0",
+        "--linker-surf-dist", "0.0",
+        "--invert-linker",
+    ])
+
+    assert linker_atom_sequence(out_default) == ["L1", "L2", "L3"]
+    assert linker_atom_sequence(out_invert) == ["L3", "L2", "L1"]

@@ -3,6 +3,7 @@ setup.py
 martinisurf/__init__.py
 martinisurf/__main__.py
 martinisurf/gromacs_inputs.py
+martinisurf/linker_builder.py
 martinisurf/pipeline.py
 martinisurf/surface_builder.py
 martinisurf/system_tethered.py

@@ -5,152 +5,131 @@
 <h1 align="center">MartiniSurf</h1>
 
 <p align="center">
-A Python toolkit for automatic protein orientation, surface generation,  
-and Gō–Martini coarse-grained simulation setup.
+Toolkit for automated Martini protein/DNA surface-system setup, including linker-aware orientation and dynamic pull generation.
 </p>
 
-
 <p align="center">
-
-  <!-- Build status -->
   <a href="https://github.com/jjimenezgar/MartiniSurf/actions/workflows/python-ci.yml">
     <img src="https://github.com/jjimenezgar/MartiniSurf/actions/workflows/python-ci.yml/badge.svg" alt="CI">
   </a>
-
-  <!-- Code style -->
-
-  <!-- flake8 -->
-  <img src="https://img.shields.io/badge/lint-flake8-blue" alt="flake8">
-
-  <!-- ruff -->
-  <img src="https://img.shields.io/badge/lint-ruff-red" alt="ruff">
-
-  <!-- mypy -->
-  <img src="https://img.shields.io/badge/types-mypy-green" alt="mypy">
-
-  <!-- Pytest -->
-  <img src="https://img.shields.io/badge/tests-passing-brightgreen" alt="tests">
-
-  <!-- Coverage -->
   <a href="https://codecov.io/gh/jjimenezgar/MartiniSurf">
     <img src="https://codecov.io/gh/jjimenezgar/MartiniSurf/branch/master/graph/badge.svg" alt="Coverage">
   </a>
-
-  <!-- Python versions -->
-  <img src="https://img.shields.io/badge/python-3.9%20|%203.10%20|%203.11-blue.svg">
-  
-  <!-- Google Colab -->
+  <img src="https://img.shields.io/badge/python-3.9%20|%203.10%20|%203.11-blue.svg" alt="Python versions">
   <a href="https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/colab_demo.ipynb">
-  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab">
+    <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab">
   </a>
-
 </p>
 
+## Overview
+MartiniSurf builds complete GROMACS-ready simulation folders for:
+- Protein-surface systems (Martini 3 workflow)
+- DNA-surface systems (Martini2 DNA workflow)
+- Linker-mediated immobilization workflows
 
----
+Main capabilities:
+- Coarse-graining via `martinize2` (protein) or `martinize-dna.py` (DNA)
+- Surface generation or reuse of provided surfaces
+- Classical anchor orientation or linker-based orientation
+- Dynamic pull block generation in `.mdp` files (not fixed to one template)
+- Automatic topology assembly (`system.top`, `system_res.top`, index groups, templates)
 
-# 🧬 Overview
+## Installation
+```bash
+conda create -n martinisurf python=3.11 -y
+conda activate martinisurf
+pip install -r requirements.txt
+pip install -e .
+```
 
-**MartiniSurf** is a complete, automated pipeline for preparing **Martini 3**,  
-**Gō–Martini**, and **Martini2-DNA** simulation systems involving:
+## External Tools
+MartiniSurf expects the following tools in your environment:
+- `martinize2` for protein mode
+- Python 2.7 for DNA mode (`martinize-dna.py`)
+- GROMACS for running the generated workflows
 
-✔️ Proteins  
-✔️ DNA (single- and double-stranded)  
-✔️ Hybrid protein–surface or DNA–surface systems  
-
-It provides a modular yet fully automatic way to:
-
-- ⚙️ **Generate coarse-grained models** using  
-  - `martinize2` (proteins)  
-  - `martinize-dna.py` (DNA, Python-2 compatible)
-- 🧱 **Build Martini surfaces** (custom bead type, charge, spacing)
-- 📐 **Orient biomolecules** on surfaces via multi-anchor geometry
-- 🔗 **Define unlimited anchor groups**
-- 🔒 **Generate position restraints** for Gō–Martini anchoring
-- 🧰 **Produce full GROMACS-ready directories**
-  - Minimization, NVT, NPT, production `.mdp` files
-
----
-
-
-## 🔧 **Installation**
-
-- conda create -n martinisurf
-- conda activate martinisurf
-- pip install -r surfmartini
-- conda install pip
-- pip install .
-
-## ⚡ **Quickstart**
-### 🧬 Protein-Support
+## Quick Start
+### 1) Protein, classical anchor mode
+```bash
 martinisurf \
-    --pdb 1RJW \
-    --moltype Protein \
-    --lx 20 --ly 20 \
-    --surface-bead C1 \
-    --anchor 1 8 10 11 \
-    --anchor 2 1025 1027 1028 \
-    --dist 10
+  --pdb 1RJW \
+  --moltype Protein \
+  --lx 20 --ly 20 \
+  --surface-bead C1 \
+  --anchor 1 8 10 11 \
+  --anchor 2 1025 1027 1028 \
+  --dist 10
+```
 
-### 🔍 What this does
-
-- 📥 Downloads **1RJW** from RCSB  
-- 🧬 Runs **martinize2** to generate the coarse-grained model  
-- 🧱 Builds a **20 × 20 nm** Martini surface  
-- 📐 Orients the enzyme using **two anchor groups**  
-- 🧰 Generates complete **GROMACS-ready simulation files**  
-
-
-### 🧬 DNA-Support
-
+### 2) DNA, classical anchor mode
+```bash
 martinisurf \
-    --dna \
-    --pdb 4C64 \
-    --moltype DNA \
-    --dnatype ds-stiff \
-    --lx 5 --ly 5 \
-    --surface-bead C1 \
-    --anchor 1 1 \
-    --anchor 2 24 \
-    --dist 10
+  --dna \
+  --pdb 4C64.pdb \
+  --dnatype ds-stiff \
+  --surface surface.gro \
+  --anchor 1 1 \
+  --anchor 2 24 \
+  --dist 10
+```
 
-### 🔍 What this does
+### 3) DNA/protein linker mode
+```bash
+martinisurf \
+  --dna \
+  --pdb 4C64.pdb \
+  --surface surface.gro \
+  --linker linker.gro \
+  --linker-group 1 1
+```
 
-- 📥 Downloads **4C64** from RCSB  
-- 🧬 Runs **martinize-dna.py** to generate the coarse-grained model  
-- 🧱 Builds a **5 × 5 nm** Martini surface  
-- 📐 Orients the enzyme using **two anchor groups**  
-- 🧰 Generates complete **GROMACS-ready simulation files**  
+## Linker Mode Notes
+- The linker topology file must exist next to linker GRO with matching basename:
+  - Example: `linker.gro` -> `linker.itp`
+- You can reverse linker orientation with:
+  - `--invert-linker`
+- For multiple linker instances, pull/index groups are generated per linker automatically.
+- If not provided manually, linker distances are estimated from Martini bead-size sigma rules.
 
----
+## Dynamic Pull Generation
+Generated `.mdp` pull sections are built from system content:
+- Classical mode: number of pulls follows number of anchor groups
+- Linker mode: groups and pulls are generated per linker instance
 
-📜 Third-Party Software and Licensing Notice
+This removes the old fixed “always 1 or 2 pulls” limitation.
 
-MartiniSurf relies on several external open-source tools and scientific libraries.
-These components are not included in this repository (unless explicitly stated) and remain governed by their original licenses.
+## CLI Help
+Use:
+```bash
+martinisurf -h
+```
+The help output is grouped by blocks:
+- Input and molecule
+- Martinization controls
+- Surface controls
+- Classical anchor mode
+- Linker mode
+- Output
 
-Users must ensure that they comply with the licenses of all dependencies when using MartiniSurf.
+## Output Structure
+By default, MartiniSurf writes:
+```text
+Simulation_Files/
+  0_topology/
+    system.top
+    system_res.top
+    index.ndx
+    system_itp/
+  1_mdp/
+  2_system/
+```
 
-🔧 Core Python Dependencies
+## Testing
+Run test suite:
+```bash
+pytest -q
+```
 
-MartiniSurf depends on the following libraries:
-
-Package	License	Purpose
-NumPy	        BSD-3-Clause	Scientific computing
-SciPy	        BSD-3-Clause	Numerical routines
-MDTraj	        BSD-3-Clause	Trajectory handling
-MDAnalysis	LGPL-2.1	Atomistic topology & trajectory analysis
-PyVista	MIT	        3D visualization
-Vermouth/martinize2	Apache-2.0	Martini CG model construction
-
-
-🧬 Martini and DNA Martini Tools
-
-MartiniSurf interfaces with external Martini tooling, including:
-
-martinize2 (Apache-2.0), used for protein coarse-graining
-
-martinize-dna.py, originally developed within the Marrink Lab, distributed under research-friendly open licensing (GPL-based in earlier versions)
-
-⚠️ These tools are not distributed within MartiniSurf.
-They are invoked only when present on the user’s system, and their licenses remain fully applicable.
+## Third-Party Licensing Notice
+MartiniSurf interfaces with external scientific tools and libraries that keep their original licenses.
+You are responsible for complying with licenses of dependencies and external binaries in your environment.

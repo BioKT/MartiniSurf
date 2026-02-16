@@ -41,18 +41,14 @@ cos-acceleration         = 0
 refcoord_scaling         = all
 
 pull                     = yes
-pull-ngroups             = 3                     ; Total number of pull groups
-pull-group1-name         = Residues_A            ; First pull group
+pull-ngroups             = 2                     ; Total number of pull groups
+pull-group1-name         = Anchor_1            ; First pull group
 pull-group2-name         = SRF                   ; Second pull group (common)
-pull-group3-name         = Residues_B            ; Third pull group
-
-;pull-pbc-ref-prev-step-com = yes
-;pull-group2-pbcatom = 4978
 
 ; First pulling coordinate (Umbrella 1)
 pull-ncoords             = 2                     ; Two pulling coordinates
 pull-coord1-geometry     = distance              ; Geometry type for the first coordinate
-pull-coord1-groups       = 1 2                   ; Groups involved in the first coordinate (Residues_A and GRA)
+pull-coord1-groups       = 1 2                   ; Groups involved in the first coordinate (Anchor_1 and GRA)
 pull-coord1-type         = umbrella              ; Pulling type for the first coordinate (umbrella)
 pull-coord1-k            = 1000.0                ; Force constant for the first coordinate
 pull-coord1-rate         = 0                     ; Pulling rate (0 for umbrella)
@@ -60,13 +56,3 @@ pull-coord1-dim          = N N Y                 ; Pulling dimensions for the fi
 ;pull-coord1_start        = yes                   ; Start from the current distance
 pull-coord1-init         = 0.8                 ; Initial target distance (in nm)
 
-
-; Second pulling coordinate (Umbrella 2)
-pull-coord2-geometry     = distance              ; Geometry type for the second coordinate
-pull-coord2-groups       = 3 2                   ; Groups involved in the second coordinate (Residues_B and GRA)
-pull-coord2-type         = umbrella              ; Pulling type for the second coordinate (umbrella)
-pull-coord2-k            = 1000.0                ; Force constant for the second coordinate
-pull-coord2-rate         = 0                     ; Pulling rate (0 for umbrella)
-pull-coord2-dim          = N N Y                 ; Pulling dimensions for the second coordinate
-;pull-coord2_start        = yes                   ; Start from the current distance
-pull-coord2-init         = 0.8                 ; Initial target distance (in nm)

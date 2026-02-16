@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
 """
-Generate a hexagonal surface and a minimal GROMACS topology (.itp).
-
-This module creates a 2D hexagonal lattice of beads to represent
-a flat surface for Martini or GōMartini simulations.
-
-It outputs:
-- A .gro coordinate file
-- A minimal .itp topology file
-- (Standalone mode only) Automatic copy of surface.itp into system_itp/
+Surface Builder Module
+Generates 2D surfaces for Martini simulations using two mapping modes:
+- 2-1: Standard hexagonal mapping.
+- 4-1: Honeycomb Carbon mapping (atomistic-like lattice).
 """
 
 import argparse
@@ -18,152 +13,115 @@ import shutil
 from pathlib import Path
 from typing import Iterable, List, Tuple
 
-
-# ======================================================================
-# Entry point
-# ======================================================================
 def main(argv: Iterable[str] | None = None) -> None:
-    """CLI entry point for hexagonal surface generation."""
-    parser = argparse.ArgumentParser(
-        description="Generate a hexagonal surface and minimal surface.itp"
-    )
+    parser = argparse.ArgumentParser(description="Martini Surface Generator (2-1 and 4-1 mappings)")
 
-    parser.add_argument("--bead", type=str, default="P4")
-    parser.add_argument("--dx", type=float, default=0.47)
-    parser.add_argument("--lx", type=float, required=True)
-    parser.add_argument("--ly", type=float, required=True)
-    parser.add_argument("--lz", type=float, default=10.0)
-    parser.add_argument("--resname", type=str, default="SRF")
+    # Base parameters
+    parser.add_argument("--mode", type=str, choices=["2-1", "4-1"], default="2-1", 
+                        help="Mapping mode: 2-1 (Standard hex) or 4-1 (Honeycomb Carbon)")
+    parser.add_argument("--bead", type=str, default="P4", help="Martini bead type")
+    parser.add_argument("--dx", type=float, default=0.47, help="Bead spacing (2-1) or C-C distance (4-1)")
+    parser.add_argument("--lx", type=float, required=True, help="Surface length in X (nm)")
+    parser.add_argument("--ly", type=float, required=True, help="Surface length in Y (nm)")
+    parser.add_argument("--lz", type=float, default=10.0, help="Box height in Z (nm)")
+    parser.add_argument("--resname", type=str, default="SRF", help="Residue name")
+    parser.add_argument("--output", type=str, default="surface", help="Output basename")
+    parser.add_argument("--charge", type=float, default=0.0, help="Charge per bead")
 
-    parser.add_argument(
-        "--output",
-        type=str,
-        default="surface",
-        help="Basename or full path for the output files",
-    )
-
-    parser.add_argument("--charge", type=float, default=0.0)
+    # Honeycomb Carbon (4-1) specific parameters
+    parser.add_argument("--layers", type=int, default=1, help="Number of layers (4-1 mode only)")
+    parser.add_argument("--dist-z", type=float, default=0.335, help="Interlayer spacing in nm")
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 
-    # ---------------------------------------------------------
-    # Resolve output directory and name
-    # ---------------------------------------------------------
     outdir = os.path.dirname(args.output) or "."
     basename = os.path.basename(args.output)
     os.makedirs(outdir, exist_ok=True)
 
-    # ---------------------------------------------------------
-    # Hexagonal lattice parameters
-    # ---------------------------------------------------------
-    scale = args.dx / 0.142
-    a = 0.246 * scale  # primitive constant
-
-    atoms_unit: List[Tuple[float, float, float]] = [
-        (0.0, 0.0, 0.0),
-        (a, 0.0, 0.0),
-        (2 * a, 0.0, 0.0),
-        (0.5 * a, (math.sqrt(3) / 2) * a, 0.0),
-        (1.5 * a, (math.sqrt(3) / 2) * a, 0.0),
-        (2.5 * a, (math.sqrt(3) / 2) * a, 0.0),
-    ]
-
-    lx_cell = 3.0 * a
-    ly_cell = math.sqrt(3) * a
-
-    nx = max(1, round(args.lx / lx_cell))
-    ny = max(1, round(args.ly / ly_cell))
-
-    lx = nx * lx_cell
-    ly = ny * ly_cell
-
-    print(f"• Building hex surface: {lx:.3f} × {ly:.3f} × {args.lz:.3f} nm")
-
-    # ---------------------------------------------------------
-    # Build atom coordinates
-    # ---------------------------------------------------------
     atoms: List[Tuple[float, float, float]] = []
-    for i in range(nx):
-        for j in range(ny):
-            dx = i * lx_cell
-            dy = j * ly_cell
-            for x, y, z in atoms_unit:
-                atoms.append((x + dx, y + dy, z))
+    final_lx, final_ly = args.lx, args.ly
+
+    # =========================================================
+    # MODE 2-1: STANDARD HEXAGONAL MAPPING
+    # =========================================================
+    if args.mode == "2-1":
+        scale = args.dx / 0.142
+        a = 0.246 * scale
+        atoms_unit = [
+            (0.0, 0.0, 0.0), (a, 0.0, 0.0), (2 * a, 0.0, 0.0),
+            (0.5 * a, (math.sqrt(3) / 2) * a, 0.0),
+            (1.5 * a, (math.sqrt(3) / 2) * a, 0.0),
+            (2.5 * a, (math.sqrt(3) / 2) * a, 0.0),
+        ]
+        lx_cell, ly_cell = 3.0 * a, math.sqrt(3) * a
+        nx, ny = max(1, round(args.lx / lx_cell)), max(1, round(args.ly / ly_cell))
+        final_lx, final_ly = nx * lx_cell, ny * ly_cell
+
+        for i in range(nx):
+            for j in range(ny):
+                for x, y, z in atoms_unit:
+                    atoms.append((x + i * lx_cell, y + j * ly_cell, 3.0))
+
+    # =========================================================
+    # MODE 4-1: HONEYCOMB CARBON MAPPING
+    # =========================================================
+    else:
+        d_cc = args.dx # In 4-1 mode, dx is treated as C-C distance
+        lx_cell, ly_cell = math.sqrt(3) * d_cc, 3 * d_cc
+        nx, ny = max(1, round(args.lx / lx_cell)), max(1, round(args.ly / ly_cell))
+        final_lx, final_ly = nx * lx_cell, ny * ly_cell
+
+        # Unit cell atoms for Honeycomb lattice
+        base_unit = [
+            [0.0, 0.0, 0.0], [lx_cell/2, d_cc/2, 0.0],
+            [lx_cell/2, 1.5*d_cc, 0.0], [0.0, 2*d_cc, 0.0]
+        ]
+        
+        for layer in range(args.layers):
+            # AB (Bernal) Stacking shift
+            shift_x = (lx_cell / 2) if (layer % 2 != 0) else 0.0
+            shift_y = d_cc if (layer % 2 != 0) else 0.0
+            z_pos = 3.0 + (layer * args.dist_z)
+            
+            for i in range(nx):
+                for j in range(ny):
+                    for ax, ay, az in base_unit:
+                        atoms.append((ax + i * lx_cell + shift_x, ay + j * ly_cell + shift_y, az + z_pos))
 
     # ---------------------------------------------------------
-    # Write GRO file
+    # File Writing
     # ---------------------------------------------------------
     gro_path = Path(outdir, f"{basename}.gro")
-
     with gro_path.open("w") as fgro:
-        fgro.write(f"Hex surface {args.lx}x{args.ly} nm (d={args.dx:.2f} nm)\n")
+        fgro.write(f"Surface {args.mode} | {args.lx}x{args.ly} nm | Layers: {args.layers}\n")
         fgro.write(f"{len(atoms):5d}\n")
-
         for i, (x, y, z) in enumerate(atoms, start=1):
-            fgro.write(
-                f"{i:5d}{args.resname:<4}{args.bead:>4}{i:6d}"
-                f"{x:8.3f}{y:8.3f}{z:8.3f}\n"
-            )
+            fgro.write(f"{1:5d}{args.resname:<4}{args.bead:>4}{i:6d}{x:8.3f}{y:8.3f}{z:8.3f}\n")
+        fgro.write(f"{final_lx:10.5f}{final_ly:10.5f}{args.lz:10.5f}\n")
 
-        fgro.write(f"{lx:10.5f}{ly:10.5f}{args.lz:10.5f}\n")
-
-    print(f"✔ Wrote {gro_path} ({len(atoms)} beads)")
-
-    # ---------------------------------------------------------
-    # Write ITP file
-    # ---------------------------------------------------------
     itp_path = Path(outdir, f"{basename}.itp")
-
     with itp_path.open("w") as fitp:
-        fitp.write(";;;;;; Minimal surface topology\n\n")
-        fitp.write("[ moleculetype ]\n; molname   nrexcl\n")
-        fitp.write(f"  {args.resname}        1\n\n")
-        fitp.write("[ atoms ]\n")
-        fitp.write("; id  type  resnr  residu  atom  cgnr  charge\n")
-        fitp.write(
-            f"  1   {args.bead:<6}   1   {args.resname:<4}   C     1     {args.charge:.3f}\n"
-        )
+        fitp.write(";;;;;; Minimal surface topology\n\n[ moleculetype ]\n; molname nrexcl\n")
+        fitp.write(f"  {args.resname}        1\n\n[ atoms ]\n")
+        fitp.write(f"  1   {args.bead:<6}   1   {args.resname:<4}   C     1     {args.charge:.3f}\n")
 
-    print(f"✔ Wrote {itp_path}")
+    # Backward-compatible copy for standalone tooling/tests.
+    active_dst = resolve_activeitp_destination(outdir)
+    active_dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(itp_path, active_dst)
 
-    # ---------------------------------------------------------
-    # Copy surface.itp (ONLY in standalone mode)
-    # ---------------------------------------------------------
-    final_dst = resolve_activeitp_destination(outdir)
+    print(f"✔ {args.mode} Surface ({'Honeycomb Carbon' if args.mode == '4-1' else 'Hex Mapping'}) generated with {len(atoms)} beads.")
 
-    # If path indicates pipeline mode → skip
-    if "2_system" in str(final_dst):
-        print("• Pipeline mode detected — skipping auto-copy of surface.itp")
-    else:
-        final_dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(itp_path, final_dst)
-        print(f"✔ Copied surface.itp → {final_dst}")
-
-
-# ======================================================================
-# Helper: detect correct destination for surface.itp
-# ======================================================================
 def resolve_activeitp_destination(outdir: str) -> Path:
-    """
-    Determine correct surface.itp destination:
-    - Standalone mode: outdir/system_itp/surface.itp
-    - Pipeline mode:   SKIP (return a path inside 2_system but caller won't use it)
-    """
     outdir_path = Path(outdir)
     default_dst = outdir_path / "system_itp" / "surface.itp"
-
-    # Pipeline detection
     if "Simulation" in str(outdir_path):
         parts = list(outdir_path.parts)
         if "Simulation" in parts:
             sim_root = Path(*parts[: parts.index("Simulation") + 1])
             topology_dir = sim_root / "0_topology" / "system_itp"
-            if topology_dir.exists():
-                return topology_dir / "surface.itp"
-
+            if topology_dir.exists(): return topology_dir / "surface.itp"
     return default_dst
 
-
-# ======================================================================
 if __name__ == "__main__":
     main()
