@@ -83,6 +83,12 @@ martinisurf \
   --linker-group 1 1
 ```
 
+## Google Colab Notebooks
+- Protein workflow + optional linker generation with AutoMartini M3:
+  - `martinisurf/examples/colab_protein_automartini_m3.ipynb`
+- DNA workflow + optional linker generation with auto_martini M2:
+  - `martinisurf/examples/colab_dna_automartini_m2.ipynb`
+
 ## Linker Mode Notes
 - The linker topology file must exist next to linker GRO with matching basename:
   - Example: `linker.gro` -> `linker.itp`
