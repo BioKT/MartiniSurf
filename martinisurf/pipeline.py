@@ -140,6 +140,10 @@ def _print_config_summary(args: argparse.Namespace) -> None:
     print(f"PDB/Input:        {args.pdb}")
     print(f"Orientation:      {orient_mode}")
     print(f"Output:           {args.outdir}")
+    if args.go and not args.dna:
+        print("Go model:         enabled")
+    if not args.dna:
+        print(f"Max warnings:     {args.maxwarn}")
     if args.linker:
         group_count = len(args.linker_group) if args.linker_group else 0
         print(f"Linker groups:    {group_count}")
@@ -180,7 +184,7 @@ def build_parser():
     input_group.add_argument(
         "--go",
         action="store_true",
-        help="Legacy compatibility flag (accepted, no additional action required).",
+        help="Enable Go model in martinize2 protein mode.",
     )
     input_group.add_argument("--ff", default="martini3001", help="Force field name for martinize2 (protein mode).")
     input_group.add_argument("--dna", action="store_true", help="Enable DNA mode (uses martinize-dna.py).")
@@ -198,6 +202,7 @@ def build_parser():
     martinize_group = parser.add_argument_group("Martinization Controls")
     martinize_group.add_argument("--p", choices=["none", "all", "backbone"], default="backbone", help="Position restraints selection.")
     martinize_group.add_argument("--pf", type=float, default=1000, help="Position restraints force constant.")
+    martinize_group.add_argument("--maxwarn", type=int, default=0, help="Allowed martinize2 warnings before abort.")
     martinize_group.add_argument("--dssp", action="store_true", help="Use DSSP during protein martinization.")
     martinize_group.add_argument("--no-dssp", dest="dssp", action="store_false", help="Disable DSSP during protein martinization.")
     martinize_group.add_argument("--elastic", action="store_true", help="Enable elastic network.")
@@ -330,7 +335,7 @@ def main(argv=None):
             "-o", str(topfile_out),
             "-ff", args.ff,
             "-name", mol,
-            "-maxwarn", "0",
+            "-maxwarn", str(args.maxwarn),
         ]
         for group in merge_groups:
             martinize_cmd += ["-merge", group]
@@ -342,6 +347,9 @@ def main(argv=None):
 
         if args.elastic:
             martinize_cmd += ["-elastic", "-ef", str(args.ef)]
+
+        if args.go:
+            martinize_cmd += ["-go"]
 
         if args.dssp:
             dssp_bin = Path(__file__).resolve().parent / "dssp" / "mkdssp"
