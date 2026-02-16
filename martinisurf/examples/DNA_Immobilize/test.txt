@@ -1,1 +1,0 @@
-martinisurf --dna --pdb 4C64 --surface surface.gro --anchor 1 1 --anchor 2 24 --dist 10 --merge A,B
