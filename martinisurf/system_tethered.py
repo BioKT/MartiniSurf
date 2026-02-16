@@ -91,6 +91,24 @@ def summarize_selected_residues(residue_list, atom_records, coords):
     return np.array(centroids)
 
 
+def _available_resids(atom_records):
+    return sorted({int(r) for (r, _, _, _) in atom_records})
+
+
+def _centroids_or_error(residue_list, atom_records, coords, label):
+    centroids = summarize_selected_residues(residue_list, atom_records, coords)
+    if centroids.size == 0:
+        available = _available_resids(atom_records)
+        preview = ", ".join(str(x) for x in available[:12])
+        if len(available) > 12:
+            preview += ", ..."
+        raise ValueError(
+            f"No atoms found for {label}. Requested residues: {residue_list}. "
+            f"Available residue ids (sample): [{preview}]"
+        )
+    return centroids
+
+
 # ================================================================
 # CLASSICAL ORIENTATION
 # ================================================================
@@ -98,6 +116,9 @@ def auto_orient_from_anchor_residues(system_coords,
                                      anchor_centroids,
                                      surface_coords,
                                      target_z):
+
+    if anchor_centroids.size == 0:
+        raise ValueError("Anchor centroid selection is empty. Check --anchor/--linker-group residue ids.")
 
     anchors  = anchor_centroids.copy()
     centroid = anchors.mean(0)
@@ -218,10 +239,11 @@ def main(argv=None):
 
         all_res = sorted({int(r) for g in args.anchor for r in g[1:]})
 
-        centroids = summarize_selected_residues(
+        centroids = _centroids_or_error(
             all_res,
             sys_atoms,
-            sys_coords
+            sys_coords,
+            "anchor groups"
         )
 
         oriented = auto_orient_from_anchor_residues(
@@ -249,10 +271,11 @@ def main(argv=None):
 
         all_res = sorted({int(r) for g in args.linker_group for r in g[1:]})
 
-        centroids = summarize_selected_residues(
+        centroids = _centroids_or_error(
             all_res,
             sys_atoms,
-            sys_coords
+            sys_coords,
+            "linker groups"
         )
 
         oriented_protein = auto_orient_from_anchor_residues(
@@ -270,15 +293,26 @@ def main(argv=None):
         for group in args.linker_group:
 
             residues = [int(r) for r in group[1:]]
+            if not residues:
+                raise ValueError(
+                    f"Linker group {group[0]} has no residues. Use: --linker-group <group_id> <resid ...>"
+                )
 
-            group_centroid = summarize_selected_residues(
+            group_centroid = _centroids_or_error(
                 residues,
                 sys_atoms,
-                oriented_protein
+                oriented_protein,
+                f"linker group {group[0]}"
             ).mean(axis=0)
 
             axis = linker_coords[-1] - linker_coords[0]
-            axis /= np.linalg.norm(axis)
+            axis_norm = np.linalg.norm(axis)
+            if axis_norm < 1e-12:
+                raise ValueError(
+                    "Linker has zero-length axis (first and last bead overlap). "
+                    "Provide a linker with at least two distinct beads."
+                )
+            axis /= axis_norm
 
             target = np.array([0,0,-1])
 
@@ -325,7 +359,13 @@ def main(argv=None):
             for _ in range(args.surface_linkers):
 
                 axis = linker_coords[-1] - linker_coords[0]
-                axis /= np.linalg.norm(axis)
+                axis_norm = np.linalg.norm(axis)
+                if axis_norm < 1e-12:
+                    raise ValueError(
+                        "Linker has zero-length axis (first and last bead overlap). "
+                        "Cannot place random surface linkers."
+                    )
+                axis /= axis_norm
 
                 target = np.array([0,0,1])  # UPWARD
 

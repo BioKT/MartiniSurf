@@ -211,3 +211,31 @@ def test_invert_linker_switches_attachment_side(tmp_path):
 
     assert linker_atom_sequence(out_default) == ["L1", "L2", "L3"]
     assert linker_atom_sequence(out_invert) == ["L3", "L2", "L1"]
+
+
+def test_linker_mode_raises_clear_error_for_missing_group_residues(tmp_path):
+    surface = tmp_path / "surface.gro"
+    system = tmp_path / "system.gro"
+    linker = tmp_path / "linker.gro"
+    out = tmp_path / "out_bad_group.gro"
+
+    write_minimal_gro(surface)
+    write_system_gro(system)
+    write_linker_gro(linker)
+
+    try:
+        enz.main([
+            "--surface", str(surface),
+            "--system", str(system),
+            "--out", str(out),
+            "--linker-gro", str(linker),
+            "--linker-group", "1", "99",
+            "--linker-prot-dist", "0.0",
+            "--linker-surf-dist", "0.0",
+        ])
+    except ValueError as exc:
+        msg = str(exc)
+        assert "No atoms found for linker groups" in msg
+        assert "Requested residues: [99]" in msg
+    else:
+        raise AssertionError("Expected ValueError for missing linker-group residues.")

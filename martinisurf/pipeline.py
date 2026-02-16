@@ -104,6 +104,20 @@ def _sigma_nm(is_dna: bool, ff_name: str, class_a: str, class_b: str) -> float:
     return table.get(pair, 0.47)
 
 
+def _normalize_merge_groups(merge_values: Optional[list[str]]) -> list[str]:
+    if not merge_values:
+        return []
+    groups: list[str] = []
+    for raw in merge_values:
+        if raw is None:
+            continue
+        item = str(raw).strip()
+        if not item:
+            continue
+        groups.append(item)
+    return groups
+
+
 def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     if not args.surface and (args.lx is None or args.ly is None):
         parser.error("When --surface is not provided, both --lx and --ly are required.")
@@ -132,6 +146,8 @@ def _print_config_summary(args: argparse.Namespace) -> None:
         print(f"Invert linker:    {args.invert_linker}")
     elif args.anchor:
         print(f"Anchor groups:    {len(args.anchor)}")
+    if args.merge:
+        print(f"Merge groups:     {', '.join(args.merge)}")
     print("=================================\n")
 
 
@@ -161,10 +177,23 @@ def build_parser():
     input_group = parser.add_argument_group("Input And Molecule")
     input_group.add_argument("--pdb", required=True, help="Local PDB path, RCSB ID (4 chars), or UniProt ID (6 chars).")
     input_group.add_argument("--moltype", help="Molecule name for protein topology output.")
+    input_group.add_argument(
+        "--go",
+        action="store_true",
+        help="Legacy compatibility flag (accepted, no additional action required).",
+    )
     input_group.add_argument("--ff", default="martini3001", help="Force field name for martinize2 (protein mode).")
     input_group.add_argument("--dna", action="store_true", help="Enable DNA mode (uses martinize-dna.py).")
     input_group.add_argument("--dnatype", default="ds-stiff", help="DNA type for martinize-dna.py.")
-    input_group.add_argument("--merge", help="Legacy option (reserved).")
+    input_group.add_argument(
+        "--merge",
+        action="append",
+        metavar="CHAINS",
+        help=(
+            "Merge chains during martinization. Example: --merge A,B,C,D "
+            "(can be repeated). Use --merge all to merge every chain."
+        ),
+    )
 
     martinize_group = parser.add_argument_group("Martinization Controls")
     martinize_group.add_argument("--p", choices=["none", "all", "backbone"], default="backbone", help="Position restraints selection.")
@@ -235,6 +264,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     _validate_args(parser, args)
     _print_config_summary(args)
+    merge_groups = _normalize_merge_groups(args.merge)
 
     simdir = Path(args.outdir).resolve()
     if simdir.exists():
@@ -284,6 +314,8 @@ def main(argv=None):
             "-p", args.p.capitalize(),
             "-pf", str(args.pf),
         ]
+        for group in merge_groups:
+            martinize_cmd += ["-merge", group]
 
         if args.elastic:
             martinize_cmd += ["-elastic", "-ef", str(args.ef)]
@@ -300,6 +332,8 @@ def main(argv=None):
             "-name", mol,
             "-maxwarn", "0",
         ]
+        for group in merge_groups:
+            martinize_cmd += ["-merge", group]
 
         if args.p != "none":
             martinize_cmd += ["-p", args.p]
@@ -314,7 +348,20 @@ def main(argv=None):
             if dssp_bin.exists():
                 martinize_cmd += ["-dssp", str(dssp_bin)]
 
-    run(martinize_cmd, cwd=tmpdir)
+    # martinize2 in some Colab/runtime setups fails when DSSP binary is present
+    # but not functional. In that case retry once without DSSP.
+    try:
+        run(martinize_cmd, cwd=tmpdir)
+    except RuntimeError:
+        if (not args.dna) and args.dssp and "-dssp" in martinize_cmd:
+            print("⚠ martinize2 failed with DSSP. Retrying without DSSP...")
+            retry_cmd = martinize_cmd[:]
+            dssp_idx = retry_cmd.index("-dssp")
+            # Remove: -dssp <binary_path>
+            del retry_cmd[dssp_idx:dssp_idx + 2]
+            run(retry_cmd, cwd=tmpdir)
+        else:
+            raise
 
     # Move ITP files
     for f in tmpdir.glob("*.itp"):
