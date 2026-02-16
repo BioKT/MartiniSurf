@@ -11,6 +11,7 @@ Stable architecture:
 """
 
 import argparse
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -352,9 +353,19 @@ def main(argv=None):
             martinize_cmd += ["-go"]
 
         if args.dssp:
-            dssp_bin = Path(__file__).resolve().parent / "dssp" / "mkdssp"
-            if dssp_bin.exists():
-                martinize_cmd += ["-dssp", str(dssp_bin)]
+            # Prefer explicit DSSP env var (common in Colab), then system mkdssp,
+            # and only then fallback to bundled binary.
+            dssp_env = os.environ.get("DSSP", "").strip()
+            if dssp_env:
+                martinize_cmd += ["-dssp", dssp_env]
+            else:
+                system_mkdssp = shutil.which("mkdssp")
+                if system_mkdssp:
+                    martinize_cmd += ["-dssp", system_mkdssp]
+                else:
+                    dssp_bin = Path(__file__).resolve().parent / "dssp" / "mkdssp"
+                    if dssp_bin.exists():
+                        martinize_cmd += ["-dssp", str(dssp_bin)]
 
     # martinize2 in some Colab/runtime setups fails when DSSP binary is present
     # but not functional. In that case retry once without DSSP.
