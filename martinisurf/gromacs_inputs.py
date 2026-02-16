@@ -66,6 +66,8 @@ def write_top_files(
     is_dna: bool,
     use_linker: bool,
     linker_itp_name: str = "linker.itp",
+    linker_moltype: str | None = None,
+    linker_count: int = 0,
 ) -> None:
     """Create simple master topology files expected by legacy workflows/tests."""
     if is_dna:
@@ -85,7 +87,11 @@ def write_top_files(
     present_forcefields = [itp for itp in forcefield_itps if (dst_itp_dir / itp).exists()]
 
     def _include_block(mol_itp_name: str) -> str:
-        lines = [f'#include "system_itp/{name}"' for name in present_forcefields]
+        lines = []
+        if is_dna:
+            lines.append("#define RUBBER_BANDS")
+            lines.append("")
+        lines.extend(f'#include "system_itp/{name}"' for name in present_forcefields)
         lines.append(f'#include "system_itp/{mol_itp_name}"')
         lines.append('#include "system_itp/surface.itp"')
         if use_linker:
@@ -94,20 +100,45 @@ def write_top_files(
 
     system_top = topo_dir / "system.top"
     system_res_top = topo_dir / "system_res.top"
+    linker_line = ""
+    if use_linker and linker_count > 0:
+        linker_name = linker_moltype or Path(linker_itp_name).stem
+        linker_line = f"{linker_name} {linker_count}\n"
 
     with open(system_top, "w") as fh:
         fh.write(
             _include_block(f"{moltype}.itp")
             + "\n\n[ system ]\nMartiniSurf system\n\n[ molecules ]\n"
-            + f"{moltype} 1\nSRF 1\n"
+            + f"{moltype} 1\nSRF 1\n{linker_line}"
         )
 
     with open(system_res_top, "w") as fh:
         fh.write(
             _include_block(anchor_itp_name)
             + "\n\n[ system ]\nMartiniSurf restrained system\n\n[ molecules ]\n"
-            + f"{moltype} 1\nSRF 1\n"
+            + f"{moltype} 1\nSRF 1\n{linker_line}"
         )
+
+
+def _read_itp_moleculetype(itp_path: Path) -> str | None:
+    if not itp_path.exists():
+        return None
+
+    lines = itp_path.read_text().splitlines()
+    in_moleculetype = False
+    for raw in lines:
+        line = raw.strip()
+        if not line or line.startswith(";"):
+            continue
+        if line.lower().startswith("[") and "moleculetype" in line.lower():
+            in_moleculetype = True
+            continue
+        if in_moleculetype:
+            if line.startswith("["):
+                break
+            token = line.split()[0]
+            return token
+    return None
 
 
 def _infer_surface_pull_group(text: str, is_dna: bool) -> str:
@@ -453,6 +484,13 @@ def main(argv: Sequence[str] | None = None) -> None:
     # Copy Martini files (UNCHANGED)
     # ===============================================================
     pkg_dir = Path(martinisurf.__file__).parent
+    water_template = pkg_dir / "system_templates" / "water.gro"
+    if water_template.exists():
+        shutil.copy(water_template, sys_dir / "water.gro")
+        print("✔ Copied water.gro template into 2_system")
+    else:
+        print(f"ℹ water.gro template not found at {water_template}. Skipping water.gro copy.")
+
     src_itp_dir = pkg_dir / "system_itp"
     dst_itp_dir = topo_dir / "system_itp"
     ensure_dir(dst_itp_dir)
@@ -488,6 +526,25 @@ def main(argv: Sequence[str] | None = None) -> None:
             "❌ Linker mode requested but "
             f"0_topology/system_itp/{args.linker_itp_name} is missing."
         )
+
+    linker_total = 0
+    linker_moltype_name: str | None = None
+    if args.use_linker and args.linker_resname:
+        linker_atom_count = sum(
+            1 for a in u.atoms if str(a.resname).strip() == args.linker_resname
+        )
+        if args.linker_size and args.linker_size > 0:
+            linker_total = linker_atom_count // args.linker_size
+        elif linker_atom_count > 0:
+            linker_resids = {
+                int(a.resid)
+                for a in u.atoms
+                if str(a.resname).strip() == args.linker_resname
+            }
+            linker_total = len(linker_resids)
+
+        linker_itp_path = dst_itp_dir / args.linker_itp_name
+        linker_moltype_name = _read_itp_moleculetype(linker_itp_path) or linker_itp_path.stem
 
     # ===============================================================
     # Detect molecule ITP (UNCHANGED)
@@ -606,6 +663,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         is_dna=is_dna,
         use_linker=args.use_linker,
         linker_itp_name=args.linker_itp_name,
+        linker_moltype=linker_moltype_name,
+        linker_count=linker_total,
     )
 
     # ===============================================================

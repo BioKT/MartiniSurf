@@ -1,0 +1,94 @@
+integrator               = md
+dt                       = 0.010
+nsteps                   = 20000000
+nstxout                  = 0 
+nstvout                  = 0
+nstfout                  = 0
+nstlog                   = 20000
+nstxout-compressed       = 10000
+compressed-x-precision   = 100
+
+energygrps               = Protein W ION GRA ; Energy groups to calculate Van der Waals energy
+
+cutoff-scheme            = Verlet
+nstlist                  = 20
+ns_type                  = grid
+pbc                      = xyz
+verlet-buffer-tolerance  = 0.005
+
+coulombtype              = reaction-field 
+rcoulomb                 = 1.1
+epsilon_r                = 15   ; 2.5 (with polarizable water)
+epsilon_rf               = 0
+
+vdw_type                 = cutoff  
+vdw-modifier             = Potential-shift-verlet
+rvdw                     = 1.1
+
+tcoupl                   = v-rescale
+tc-grps                  = system
+tau-t                    = 1.0
+ref-t                    = 300
+
+continuation = yes
+
+Pcoupl                   = Parrinello-Rahman ;parrinello-rahman
+Pcoupltype               = semiisotropic
+tau-p                    = 12.0
+compressibility          = 0 3e-4 ; 4e-5
+ref-p                    = 1 1
+
+freezegrps               = SRF
+freezedim                = Y Y Y
+cos-acceleration         = 0
+
+refcoord_scaling         = all
+
+
+; First pulling coordinate (Umbrella 1)
+
+
+; Second pulling coordinate (Umbrella 2)
+
+pull                     = yes
+pull-ngroups             = 7
+pull-group1-name         = Anchor_1
+pull-group2-name         = Anchor_2
+pull-group3-name         = Anchor_3
+pull-group4-name         = Anchor_4
+pull-group5-name         = Anchor_5
+pull-group6-name         = Anchor_6
+pull-group7-name         = GRA
+
+pull-ncoords             = 4
+pull-coord1-geometry     = distance
+pull-coord1-groups       = 1 2
+pull-coord1-type         = umbrella
+pull-coord1-k            = 1000.0
+pull-coord1-rate         = 0
+pull-coord1-dim          = N N Y
+pull-coord1-init         = 0.470
+
+pull-coord2-geometry     = distance
+pull-coord2-groups       = 3 7
+pull-coord2-type         = umbrella
+pull-coord2-k            = 1000.0
+pull-coord2-rate         = 0
+pull-coord2-dim          = N N Y
+pull-coord2-init         = 0.470
+
+pull-coord3-geometry     = distance
+pull-coord3-groups       = 4 5
+pull-coord3-type         = umbrella
+pull-coord3-k            = 1000.0
+pull-coord3-rate         = 0
+pull-coord3-dim          = N N Y
+pull-coord3-init         = 0.470
+
+pull-coord4-geometry     = distance
+pull-coord4-groups       = 6 7
+pull-coord4-type         = umbrella
+pull-coord4-k            = 1000.0
+pull-coord4-rate         = 0
+pull-coord4-dim          = N N Y
+pull-coord4-init         = 0.470

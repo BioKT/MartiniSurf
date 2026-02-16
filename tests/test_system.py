@@ -69,6 +69,30 @@ def test_gomartini_inside_2_system(tmp_path, monkeypatch):
     assert (sys2 / "system.gro").exists()
 
 
+def test_water_template_is_copied_when_present(tmp_path, monkeypatch):
+    sim, sys2 = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sys2)
+
+    # Add package-level water template expected by gromacs_inputs.
+    pkg_templates = Path(gms.__file__).resolve().parent / "system_templates"
+    pkg_templates.mkdir(exist_ok=True)
+    water_tpl = pkg_templates / "water.gro"
+    backup = water_tpl.read_text() if water_tpl.exists() else None
+    water_tpl.write_text("WATER TEMPLATE TEST\n    0\n   1.00000   1.00000   1.00000\n")
+
+    try:
+        gms.main([
+            "--moltype", "ENZ",
+            "--anchor", "1", "2", "3",
+        ])
+        assert (sim / "2_system" / "water.gro").exists()
+    finally:
+        if backup is None:
+            water_tpl.unlink(missing_ok=True)
+        else:
+            water_tpl.write_text(backup)
+
+
 def test_gomartini_inside_Simulation(tmp_path, monkeypatch):
     sim, sys2 = prepare_simulation_structure(tmp_path)
 
@@ -154,6 +178,69 @@ def test_linker_itp_include_uses_cli_name(tmp_path, monkeypatch):
 
     assert '#include "system_itp/peg_linker.itp"' in system_top
     assert '#include "system_itp/peg_linker.itp"' in system_res_top
+
+
+def test_molecules_block_adds_total_linkers_with_itp_moltype(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    gro = """Linker count test
+  6
+    1ALA     CA    1   1.000   1.000   1.200
+    2ALA     CA    2   2.000   2.000   1.200
+    3LNK     C1    3   1.050   1.050   1.100
+    3LNK     C2    4   1.050   1.050   0.300
+    4LNK     C1    5   2.050   2.050   1.100
+    4LNK     C2    6   2.050   2.050   0.300
+   4.00000   4.00000   4.00000
+"""
+    (sim / "2_system" / "immobilized_system.gro").write_text(gro)
+    (sim / "system_itp" / "peg_linker.itp").write_text(
+        "[ moleculetype ]\nPEGX 1\n"
+    )
+
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "1",
+        "--anchor", "2", "2",
+        "--use-linker",
+        "--linker-resname", "LNK",
+        "--linker-size", "2",
+        "--linker-itp-name", "peg_linker.itp",
+    ])
+
+    system_top = (sim / "0_topology" / "system.top").read_text()
+    system_res_top = (sim / "0_topology" / "system_res.top").read_text()
+
+    assert "PEGX 2" in system_top
+    assert "PEGX 2" in system_res_top
+
+
+def test_molecules_block_falls_back_to_itp_stem_when_missing_moleculetype(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    gro = """Linker count test fallback
+  3
+    1ALA     CA    1   1.000   1.000   1.200
+    2LNK     C1    2   1.050   1.050   1.100
+    2LNK     C2    3   1.050   1.050   0.300
+   4.00000   4.00000   4.00000
+"""
+    (sim / "2_system" / "immobilized_system.gro").write_text(gro)
+    (sim / "system_itp" / "peg_linker.itp").write_text("; dummy linker\n")
+
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "1",
+        "--use-linker",
+        "--linker-resname", "LNK",
+        "--linker-size", "2",
+        "--linker-itp-name", "peg_linker.itp",
+    ])
+
+    system_top = (sim / "0_topology" / "system.top").read_text()
+    assert "peg_linker 1" in system_top
 
 
 def test_linker_pull_generates_two_coordinates(tmp_path, monkeypatch):
@@ -257,3 +344,36 @@ def test_linker_pull_init_values_are_configurable(tmp_path, monkeypatch):
     production = (sim / "1_mdp" / "production.mdp").read_text()
     assert "pull-coord1-init         = 0.430" in production
     assert "pull-coord2-init         = 0.365" in production
+
+
+def test_dna_topologies_start_with_rubber_bands_define(tmp_path):
+    topo_dir = tmp_path / "0_topology"
+    itp_dir = topo_dir / "system_itp"
+    topo_dir.mkdir(parents=True)
+    itp_dir.mkdir(parents=True)
+
+    # Minimal files required by write_top_files include discovery.
+    for name in [
+        "martini_v2.1-dna.itp",
+        "martini_v2.1P-dna.itp",
+        "martini_v2.0_ions.itp",
+        "Nucleic_A+Nucleic_B.itp",
+        "Nucleic_A+Nucleic_B_anchor.itp",
+        "surface.itp",
+    ]:
+        (itp_dir / name).write_text("; dummy\n")
+
+    gms.write_top_files(
+        topo_dir=topo_dir,
+        dst_itp_dir=itp_dir,
+        moltype="Nucleic_A+Nucleic_B",
+        anchor_itp_name="Nucleic_A+Nucleic_B_anchor.itp",
+        is_dna=True,
+        use_linker=False,
+    )
+
+    system_top = (topo_dir / "system.top").read_text()
+    system_res_top = (topo_dir / "system_res.top").read_text()
+
+    assert system_top.startswith("#define RUBBER_BANDS")
+    assert system_res_top.startswith("#define RUBBER_BANDS")

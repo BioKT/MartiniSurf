@@ -20,6 +20,5 @@ Each example contains:
 - `README.md`: quick usage notes
 
 Colab notebooks remain at the root of `examples/`:
-- `colab_demo.ipynb`
 - `colab_protein_automartini_m3.ipynb`
 - `colab_dna_automartini_m2.ipynb`

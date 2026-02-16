@@ -8,7 +8,6 @@ nstlog                   = 20000
 nstxout-compressed       = 10000
 compressed-x-precision   = 100
 
-;energygrps               = Protein W ION SRF ; Energy groups to calculate Van der Waals energy
 
 cutoff-scheme            = Verlet
 nstlist                  = 20
@@ -59,5 +58,4 @@ pull-coord1-rate         = 0                     ; Pulling rate (0 for umbrella)
 pull-coord1-dim          = N N Y                 ; Pulling dimensions for the first coordinate
 ;pull-coord1_start        = yes                   ; Start from the current distance
 pull-coord1-init         = 0.8                 ; Initial target distance (in nm)
-
 
