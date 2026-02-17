@@ -16,6 +16,7 @@ import os
 import re
 import shutil
 import subprocess
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -214,6 +215,12 @@ def build_parser():
 
     surface_group = parser.add_argument_group("Surface (Required if --surface is omitted)")
     surface_group.add_argument("--surface", help="Existing surface .gro file. If omitted, a surface is generated.")
+    surface_group.add_argument(
+        "--surface-mode",
+        choices=["2-1", "4-1"],
+        default="2-1",
+        help="Surface lattice mode for generated surfaces.",
+    )
     surface_group.add_argument("--lx", type=float, help="Surface size in X (nm) for generated surface.")
     surface_group.add_argument("--ly", type=float, help="Surface size in Y (nm) for generated surface.")
     surface_group.add_argument("--dx", type=float, default=0.47, help="Surface bead spacing (nm).")
@@ -323,6 +330,22 @@ def _select_dssp_flags() -> list[str]:
     return []
 
 
+def _backup_existing_output_dir(simdir: Path) -> Path | None:
+    if not simdir.exists():
+        return None
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup = simdir.with_name(f"{simdir.name}_backup_{timestamp}")
+    suffix = 1
+    while backup.exists():
+        backup = simdir.with_name(f"{simdir.name}_backup_{timestamp}_{suffix}")
+        suffix += 1
+
+    shutil.move(str(simdir), str(backup))
+    print(f"ℹ Existing output moved to backup: {backup}")
+    return backup
+
+
 # ======================================================================
 # MAIN
 # ======================================================================
@@ -336,8 +359,7 @@ def main(argv=None):
     merge_groups = _normalize_merge_groups(args.merge)
 
     simdir = Path(args.outdir).resolve()
-    if simdir.exists():
-        shutil.rmtree(simdir)
+    _backup_existing_output_dir(simdir)
 
     (simdir / "0_topology" / "system_itp").mkdir(parents=True)
     (simdir / "1_mdp").mkdir()
@@ -464,6 +486,7 @@ def main(argv=None):
         import martinisurf.surface_builder as sb
 
         sb.main([
+            "--mode", args.surface_mode,
             "--lx", str(args.lx),
             "--ly", str(args.ly),
             "--dx", str(args.dx),

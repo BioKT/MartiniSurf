@@ -100,6 +100,7 @@ def write_top_files(
 
     system_top = topo_dir / "system.top"
     system_res_top = topo_dir / "system_res.top"
+    system_anchor_top = topo_dir / "system_anchor.top"
     linker_line = ""
     if use_linker and linker_count > 0:
         linker_name = linker_moltype or Path(linker_itp_name).stem
@@ -118,6 +119,9 @@ def write_top_files(
             + "\n\n[ system ]\nMartiniSurf restrained system\n\n[ molecules ]\n"
             + f"{moltype} 1\nSRF 1\n{linker_line}"
         )
+
+    # Compatibility alias for legacy workflows/scripts that still expect system_anchor.top.
+    shutil.copy(system_res_top, system_anchor_top)
 
 
 def _read_itp_moleculetype(itp_path: Path) -> str | None:

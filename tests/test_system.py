@@ -243,6 +243,34 @@ def test_molecules_block_falls_back_to_itp_stem_when_missing_moleculetype(tmp_pa
     assert "peg_linker 1" in system_top
 
 
+def test_restrained_topology_compatibility_alias_is_written(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "1",
+    ])
+
+    system_res_top = (sim / "0_topology" / "system_res.top").read_text()
+    system_anchor_top = (sim / "0_topology" / "system_anchor.top").read_text()
+    assert system_res_top == system_anchor_top
+
+
+def test_workflow_uses_restrained_top_variable(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "1",
+    ])
+
+    workflow = (sim / "1_mdp" / "gromacs_workflow").read_text()
+    assert 'RESTRAINED_TOP="system_res.top"' in workflow
+    assert '-p "$RESTRAINED_TOP"' in workflow
+
+
 def test_linker_pull_generates_two_coordinates(tmp_path, monkeypatch):
     sim, _ = prepare_simulation_structure(tmp_path)
     monkeypatch.chdir(sim / "2_system")
