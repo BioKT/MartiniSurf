@@ -65,6 +65,7 @@ def write_top_files(
     anchor_itp_name: str,
     is_dna: bool,
     use_linker: bool,
+    go_model: bool = False,
     linker_itp_name: str = "linker.itp",
     linker_moltype: str | None = None,
     linker_count: int = 0,
@@ -90,6 +91,9 @@ def write_top_files(
         lines = []
         if is_dna:
             lines.append("#define RUBBER_BANDS")
+            lines.append("")
+        elif go_model:
+            lines.append("#define GO_VIRT")
             lines.append("")
         lines.extend(f'#include "system_itp/{name}"' for name in present_forcefields)
         lines.append(f'#include "system_itp/{mol_itp_name}"')
@@ -318,6 +322,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--linker-itp-name", default="linker.itp", help="Linker topology filename in system_itp.")
     parser.add_argument("--linker-pull-init-prot", type=float, default=0.8, help="Pull init (nm) for biomolecule↔linker.")
     parser.add_argument("--linker-pull-init-surf", type=float, default=0.8, help="Pull init (nm) for linker↔surface.")
+    parser.add_argument("--go-model", action="store_true", help="Add GO_VIRT define to generated protein topologies.")
 
     args = parser.parse_args(argv) if argv else parser.parse_args()
     _validate_cli_args(parser, args)
@@ -666,6 +671,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         anchor_itp_name=f"{anchor_moltype}_anchor.itp",
         is_dna=is_dna,
         use_linker=args.use_linker,
+        go_model=args.go_model,
         linker_itp_name=args.linker_itp_name,
         linker_moltype=linker_moltype_name,
         linker_count=linker_total,

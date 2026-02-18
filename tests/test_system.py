@@ -405,3 +405,37 @@ def test_dna_topologies_start_with_rubber_bands_define(tmp_path):
 
     assert system_top.startswith("#define RUBBER_BANDS")
     assert system_res_top.startswith("#define RUBBER_BANDS")
+
+
+def test_protein_go_topologies_start_with_go_virt_define(tmp_path):
+    topo_dir = tmp_path / "0_topology"
+    itp_dir = topo_dir / "system_itp"
+    topo_dir.mkdir(parents=True)
+    itp_dir.mkdir(parents=True)
+
+    for name in [
+        "martini_v3.0.0.itp",
+        "martini_v3.0.0_Active.itp",
+        "martini_v3.0.0_solvents_v1.itp",
+        "martini_v3.0.0_ions_v1.itp",
+        "Protein.itp",
+        "Protein_anchor.itp",
+        "surface.itp",
+    ]:
+        (itp_dir / name).write_text("; dummy\n")
+
+    gms.write_top_files(
+        topo_dir=topo_dir,
+        dst_itp_dir=itp_dir,
+        moltype="Protein",
+        anchor_itp_name="Protein_anchor.itp",
+        is_dna=False,
+        use_linker=False,
+        go_model=True,
+    )
+
+    system_top = (topo_dir / "system.top").read_text()
+    system_res_top = (topo_dir / "system_res.top").read_text()
+
+    assert system_top.startswith("#define GO_VIRT")
+    assert system_res_top.startswith("#define GO_VIRT")

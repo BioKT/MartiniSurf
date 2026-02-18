@@ -135,6 +135,9 @@ def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
     if args.anchor and args.linker:
         print("⚠ Both --anchor and --linker were provided. Linker mode will be used.")
 
+    if (args.go_eps is not None or args.go_low is not None or args.go_up is not None) and not args.go:
+        print("⚠ Go parameters (--go-eps/--go-low/--go-up) were provided without --go. They will be ignored.")
+
 
 def _print_config_summary(args: argparse.Namespace) -> None:
     mode = "DNA" if args.dna else "Protein"
@@ -211,6 +214,9 @@ def build_parser():
     martinize_group.add_argument("--no-dssp", dest="dssp", action="store_false", help="Disable DSSP during protein martinization.")
     martinize_group.add_argument("--elastic", action="store_true", help="Enable elastic network.")
     martinize_group.add_argument("--ef", type=float, default=700, help="Elastic network force constant.")
+    martinize_group.add_argument("--go-eps", type=float, help="Go model epsilon value for martinize2.")
+    martinize_group.add_argument("--go-low", type=float, help="Go model minimum contact distance (nm) for martinize2.")
+    martinize_group.add_argument("--go-up", type=float, help="Go model maximum contact distance (nm) for martinize2.")
     parser.set_defaults(dssp=True)
 
     surface_group = parser.add_argument_group("Surface (Required if --surface is omitted)")
@@ -436,6 +442,12 @@ def main(argv=None):
 
         if args.go:
             martinize_cmd += ["-go"]
+            if args.go_eps is not None:
+                martinize_cmd += ["-go-eps", str(args.go_eps)]
+            if args.go_low is not None:
+                martinize_cmd += ["-go-low", str(args.go_low)]
+            if args.go_up is not None:
+                martinize_cmd += ["-go-up", str(args.go_up)]
 
         if args.dssp:
             martinize_cmd += _select_dssp_flags()
@@ -587,6 +599,8 @@ def main(argv=None):
 
     if not args.dna:
         final_args += ["--moltype", mol]
+        if args.go:
+            final_args += ["--go-model"]
 
     if args.linker:
         final_args += ["--use-linker"]
