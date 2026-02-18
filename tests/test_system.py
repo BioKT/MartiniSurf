@@ -34,7 +34,6 @@ def prepare_simulation_structure(base: Path):
     itp = sim / "system_itp"
     (itp / "surface.itp").write_text("dummy surface")
     (itp / "Active.itp").write_text("dummy active")
-    (itp / "martini_v3.0.0_Active.itp").write_text("dummy")
     (itp / "martini_v3.0.0_solvents_v1.itp").write_text("dummy")
     (itp / "martini_v3.0.0_ions_v1.itp").write_text("dummy")
 
@@ -243,6 +242,47 @@ def test_molecules_block_falls_back_to_itp_stem_when_missing_moleculetype(tmp_pa
     assert "peg_linker 1" in system_top
 
 
+def test_substrate_itp_include_and_molecules_count(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    (sim / "system_itp" / "substrate.itp").write_text(
+        "[ moleculetype ]\nSUBX 1\n"
+    )
+
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "1",
+        "--substrate-itp-name", "substrate.itp",
+        "--substrate-count", "3",
+    ])
+
+    system_top = (sim / "0_topology" / "system.top").read_text()
+    system_res_top = (sim / "0_topology" / "system_res.top").read_text()
+
+    assert '#include "system_itp/substrate.itp"' in system_top
+    assert '#include "system_itp/substrate.itp"' in system_res_top
+    assert "SUBX 3" in system_top
+    assert "SUBX 3" in system_res_top
+
+
+def test_substrate_molecules_fall_back_to_itp_stem(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    (sim / "system_itp" / "cg_substrate.itp").write_text("; no moleculetype block\n")
+
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "1",
+        "--substrate-itp-name", "cg_substrate.itp",
+        "--substrate-count", "2",
+    ])
+
+    system_top = (sim / "0_topology" / "system.top").read_text()
+    assert "cg_substrate 2" in system_top
+
+
 def test_restrained_topology_compatibility_alias_is_written(tmp_path, monkeypatch):
     sim, _ = prepare_simulation_structure(tmp_path)
     monkeypatch.chdir(sim / "2_system")
@@ -395,6 +435,7 @@ def test_dna_topologies_start_with_rubber_bands_define(tmp_path):
         topo_dir=topo_dir,
         dst_itp_dir=itp_dir,
         moltype="Nucleic_A+Nucleic_B",
+        mol_itp_name="Nucleic_A+Nucleic_B.itp",
         anchor_itp_name="Nucleic_A+Nucleic_B_anchor.itp",
         is_dna=True,
         use_linker=False,
@@ -415,7 +456,6 @@ def test_protein_go_topologies_start_with_go_virt_define(tmp_path):
 
     for name in [
         "martini_v3.0.0.itp",
-        "martini_v3.0.0_Active.itp",
         "martini_v3.0.0_solvents_v1.itp",
         "martini_v3.0.0_ions_v1.itp",
         "Protein.itp",
@@ -428,6 +468,7 @@ def test_protein_go_topologies_start_with_go_virt_define(tmp_path):
         topo_dir=topo_dir,
         dst_itp_dir=itp_dir,
         moltype="Protein",
+        mol_itp_name="Protein.itp",
         anchor_itp_name="Protein_anchor.itp",
         is_dna=False,
         use_linker=False,
@@ -439,3 +480,119 @@ def test_protein_go_topologies_start_with_go_virt_define(tmp_path):
 
     assert system_top.startswith("#define GO_VIRT")
     assert system_res_top.startswith("#define GO_VIRT")
+
+
+def test_protein_topology_avoids_duplicate_defaults_includes(tmp_path):
+    topo_dir = tmp_path / "0_topology"
+    itp_dir = topo_dir / "system_itp"
+    topo_dir.mkdir(parents=True)
+    itp_dir.mkdir(parents=True)
+
+    for name in [
+        "martini_v3.0.0.itp",
+        "martini_v3.0.0_solvents_v1.itp",
+        "martini_v3.0.0_ions_v1.itp",
+        "Protein.itp",
+        "Protein_anchor.itp",
+        "surface.itp",
+    ]:
+        (itp_dir / name).write_text("; dummy\n")
+
+    gms.write_top_files(
+        topo_dir=topo_dir,
+        dst_itp_dir=itp_dir,
+        moltype="Protein",
+        mol_itp_name="Protein.itp",
+        anchor_itp_name="Protein_anchor.itp",
+        is_dna=False,
+        use_linker=False,
+    )
+
+    system_top = (topo_dir / "system.top").read_text()
+    assert '#include "system_itp/martini_v3.0.0.itp"' in system_top
+    assert '#include "system_itp/martini_v3.0.0_Active.itp"' not in system_top
+
+
+def test_surface_molecule_count_tracks_surface_atoms_for_single_atom_surface_itp(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    gro = """Surface count test
+  4
+    1ALA     CA    1   1.000   1.000   1.000
+    2SRF      C    2   1.500   1.500   0.500
+    3SRF      C    3   2.000   1.500   0.500
+    4SRF      C    4   2.500   1.500   0.500
+   4.00000   4.00000   4.00000
+"""
+    (sim / "2_system" / "immobilized_system.gro").write_text(gro)
+    (sim / "system_itp" / "surface.itp").write_text(
+        "[ moleculetype ]\nSRF 1\n\n[ atoms ]\n1 C1 1 SRF C 1 0.0\n"
+    )
+    (sim / "system_itp" / "Protein_0.itp").write_text(
+        "[ moleculetype ]\nPROT_REAL 1\n\n[ atoms ]\n1 C1 1 PRO A1 1 0.0\n"
+    )
+
+    gms.main([
+        "--moltype", "Protein",
+        "--anchor", "1", "1",
+    ])
+
+    system_top = (sim / "0_topology" / "system.top").read_text()
+    assert "SRF 3" in system_top
+
+
+def test_surface_molecule_count_ignores_legacy_tilde_lines_in_surface_itp(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    gro = """Surface count test
+  4
+    1ALA     CA    1   1.000   1.000   1.000
+    2SRF      C    2   1.500   1.500   0.500
+    3SRF      C    3   2.000   1.500   0.500
+    4SRF      C    4   2.500   1.500   0.500
+   4.00000   4.00000   4.00000
+"""
+    (sim / "2_system" / "immobilized_system.gro").write_text(gro)
+    (sim / "system_itp" / "surface.itp").write_text(
+        "[ moleculetype ]\nSRF 1\n\n[ atoms ]\n1 C1 1 SRF C 1 0.0\n\n~\n"
+    )
+    (sim / "system_itp" / "Protein_0.itp").write_text(
+        "[ moleculetype ]\nPROT_REAL 1\n\n[ atoms ]\n1 C1 1 PRO A1 1 0.0\n"
+    )
+
+    gms.main([
+        "--moltype", "Protein",
+        "--anchor", "1", "1",
+    ])
+
+    system_top = (sim / "0_topology" / "system.top").read_text()
+    assert "SRF 3" in system_top
+
+
+def test_missing_named_protein_itp_uses_real_candidate_but_keeps_requested_moltype(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    # Force missing Protein.itp path and provide a realistic martinize output instead.
+    (sim / "system_itp" / "Active.itp").unlink(missing_ok=True)
+    (sim / "system_itp" / "Protein_0.itp").write_text(
+        "[ moleculetype ]\n"
+        "Protein_0 1\n\n"
+        "[ atoms ]\n"
+        "1 C1 1 PRO A1 1 0.0\n"
+        "2 C1 1 PRO A2 2 0.0\n"
+        "3 C1 1 PRO A3 3 0.0\n"
+    )
+
+    gms.main([
+        "--moltype", "Protein",
+        "--anchor", "1", "1",
+    ])
+
+    protein_itp = sim / "0_topology" / "system_itp" / "Protein.itp"
+    assert protein_itp.exists()
+    text = protein_itp.read_text()
+    assert "Protein 1" in text
+    assert "Protein_0 1" not in text

@@ -1,5 +1,5 @@
 #include "system_itp/martini_v3.0.0.itp"
-#include "system_itp/martini_v3.0.0_Active.itp"
+#include "system_itp/martini_v3.0.0.itp"
 #include "system_itp/martini_v3.0.0_solvents_v1.itp"
 #include "system_itp/martini_v3.0.0_ions_v1.itp"
 #include "system_itp/Protein_anchor.itp"

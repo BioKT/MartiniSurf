@@ -4,6 +4,7 @@ set -euo pipefail
 martinisurf \
   --pdb inputs/1RJW.pdb \
   --go \
+  --dssp \
   --moltype Protein \
   --surface inputs/surface.gro \
   --anchor 1 8 10 11 \

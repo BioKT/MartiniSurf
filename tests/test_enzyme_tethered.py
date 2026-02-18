@@ -223,7 +223,13 @@ def test_save_full_system(tmp_path):
 
     assert "MartiniSurf oriented system" in lines[0]
     assert int(lines[1]) == 4  # total atoms
-    assert lines[-1].strip() == box_line
+    box_vals = lines[-1].split()
+    assert len(box_vals) >= 3
+    # XY preserved from input box line.
+    assert abs(float(box_vals[0]) - 2.0) < 1e-6
+    assert abs(float(box_vals[1]) - 2.0) < 1e-6
+    # Z must be at least max(enz_z) + 3 nm.
+    assert float(box_vals[2]) >= 5.0
 
 
 def test_invert_linker_switches_attachment_side(tmp_path):

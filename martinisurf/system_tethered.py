@@ -182,9 +182,43 @@ def save_full_system(output_gro,
                      surf_coords,
                      enz_atoms,
                      enz_coords,
-                     box_line):
+                     box_line,
+                     dna_mode: bool = False):
 
     total = len(surf_coords) + len(enz_coords)
+
+    # Keep original XY from input box, but ensure Z is tall enough for the oriented system.
+    # GRO coordinates are written in nm; internal coords here are in Angstrom.
+    box_tokens = box_line.split()
+    if len(box_tokens) >= 3:
+        try:
+            box_x = float(box_tokens[0])
+            box_y = float(box_tokens[1])
+            box_z = float(box_tokens[2])
+        except ValueError:
+            box_x = box_y = box_z = 0.0
+    else:
+        box_x = box_y = box_z = 0.0
+
+    if len(enz_coords) > 0:
+        if dna_mode:
+            dna_resnames = {"DA", "DT", "DG", "DC"}
+            dna_idx = [i for i, (_, rn, _, _) in enumerate(enz_atoms) if str(rn).strip() in dna_resnames]
+            if dna_idx:
+                z_req_nm = float(np.max(enz_coords[dna_idx, 2])) / 10.0 + 3.0
+            else:
+                z_req_nm = float(np.max(enz_coords[:, 2])) / 10.0 + 3.0
+        else:
+            z_req_nm = float(np.max(enz_coords[:, 2])) / 10.0 + 3.0
+    else:
+        z_req_nm = 3.0
+    if len(surf_coords) > 0:
+        z_req_nm = max(z_req_nm, float(np.max(surf_coords[:, 2])) / 10.0 + 0.5)
+    if dna_mode:
+        box_z = z_req_nm
+    else:
+        box_z = max(box_z, z_req_nm)
+    final_box_line = f"{box_x:10.5f}{box_y:10.5f}{box_z:10.5f}"
 
     with open(output_gro, "w") as fh:
 
@@ -209,7 +243,7 @@ def save_full_system(output_gro,
                      f"{x/10:8.3f}{y/10:8.3f}{z/10:8.3f}\n")
             next_atom += 1
 
-        fh.write(box_line + "\n")
+        fh.write(final_box_line + "\n")
 
 
 # ================================================================
@@ -234,6 +268,7 @@ def main(argv=None):
 
     parser.add_argument("--surface-linkers", type=int, default=0)
     parser.add_argument("--surface-min-dist", type=float, default=3.0)
+    parser.add_argument("--dna-mode", action="store_true")
 
     args = parser.parse_args(argv)
 
@@ -418,7 +453,8 @@ def main(argv=None):
         surf_coords,
         final_atoms,
         oriented,
-        box_line
+        box_line,
+        dna_mode=args.dna_mode,
     )
 
     print(f"✔ Saved oriented system → {args.out}")

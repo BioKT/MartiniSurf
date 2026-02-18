@@ -62,6 +62,7 @@ def write_top_files(
     topo_dir: Path,
     dst_itp_dir: Path,
     moltype: str,
+    mol_itp_name: str,
     anchor_itp_name: str,
     is_dna: bool,
     use_linker: bool,
@@ -69,25 +70,32 @@ def write_top_files(
     linker_itp_name: str = "linker.itp",
     linker_moltype: str | None = None,
     linker_count: int = 0,
+    substrate_itp_name: str | None = None,
+    substrate_moltype: str | None = None,
+    substrate_count: int = 0,
+    surface_moltype: str = "SRF",
+    surface_count: int = 1,
 ) -> None:
     """Create simple master topology files expected by legacy workflows/tests."""
     if is_dna:
-        forcefield_itps = [
-            "martini_v2.1-dna.itp",
-            "martini_v2.1P-dna.itp",
-            "martini_v2.0_ions.itp",
-        ]
+        # DNA FF files are mutually exclusive (both define [ defaults ]).
+        # Include exactly one base FF, preferring v2.1 non-polarizable.
+        dna_ff = None
+        for candidate in ("martini_v2.1-dna.itp", "martini_v2.1P-dna.itp"):
+            if (dst_itp_dir / candidate).exists():
+                dna_ff = candidate
+                break
+        forcefield_itps = [dna_ff, "martini_v2.0_ions.itp"] if dna_ff else ["martini_v2.0_ions.itp"]
     else:
         forcefield_itps = [
             "martini_v3.0.0.itp",
-            "martini_v3.0.0_Active.itp",
             "martini_v3.0.0_solvents_v1.itp",
             "martini_v3.0.0_ions_v1.itp",
         ]
 
-    present_forcefields = [itp for itp in forcefield_itps if (dst_itp_dir / itp).exists()]
+    present_forcefields = [itp for itp in forcefield_itps if itp and (dst_itp_dir / itp).exists()]
 
-    def _include_block(mol_itp_name: str) -> str:
+    def _include_block(molecule_itp_name: str) -> str:
         lines = []
         if is_dna:
             lines.append("#define RUBBER_BANDS")
@@ -96,10 +104,12 @@ def write_top_files(
             lines.append("#define GO_VIRT")
             lines.append("")
         lines.extend(f'#include "system_itp/{name}"' for name in present_forcefields)
-        lines.append(f'#include "system_itp/{mol_itp_name}"')
+        lines.append(f'#include "system_itp/{molecule_itp_name}"')
         lines.append('#include "system_itp/surface.itp"')
         if use_linker:
             lines.append(f'#include "system_itp/{linker_itp_name}"')
+        if substrate_itp_name and substrate_count > 0:
+            lines.append(f'#include "system_itp/{substrate_itp_name}"')
         return "\n".join(lines)
 
     system_top = topo_dir / "system.top"
@@ -109,19 +119,23 @@ def write_top_files(
     if use_linker and linker_count > 0:
         linker_name = linker_moltype or Path(linker_itp_name).stem
         linker_line = f"{linker_name} {linker_count}\n"
+    substrate_line = ""
+    if substrate_itp_name and substrate_count > 0:
+        substrate_name = substrate_moltype or Path(substrate_itp_name).stem
+        substrate_line = f"{substrate_name} {substrate_count}\n"
 
     with open(system_top, "w") as fh:
         fh.write(
-            _include_block(f"{moltype}.itp")
+            _include_block(mol_itp_name)
             + "\n\n[ system ]\nMartiniSurf system\n\n[ molecules ]\n"
-            + f"{moltype} 1\nSRF 1\n{linker_line}"
+            + f"{moltype} 1\n{surface_moltype} {surface_count}\n{linker_line}{substrate_line}"
         )
 
     with open(system_res_top, "w") as fh:
         fh.write(
             _include_block(anchor_itp_name)
             + "\n\n[ system ]\nMartiniSurf restrained system\n\n[ molecules ]\n"
-            + f"{moltype} 1\nSRF 1\n{linker_line}"
+            + f"{moltype} 1\n{surface_moltype} {surface_count}\n{linker_line}{substrate_line}"
         )
 
     # Compatibility alias for legacy workflows/scripts that still expect system_anchor.top.
@@ -147,6 +161,64 @@ def _read_itp_moleculetype(itp_path: Path) -> str | None:
             token = line.split()[0]
             return token
     return None
+
+
+def _write_itp_with_moleculetype(src_itp: Path, dst_itp: Path, new_moltype: str) -> None:
+    lines = src_itp.read_text().splitlines()
+    out: list[str] = []
+    in_moleculetype = False
+    replaced = False
+    for raw in lines:
+        line = raw.strip()
+        if line.lower().startswith("[") and "moleculetype" in line.lower():
+            in_moleculetype = True
+            out.append(raw)
+            continue
+        if in_moleculetype:
+            if (not line) or line.startswith(";"):
+                out.append(raw)
+                continue
+            if line.startswith("["):
+                in_moleculetype = False
+                out.append(raw)
+                continue
+            # Replace first data line in [ moleculetype ]
+            tokens = raw.split()
+            if tokens:
+                nrexcl = tokens[1] if len(tokens) > 1 else "1"
+                out.append(f"{new_moltype} {nrexcl}")
+                replaced = True
+                in_moleculetype = False
+                continue
+        out.append(raw)
+
+    if not replaced:
+        dst_itp.write_text(src_itp.read_text())
+    else:
+        dst_itp.write_text("\n".join(out).rstrip() + "\n")
+
+
+def _count_itp_atoms(itp_path: Path) -> int:
+    if not itp_path.exists():
+        return 0
+    count = 0
+    in_atoms = False
+    for raw in itp_path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith(";"):
+            continue
+        if line.startswith("["):
+            in_atoms = "atoms" in line.lower()
+            continue
+        if in_atoms:
+            # Count only valid atom definition lines where first token is atom id.
+            # This ignores stray markers (e.g., "~") that may appear in some legacy ITPs.
+            parts = line.split()
+            if not parts:
+                continue
+            if parts[0].lstrip("+-").isdigit():
+                count += 1
+    return count
 
 
 def _infer_surface_pull_group(text: str, is_dna: bool) -> str:
@@ -289,6 +361,10 @@ def write_custom_mdp(
 def _validate_cli_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     if args.use_linker and args.linker_size is not None and args.linker_size <= 0:
         parser.error("--linker-size must be > 0.")
+    if args.substrate_count < 0:
+        parser.error("--substrate-count must be >= 0.")
+    if args.substrate_count > 0 and not args.substrate_itp_name:
+        parser.error("--substrate-count requires --substrate-itp-name.")
 
 
 # ======================================================================
@@ -323,6 +399,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--linker-pull-init-prot", type=float, default=0.8, help="Pull init (nm) for biomolecule↔linker.")
     parser.add_argument("--linker-pull-init-surf", type=float, default=0.8, help="Pull init (nm) for linker↔surface.")
     parser.add_argument("--go-model", action="store_true", help="Add GO_VIRT define to generated protein topologies.")
+    parser.add_argument("--substrate-itp-name", help="Substrate topology filename in system_itp.")
+    parser.add_argument("--substrate-count", type=int, default=0, help="Number of substrate molecules in the system.")
 
     args = parser.parse_args(argv) if argv else parser.parse_args()
     _validate_cli_args(parser, args)
@@ -512,15 +590,15 @@ def main(argv: Sequence[str] | None = None) -> None:
                 shutil.copy(p, dst)
 
     if is_dna:
-        required = [
-            "martini_v2.1-dna.itp",
-            "martini_v2.1P-dna.itp",
-            "martini_v2.0_ions.itp",
-        ]
+        required = ["martini_v2.0_ions.itp"]
+        # Copy only one mutually-exclusive DNA FF file.
+        for candidate in ("martini_v2.1-dna.itp", "martini_v2.1P-dna.itp"):
+            if (src_itp_dir / candidate).exists():
+                required.insert(0, candidate)
+                break
     else:
         required = [
             "martini_v3.0.0.itp",
-            "martini_v3.0.0_Active.itp",
             "martini_v3.0.0_solvents_v1.itp",
             "martini_v3.0.0_ions_v1.itp",
         ]
@@ -534,6 +612,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         raise FileNotFoundError(
             "❌ Linker mode requested but "
             f"0_topology/system_itp/{args.linker_itp_name} is missing."
+        )
+    if args.substrate_count > 0 and args.substrate_itp_name and not (dst_itp_dir / args.substrate_itp_name).exists():
+        raise FileNotFoundError(
+            "❌ Substrate mode requested but "
+            f"0_topology/system_itp/{args.substrate_itp_name} is missing."
         )
 
     linker_total = 0
@@ -554,6 +637,10 @@ def main(argv: Sequence[str] | None = None) -> None:
 
         linker_itp_path = dst_itp_dir / args.linker_itp_name
         linker_moltype_name = _read_itp_moleculetype(linker_itp_path) or linker_itp_path.stem
+    substrate_moltype_name: str | None = None
+    if args.substrate_count > 0 and args.substrate_itp_name:
+        substrate_itp_path = dst_itp_dir / args.substrate_itp_name
+        substrate_moltype_name = _read_itp_moleculetype(substrate_itp_path) or substrate_itp_path.stem
 
     # ===============================================================
     # Detect molecule ITP (UNCHANGED)
@@ -563,11 +650,13 @@ def main(argv: Sequence[str] | None = None) -> None:
             p for p in dst_itp_dir.glob("*.itp")
             if not p.name.startswith("martini_")
             and p.name != "surface.itp"
+            and p.name != args.linker_itp_name
+            and p.name != (args.substrate_itp_name or "")
         ]
         if not possible_itps:
             raise FileNotFoundError("❌ No DNA molecule ITP found in system_itp.")
         mol_itp = possible_itps[0]
-        moltype = mol_itp.stem
+        moltype = _read_itp_moleculetype(mol_itp) or mol_itp.stem
     else:
         if not args.moltype:
             raise ValueError("❌ --moltype required for protein")
@@ -578,12 +667,28 @@ def main(argv: Sequence[str] | None = None) -> None:
             if fallback.exists():
                 shutil.copy(fallback, mol_itp)
             else:
-                mol_itp.write_text(
-                    "[ moleculetype ]\n"
-                    f"{moltype} 1\n\n"
-                    "[ atoms ]\n"
-                    "1  C1  1  MOL  C1  1  0.0\n"
-                )
+                candidates = [
+                    p for p in dst_itp_dir.glob("*.itp")
+                    if not p.name.startswith("martini_")
+                    and p.name not in {
+                        "surface.itp",
+                        "go_atomtypes.itp",
+                        "go_nbparams.itp",
+                        args.linker_itp_name,
+                        (args.substrate_itp_name or ""),
+                    }
+                    and not p.name.endswith("_anchor.itp")
+                ]
+                if candidates:
+                    src = sorted(candidates, key=lambda p: p.stat().st_size, reverse=True)[0]
+                    _write_itp_with_moleculetype(src, mol_itp, moltype)
+                else:
+                    mol_itp.write_text(
+                        "[ moleculetype ]\n"
+                        f"{moltype} 1\n\n"
+                        "[ atoms ]\n"
+                        "1  C1  1  MOL  C1  1  0.0\n"
+                    )
 
     # ===============================================================
     # Active_anchor.itp (UNCHANGED LOGIC)
@@ -664,10 +769,28 @@ def main(argv: Sequence[str] | None = None) -> None:
                 print(f"⚠ Missing MDP template: {src_name}")
 
     anchor_moltype = mol_itp.stem if is_dna else moltype
+    surface_itp_path = dst_itp_dir / "surface.itp"
+    surface_moltype = _read_itp_moleculetype(surface_itp_path) or "SRF"
+    surface_itp_atoms = _count_itp_atoms(surface_itp_path)
+    surface_atom_total = sum(
+        1 for a in u.atoms if str(a.resname).strip() == surface_moltype
+    )
+    surface_count = 1
+    if surface_itp_atoms > 0 and surface_atom_total > 0:
+        surface_count = max(1, surface_atom_total // surface_itp_atoms)
+        if surface_atom_total % surface_itp_atoms != 0:
+            print(
+                "⚠ Surface atom count is not an exact multiple of surface.itp atoms-per-molecule. "
+                f"Using floor count: {surface_count}."
+            )
+    elif surface_atom_total > 0:
+        surface_count = surface_atom_total
+
     write_top_files(
         topo_dir=topo_dir,
         dst_itp_dir=dst_itp_dir,
         moltype=moltype,
+        mol_itp_name=mol_itp.name,
         anchor_itp_name=f"{anchor_moltype}_anchor.itp",
         is_dna=is_dna,
         use_linker=args.use_linker,
@@ -675,6 +798,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         linker_itp_name=args.linker_itp_name,
         linker_moltype=linker_moltype_name,
         linker_count=linker_total,
+        substrate_itp_name=args.substrate_itp_name,
+        substrate_moltype=substrate_moltype_name,
+        substrate_count=args.substrate_count,
+        surface_moltype=surface_moltype,
+        surface_count=surface_count,
     )
 
     # ===============================================================

@@ -13,6 +13,7 @@ Stable architecture:
 import argparse
 import importlib.util
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -81,6 +82,188 @@ def _read_gro_atom_count(gro_path: str) -> int | None:
         return None
 
 
+def _write_minimal_surface_itp(itp_path: Path, resname: str, bead: str, charge: float = 0.0) -> None:
+    clean_res = (resname or "SRF").strip()[:6] or "SRF"
+    clean_bead = (bead or "C1").strip()[:6] or "C1"
+    itp_path.write_text(
+        ";;;;;; Minimal surface topology (auto-generated fallback)\n\n"
+        "[ moleculetype ]\n"
+        "; molname nrexcl\n"
+        f"  {clean_res}        1\n\n"
+        "[ atoms ]\n"
+        f"  1   {clean_bead:<6}   1   {clean_res:<4}   C     1     {float(charge):.3f}\n"
+    )
+
+
+def _read_gro_records(gro_path: str) -> tuple[str, list[dict], list[float]]:
+    with open(gro_path, "r") as fh:
+        lines = fh.readlines()
+    if len(lines) < 3:
+        raise ValueError(f"Invalid GRO file: {gro_path}")
+
+    title = lines[0].rstrip("\n")
+    atom_lines = lines[2:-1]
+    box_line = lines[-1].strip()
+    box_tokens = box_line.split()
+    if len(box_tokens) < 3:
+        raise ValueError(f"Invalid GRO box line in: {gro_path}")
+    box = [float(box_tokens[0]), float(box_tokens[1]), float(box_tokens[2])]
+
+    records: list[dict] = []
+    for line in atom_lines:
+        if len(line) < 44:
+            continue
+        try:
+            records.append(
+                {
+                    "resid": int(line[0:5]),
+                    "resname": line[5:10].strip() or "SUB",
+                    "atomname": line[10:15].strip() or "C1",
+                    "atomid": int(line[15:20]),
+                    "x": float(line[20:28]),
+                    "y": float(line[28:36]),
+                    "z": float(line[36:44]),
+                }
+            )
+        except ValueError:
+            continue
+    return title, records, box
+
+
+def _write_gro_records(gro_path: str, title: str, records: list[dict], box: list[float]) -> None:
+    with open(gro_path, "w") as fh:
+        fh.write(f"{title}\n")
+        fh.write(f"{len(records):5d}\n")
+        for rec in records:
+            resid = int(rec["resid"]) % 100000
+            atomid = int(rec["atomid"]) % 100000
+            fh.write(
+                f"{resid:5d}"
+                f"{str(rec['resname'])[:5]:<5}"
+                f"{str(rec['atomname'])[:5]:>5}"
+                f"{atomid:5d}"
+                f"{float(rec['x']):8.3f}{float(rec['y']):8.3f}{float(rec['z']):8.3f}\n"
+            )
+        fh.write(f"{box[0]:10.5f}{box[1]:10.5f}{box[2]:10.5f}\n")
+
+
+def _resolve_sidecar_itp(gro_path: str, explicit_itp: str | None, label: str) -> Path:
+    if explicit_itp:
+        itp = Path(explicit_itp)
+    else:
+        itp = Path(gro_path).with_suffix(".itp")
+    if not itp.exists():
+        raise FileNotFoundError(
+            f"{label} ITP not found: {itp}. "
+            f"Provide --{label.lower()}-itp or place it next to the GRO file."
+        )
+    return itp
+
+
+def _append_random_substrates_to_gro(
+    system_gro: str,
+    substrate_gro: str,
+    substrate_count: int,
+    min_distance_nm: float = 0.20,
+    max_attempts_per_copy: int = 500,
+) -> None:
+    if substrate_count <= 0:
+        return
+
+    title, system_records, box = _read_gro_records(system_gro)
+    _, substrate_records, _ = _read_gro_records(substrate_gro)
+    if not substrate_records:
+        raise ValueError(f"Substrate GRO has no atoms: {substrate_gro}")
+
+    sx = [r["x"] for r in substrate_records]
+    sy = [r["y"] for r in substrate_records]
+    sz = [r["z"] for r in substrate_records]
+    cx = sum(sx) / len(sx)
+    cy = sum(sy) / len(sy)
+    cz = sum(sz) / len(sz)
+    rel = [(r["x"] - cx, r["y"] - cy, r["z"] - cz) for r in substrate_records]
+
+    min_rx = min(v[0] for v in rel)
+    max_rx = max(v[0] for v in rel)
+    min_ry = min(v[1] for v in rel)
+    max_ry = max(v[1] for v in rel)
+    min_rz = min(v[2] for v in rel)
+    max_rz = max(v[2] for v in rel)
+
+    margin = 0.05
+    x_low, x_high = -min_rx + margin, box[0] - max_rx - margin
+    y_low, y_high = -min_ry + margin, box[1] - max_ry - margin
+    z_low, z_high = -min_rz + margin, box[2] - max_rz - margin
+    if x_low > x_high or y_low > y_high or z_low > z_high:
+        raise ValueError(
+            "Substrate does not fit inside the simulation box. "
+            "Use a larger box or a smaller substrate."
+        )
+
+    existing_xyz = [(r["x"], r["y"], r["z"]) for r in system_records]
+    min_d2 = min_distance_nm * min_distance_nm
+    next_atomid = max((int(r["atomid"]) for r in system_records), default=0) + 1
+    next_resid = max((int(r["resid"]) for r in system_records), default=0) + 1
+
+    original_resids: list[int] = []
+    for rec in substrate_records:
+        resid = int(rec["resid"])
+        if resid not in original_resids:
+            original_resids.append(resid)
+
+    rng = random.Random()
+
+    for copy_idx in range(substrate_count):
+        placed = False
+        for _ in range(max_attempts_per_copy):
+            tx = rng.uniform(x_low, x_high)
+            ty = rng.uniform(y_low, y_high)
+            tz = rng.uniform(z_low, z_high)
+            candidate_xyz = [(dx + tx, dy + ty, dz + tz) for dx, dy, dz in rel]
+
+            too_close = False
+            for px, py, pz in candidate_xyz:
+                for ex, ey, ez in existing_xyz:
+                    dx = px - ex
+                    dy = py - ey
+                    dz = pz - ez
+                    if (dx * dx + dy * dy + dz * dz) < min_d2:
+                        too_close = True
+                        break
+                if too_close:
+                    break
+            if too_close:
+                continue
+
+            resid_map = {rid: next_resid + i for i, rid in enumerate(original_resids)}
+            next_resid += len(original_resids)
+
+            for template, (x, y, z) in zip(substrate_records, candidate_xyz):
+                system_records.append(
+                    {
+                        "resid": resid_map[int(template["resid"])],
+                        "resname": template["resname"],
+                        "atomname": template["atomname"],
+                        "atomid": next_atomid,
+                        "x": x,
+                        "y": y,
+                        "z": z,
+                    }
+                )
+                next_atomid += 1
+            existing_xyz.extend(candidate_xyz)
+            placed = True
+            break
+
+        if not placed:
+            raise RuntimeError(
+                f"Could not place substrate copy {copy_idx + 1}/{substrate_count} "
+                "without overlaps. Try fewer substrates or a larger box."
+            )
+
+    _write_gro_records(system_gro, title, system_records, box)
+
+
 def _bead_size_class(bead_name: Optional[str]) -> str:
     if not bead_name:
         return "R"
@@ -138,6 +321,29 @@ def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
     if (args.go_eps is not None or args.go_low is not None or args.go_up is not None) and not args.go:
         print("⚠ Go parameters (--go-eps/--go-low/--go-up) were provided without --go. They will be ignored.")
 
+    if args.substrate_count < 0:
+        parser.error("--substrate-count must be >= 0.")
+    if args.substrate and args.substrate_count == 0:
+        args.substrate_count = 1
+    if args.substrate_count > 0 and not args.substrate:
+        parser.error("--substrate-count requires --substrate.")
+    if args.ionize and not args.solvate:
+        parser.error("--ionize requires --solvate.")
+    if args.salt_conc < 0:
+        parser.error("--salt-conc must be >= 0.")
+    if args.solvate_radius <= 0:
+        parser.error("--solvate-radius must be > 0.")
+    if args.solvate_surface_clearance < 0:
+        parser.error("--solvate-surface-clearance must be >= 0.")
+    if args.water_gro and not Path(args.water_gro).exists():
+        parser.error(f"--water-gro not found: {args.water_gro}")
+    if args.freeze_water_fraction < 0 or args.freeze_water_fraction > 1:
+        parser.error("--freeze-water-fraction must be in [0, 1].")
+    if args.freeze_water_fraction > 0 and not args.dna:
+        parser.error("--freeze-water-fraction is currently supported only with --dna.")
+    if args.freeze_water_fraction > 0 and not args.solvate:
+        parser.error("--freeze-water-fraction requires --solvate.")
+
 
 def _print_config_summary(args: argparse.Namespace) -> None:
     mode = "DNA" if args.dna else "Protein"
@@ -157,6 +363,8 @@ def _print_config_summary(args: argparse.Namespace) -> None:
         print(f"Invert linker:    {args.invert_linker}")
     elif args.anchor:
         print(f"Anchor groups:    {len(args.anchor)}")
+    if args.substrate and args.substrate_count > 0:
+        print(f"Substrates:       {args.substrate_count}")
     if args.merge:
         print(f"Merge groups:     {', '.join(args.merge)}")
     print("=================================\n")
@@ -257,6 +465,21 @@ def build_parser():
     linker_group.add_argument("--invert-linker", action="store_true", help="Reverse linker bead order before attachment.")
     linker_group.add_argument("--surface-linkers", type=int, default=0, help="Add random extra linkers on the surface.")
 
+    substrate_group = parser.add_argument_group("Optional Random Substrate")
+    substrate_group.add_argument("--substrate", help="Substrate .gro file to place randomly inside the simulation box.")
+    substrate_group.add_argument("--substrate-itp", help="Substrate .itp file (optional; inferred from --substrate basename).")
+    substrate_group.add_argument("--substrate-count", type=int, default=0, help="Number of substrate molecules to add randomly.")
+
+    post_group = parser.add_argument_group("Optional Solvation And Ionization (requires GROMACS)")
+    post_group.add_argument("--solvate", action="store_true", help="Run gmx solvate using MartiniSurf water.gro and produce final solvated files.")
+    post_group.add_argument("--ionize", action="store_true", help="Run gmx genion after solvation and produce final ionized files.")
+    post_group.add_argument("--salt-conc", type=float, default=0.15, help="Target salt concentration (M) for --ionize.")
+    post_group.add_argument("--water-gro", help="Optional custom water coordinate file (.gro) for gmx solvate.")
+    post_group.add_argument("--solvate-radius", type=float, default=0.21, help="Exclusion radius (nm) for gmx solvate (Martini recommended: 0.21).")
+    post_group.add_argument("--solvate-surface-clearance", type=float, default=0.4, help="Remove water in a symmetric slab around the surface plane: |z - z_surface| <= clearance.")
+    post_group.add_argument("--freeze-water-fraction", type=float, default=0.0, help="DNA-only: convert this fraction of W waters to WF in final outputs.")
+    post_group.add_argument("--freeze-water-seed", type=int, default=42, help="Random seed used for DNA water freezing.")
+
     output_group = parser.add_argument_group("Output")
     output_group.add_argument("--outdir", default="Simulation_Files", help="Output directory for generated system files.")
 
@@ -273,6 +496,378 @@ def run(cmd, cwd=None):
     if res.returncode != 0:
         raise RuntimeError("Command failed.")
     print("✔ Done\n")
+
+
+def _run_capture(cmd: list[str], cwd: Path | None = None, stdin_text: str | None = None) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        cmd,
+        cwd=cwd,
+        text=True,
+        input=stdin_text,
+        capture_output=True,
+        check=False,
+    )
+
+
+def _run_with_check(cmd: list[str], cwd: Path | None = None, stdin_text: str | None = None) -> subprocess.CompletedProcess:
+    res = _run_capture(cmd, cwd=cwd, stdin_text=stdin_text)
+    if res.returncode != 0:
+        shown = " ".join(cmd)
+        raise RuntimeError(
+            f"Command failed ({shown})\nSTDOUT:\n{res.stdout[-4000:]}\nSTDERR:\n{res.stderr[-4000:]}"
+        )
+    return res
+
+
+def _find_gmx_binary() -> str | None:
+    for exe in ("gmx", "gmx_mpi"):
+        if shutil.which(exe):
+            return exe
+    return None
+
+
+def _write_ions_mdp(mdp_path: Path) -> None:
+    mdp_path.write_text(
+        "integrator = steep\n"
+        "nsteps = 50\n"
+        "emtol = 1000\n"
+        "emstep = 0.01\n"
+        "cutoff-scheme = Verlet\n"
+        "nstlist = 20\n"
+        "coulombtype = reaction-field\n"
+        "rcoulomb = 1.1\n"
+        "epsilon_r = 15\n"
+        "epsilon_rf = 0\n"
+        "vdwtype = cutoff\n"
+        "rvdw = 1.1\n"
+        "pbc = xyz\n"
+    )
+
+
+def _read_itp_moleculetype(itp_path: Path) -> str | None:
+    if not itp_path.exists():
+        return None
+    in_moleculetype = False
+    for raw in itp_path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith(";"):
+            continue
+        if line.startswith("[") and "moleculetype" in line.lower():
+            in_moleculetype = True
+            continue
+        if in_moleculetype:
+            if line.startswith("["):
+                break
+            return line.split()[0]
+    return None
+
+
+def _count_residues_by_resname(records: list[dict], target_resnames: set[str]) -> int:
+    keys = {
+        (int(rec["resid"]), str(rec["resname"]).strip())
+        for rec in records
+        if str(rec["resname"]).strip() in target_resnames
+    }
+    return len(keys)
+
+
+def _update_top_molecule_count(top_path: Path, molname: str, new_count: int) -> None:
+    lines = top_path.read_text().splitlines()
+    out: list[str] = []
+    in_molecules = False
+    replaced = False
+    for raw in lines:
+        stripped = raw.strip()
+        if stripped.lower() == "[ molecules ]":
+            in_molecules = True
+            out.append(raw)
+            continue
+        if in_molecules:
+            if stripped.startswith("["):
+                in_molecules = False
+                out.append(raw)
+                continue
+            if stripped and not stripped.startswith(";"):
+                parts = stripped.split()
+                if parts and parts[0] == molname:
+                    out.append(f"{molname:<16}{int(new_count)}")
+                    replaced = True
+                    continue
+        out.append(raw)
+
+    if not replaced:
+        text = "\n".join(out).rstrip() + "\n"
+        if "[ molecules ]" in text:
+            text += f"{molname:<16}{int(new_count)}\n"
+        else:
+            text += "\n[ molecules ]\n" + f"{molname:<16}{int(new_count)}\n"
+        top_path.write_text(text)
+    else:
+        top_path.write_text("\n".join(out).rstrip() + "\n")
+
+
+def _remove_waters_below_surface(
+    gro_path: Path,
+    top_path: Path,
+    surface_resname: str,
+    clearance_nm: float,
+    water_resnames: set[str],
+    water_molname: str,
+) -> None:
+    title, records, box = _read_gro_records(str(gro_path))
+    if not records:
+        return
+
+    surf_coords = [float(r["z"]) for r in records if str(r["resname"]).strip() == surface_resname]
+    if not surf_coords:
+        return
+    # Use the surface plane center and remove water in a symmetric slab around it.
+    z_surface = sum(surf_coords) / len(surf_coords)
+    clearance = float(clearance_nm)
+
+    grouped: dict[tuple[int, str], list[dict]] = {}
+    order: list[tuple[int, str]] = []
+    for rec in records:
+        key = (int(rec["resid"]), str(rec["resname"]).strip())
+        if key not in grouped:
+            grouped[key] = []
+            order.append(key)
+        grouped[key].append(rec)
+
+    kept: list[dict] = []
+    removed_water_res = 0
+    for key in order:
+        _, resname = key
+        atoms = grouped[key]
+        if resname in water_resnames:
+            z_center = sum(float(a["z"]) for a in atoms) / len(atoms)
+            if abs(z_center - z_surface) <= clearance:
+                removed_water_res += 1
+                continue
+        kept.extend(atoms)
+
+    if removed_water_res == 0:
+        return
+
+    for i, rec in enumerate(kept, start=1):
+        rec["atomid"] = i
+    _write_gro_records(str(gro_path), title, kept, box)
+
+    water_res_total = _count_residues_by_resname(kept, water_resnames)
+    _update_top_molecule_count(top_path, water_molname, water_res_total)
+    # Silent cleanup to keep terminal output concise.
+
+
+def _run_genion_with_fallback(
+    gmx_bin: str,
+    tpr_path: Path,
+    out_gro: Path,
+    top_path: Path,
+    salt_conc: float,
+    cwd: Path | None = None,
+) -> None:
+    cmd = [
+        gmx_bin, "genion",
+        "-s", str(tpr_path),
+        "-o", str(out_gro),
+        "-p", str(top_path),
+        "-pname", "NA",
+        "-nname", "CL",
+        "-neutral",
+    ]
+    if salt_conc > 0:
+        cmd += ["-conc", str(salt_conc)]
+
+    candidates = ["W\n", "SOL\n"] + [f"{i}\n" for i in range(0, 50)]
+    last_err = ""
+    for selection in candidates:
+        res = _run_capture(cmd, cwd=cwd, stdin_text=selection)
+        if res.returncode == 0:
+            return
+        last_err = f"STDOUT:\n{res.stdout[-2000:]}\nSTDERR:\n{res.stderr[-2000:]}"
+
+    raise RuntimeError(
+        "gmx genion failed for all tested solvent selections (W/SOL/group numbers 0-49).\n"
+        f"{last_err}"
+    )
+
+
+def _extract_molecules_block(top_path: Path) -> str:
+    text = top_path.read_text()
+    lines = text.splitlines()
+    start = None
+    for i, line in enumerate(lines):
+        if line.strip().lower() == "[ molecules ]":
+            start = i
+            break
+    if start is None:
+        raise RuntimeError(f"[ molecules ] block not found in {top_path}")
+    block = "\n".join(lines[start:]).rstrip() + "\n"
+    return block
+
+
+def _replace_molecules_block(top_path: Path, molecules_block: str) -> None:
+    text = top_path.read_text()
+    lines = text.splitlines()
+    start = None
+    for i, line in enumerate(lines):
+        if line.strip().lower() == "[ molecules ]":
+            start = i
+            break
+    if start is None:
+        top_path.write_text(text.rstrip() + "\n\n" + molecules_block)
+        return
+    head = "\n".join(lines[:start]).rstrip() + "\n\n"
+    top_path.write_text(head + molecules_block)
+
+
+def _sync_final_restrained_topology(top_dir: Path, final_top: Path) -> Path | None:
+    base_res_top = top_dir / "system_res.top"
+    if not base_res_top.exists():
+        return None
+    final_res_top = top_dir / "system_final_res.top"
+    shutil.copy(base_res_top, final_res_top)
+    molecules_block = _extract_molecules_block(final_top)
+    _replace_molecules_block(final_res_top, molecules_block)
+    return final_res_top
+
+
+def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -> None:
+    if not args.solvate:
+        return
+
+    gmx_bin = _find_gmx_binary()
+    if gmx_bin is None:
+        raise RuntimeError(
+            "Solvation/Ionization requested, but no GROMACS binary was found. "
+            "Install GROMACS and make sure `gmx` is on PATH."
+        )
+
+    system_dir = simdir / "2_system"
+    top_dir = simdir / "0_topology"
+
+    input_gro = system_dir / "system.gro"
+    if not input_gro.exists():
+        input_gro = system_dir / "immobilized_system.gro"
+    if not input_gro.exists():
+        raise FileNotFoundError("Could not find system GRO for solvation.")
+
+    if args.water_gro:
+        water_gro = Path(args.water_gro).resolve()
+    else:
+        water_gro = system_dir / "water.gro"
+        if not water_gro.exists():
+            pkg_water = Path(__file__).resolve().parent / "system_templates" / "water.gro"
+            if pkg_water.exists():
+                water_gro = pkg_water
+            else:
+                raise FileNotFoundError("water.gro template not found for solvation.")
+
+    base_top = top_dir / "system.top"
+    if not base_top.exists():
+        raise FileNotFoundError("system.top not found for solvation.")
+
+    final_top = top_dir / "system_final.top"
+    shutil.copy(base_top, final_top)
+
+    solvated_gro = system_dir / "solvated_system.gro"
+    _run_with_check([
+        gmx_bin, "solvate",
+        "-cp", str(input_gro),
+        "-cs", str(water_gro),
+        "-o", str(solvated_gro),
+        "-p", str(final_top),
+        "-radius", str(args.solvate_radius),
+    ], cwd=top_dir)
+    surface_itp = top_dir / "system_itp" / "surface.itp"
+    surface_resname = _read_itp_moleculetype(surface_itp) or "SRF"
+    water_resname = _read_gro_first_resname(str(water_gro)) or "W"
+    water_resnames = {water_resname}
+    if water_resname == "W":
+        water_resnames.add("SOL")
+    _remove_waters_below_surface(
+        gro_path=solvated_gro,
+        top_path=final_top,
+        surface_resname=surface_resname,
+        clearance_nm=args.solvate_surface_clearance,
+        water_resnames=water_resnames,
+        water_molname=water_resname,
+    )
+
+    final_gro = system_dir / "final_system.gro"
+    if not args.ionize:
+        shutil.copy(solvated_gro, final_gro)
+        final_res_top = _sync_final_restrained_topology(top_dir, final_top)
+        print(f"✔ Solvated system written: {final_gro}")
+        print(f"✔ Final topology written: {final_top}")
+        if final_res_top is not None:
+            print(f"✔ Final restrained topology written: {final_res_top}")
+        return
+
+    ions_mdp = system_dir / "_ions_tmp.mdp"
+    ions_tpr = system_dir / "_ions_tmp.tpr"
+    _write_ions_mdp(ions_mdp)
+
+    _run_with_check([
+        gmx_bin, "grompp",
+        "-f", str(ions_mdp),
+        "-c", str(solvated_gro),
+        "-p", str(final_top),
+        "-o", str(ions_tpr),
+        "-maxwarn", "2",
+    ], cwd=top_dir)
+
+    _run_genion_with_fallback(
+        gmx_bin=gmx_bin,
+        tpr_path=ions_tpr,
+        out_gro=final_gro,
+        top_path=final_top,
+        salt_conc=args.salt_conc,
+        cwd=top_dir,
+    )
+
+    ions_mdp.unlink(missing_ok=True)
+    ions_tpr.unlink(missing_ok=True)
+    final_res_top = _sync_final_restrained_topology(top_dir, final_top)
+    print(f"✔ Ionized system written: {final_gro}")
+    print(f"✔ Final topology written: {final_top}")
+    if final_res_top is not None:
+        print(f"✔ Final restrained topology written: {final_res_top}")
+
+    # Keep topology includes centralized only in 0_topology/system_itp.
+    accidental_itp_dir = system_dir / "system_itp"
+    if accidental_itp_dir.exists():
+        shutil.rmtree(accidental_itp_dir, ignore_errors=True)
+
+
+def _run_optional_dna_water_freezing(args: argparse.Namespace, simdir: Path) -> None:
+    if args.freeze_water_fraction <= 0:
+        return
+
+    from martinisurf.utils.freeze_water import apply_freeze_water_fraction
+
+    top_dir = simdir / "0_topology"
+    system_dir = simdir / "2_system"
+    top_path = top_dir / "system_final.top"
+    gro_path = system_dir / "final_system.gro"
+    alias_path = system_dir / "system_final.gro"
+
+    n_before, n_w, n_wf = apply_freeze_water_fraction(
+        top_path=top_path,
+        gro_path=gro_path,
+        fraction=args.freeze_water_fraction,
+        seed=args.freeze_water_seed,
+        source_resname="W",
+        target_resname="WF",
+        alias_gro_path=alias_path,
+    )
+    final_res_top = _sync_final_restrained_topology(top_dir, top_path)
+    if final_res_top is not None:
+        print(f"✔ Final restrained topology written: {final_res_top}")
+    print(
+        "✔ DNA water freezing applied "
+        f"(W before={n_before}, W after={n_w}, WF={n_wf}, seed={args.freeze_water_seed})"
+    )
 
 
 def _parse_version_triplet(text: str) -> tuple[int, int, int] | None:
@@ -492,7 +1087,19 @@ def main(argv=None):
             shutil.copy(possible_itp, active_itp_dir / "surface.itp")
             print("✔ Copied surface.itp from provided surface file")
         else:
-            print("⚠ No surface.itp found next to provided surface.gro")
+            fallback_itp = active_itp_dir / "surface.itp"
+            fallback_resname = _read_gro_first_resname(str(surface_gro)) or "SRF"
+            fallback_bead = _read_gro_first_atomname(str(surface_gro)) or args.surface_bead
+            _write_minimal_surface_itp(
+                itp_path=fallback_itp,
+                resname=fallback_resname,
+                bead=fallback_bead,
+                charge=float(args.charge),
+            )
+            print(
+                "⚠ No surface.itp found next to provided surface.gro. "
+                f"Generated fallback topology: {fallback_itp}"
+            )
 
     else:
         import martinisurf.surface_builder as sb
@@ -529,6 +1136,8 @@ def main(argv=None):
         "--system", str(system_gro),
         "--out", str(system_dir / "immobilized_system.gro"),
     ]
+    if args.dna:
+        orient_args += ["--dna-mode"]
 
     if args.linker:
         first_group_resid = None
@@ -589,6 +1198,14 @@ def main(argv=None):
 
     orient_mod.main(orient_args)
 
+    if args.substrate and args.substrate_count > 0:
+        _append_random_substrates_to_gro(
+            system_gro=str(system_dir / "immobilized_system.gro"),
+            substrate_gro=str(args.substrate),
+            substrate_count=args.substrate_count,
+        )
+        print(f"✔ Added {args.substrate_count} random substrate molecule(s) inside the box")
+
     # ===============================================================
     # 5) FINAL GMX SYSTEM (CRITICAL FIX)
     # ===============================================================
@@ -622,6 +1239,13 @@ def main(argv=None):
         final_args += ["--linker-itp-name", linker_itp.name]
         print(f"✔ Copied {linker_itp.name} into topology")
 
+    if args.substrate and args.substrate_count > 0:
+        substrate_itp = _resolve_sidecar_itp(args.substrate, args.substrate_itp, "Substrate")
+        shutil.copy(substrate_itp, active_itp_dir / substrate_itp.name)
+        final_args += ["--substrate-itp-name", substrate_itp.name]
+        final_args += ["--substrate-count", str(args.substrate_count)]
+        print(f"✔ Copied {substrate_itp.name} into topology")
+
     # If classical anchor mode
     if args.anchor:
         for group in args.anchor:
@@ -633,6 +1257,8 @@ def main(argv=None):
             final_args += ["--anchor"] + [str(x) for x in group]
 
     gsm.main(final_args)
+    _run_optional_solvation_ionization(args, simdir)
+    _run_optional_dna_water_freezing(args, simdir)
 
     shutil.rmtree(tmpdir)
 
