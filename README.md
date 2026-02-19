@@ -30,6 +30,9 @@ MartiniSurf builds complete GROMACS-ready simulation folders for:
 - DNA-surface systems (Martini2 DNA workflow)
 - Linker-mediated immobilization workflows
 
+## Documentation
+- Beginner-friendly complete guide (including full flag-by-flag reference): `docs/USER_GUIDE.md`
+
 Main capabilities:
 - Coarse-graining via `martinize2` (protein) or `martinize-dna.py` (DNA)
 - Surface generation or reuse of provided surfaces

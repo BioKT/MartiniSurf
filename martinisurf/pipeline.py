@@ -787,6 +787,10 @@ def _count_residues_by_resname(records: list[dict], target_resnames: set[str]) -
 
 
 def _update_top_molecule_count(top_path: Path, molname: str, new_count: int) -> None:
+    def _fmt_molecule_line(name: str, count: int) -> str:
+        # Keep a stable fixed-width layout for [ molecules ] entries.
+        return f"{name:<16}{int(count)}"
+
     lines = top_path.read_text().splitlines()
     out: list[str] = []
     in_molecules = False
@@ -805,7 +809,7 @@ def _update_top_molecule_count(top_path: Path, molname: str, new_count: int) -> 
             if stripped and not stripped.startswith(";"):
                 parts = stripped.split()
                 if parts and parts[0] == molname:
-                    out.append(f"{molname} {int(new_count)}")
+                    out.append(_fmt_molecule_line(molname, new_count))
                     replaced = True
                     continue
         out.append(raw)
@@ -813,9 +817,9 @@ def _update_top_molecule_count(top_path: Path, molname: str, new_count: int) -> 
     if not replaced:
         text = "\n".join(out).rstrip() + "\n"
         if "[ molecules ]" in text:
-            text += f"{molname} {int(new_count)}\n"
+            text += _fmt_molecule_line(molname, new_count) + "\n"
         else:
-            text += "\n[ molecules ]\n" + f"{molname} {int(new_count)}\n"
+            text += "\n[ molecules ]\n" + _fmt_molecule_line(molname, new_count) + "\n"
         top_path.write_text(text)
     else:
         top_path.write_text("\n".join(out).rstrip() + "\n")
