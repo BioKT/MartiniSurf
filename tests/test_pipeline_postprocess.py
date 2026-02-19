@@ -1,5 +1,6 @@
 import subprocess
 from argparse import Namespace
+from pathlib import Path
 
 import pytest
 
@@ -198,3 +199,36 @@ def test_remove_waters_near_surface_updates_top(tmp_path):
     )
     t = top.read_text()
     assert "W               1" in t
+
+
+def test_rebuild_merged_index_appends_custom_groups(monkeypatch, tmp_path):
+    top_dir = tmp_path / "0_topology"
+    top_dir.mkdir(parents=True)
+    gro = tmp_path / "2_system" / "system_final.gro"
+    gro.parent.mkdir(parents=True)
+    gro.write_text("dummy\n")
+
+    index = top_dir / "index.ndx"
+    index.write_text("[ Anchor_1 ]\n1 2 3\n")
+
+    calls = {"n": 0}
+
+    def fake_run_with_check(cmd, cwd=None, stdin_text=None):
+        calls["n"] += 1
+        assert cmd[0] == "gmx"
+        assert cmd[1] == "make_ndx"
+        assert stdin_text == "q\n"
+        out_path = Path(cmd[cmd.index("-o") + 1])
+        out_path.write_text("[ System ]\n1 2 3 4\n")
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(pipeline, "_run_with_check", fake_run_with_check)
+
+    out = pipeline._rebuild_merged_index(gmx_bin="gmx", gro_path=gro, top_dir=top_dir)
+    assert out == index
+    assert calls["n"] == 1
+
+    merged = index.read_text()
+    assert "[ System ]" in merged
+    assert "[ Anchor_1 ]" in merged
+    assert merged.index("[ System ]") < merged.index("[ Anchor_1 ]")

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import random
 
 
 def apply_freeze_water_fraction(
@@ -44,8 +43,9 @@ def apply_freeze_water_fraction(
         raise RuntimeError(f"No {source_resname} residues found in {gro_path}.")
 
     n_freeze = max(1, int(n_source_total * float(fraction)))
-    rng = random.Random(int(seed))
-    freeze_set = set(rng.sample(water_keys, n_freeze))
+    # Deterministic freeze selection: convert the last W residues in GRO order.
+    # This keeps unfrozen W first and frozen WF immediately after them.
+    freeze_set = set(water_keys[-n_freeze:])
 
     new_atom_lines: list[str] = []
     for ln in atom_lines:
@@ -55,7 +55,7 @@ def apply_freeze_water_fraction(
         resid = int(ln[0:5])
         resname = ln[5:10].strip()
         if (resid, resname) in freeze_set:
-            ln = ln[:5] + f"{target_resname:<5}" + ln[10:]
+            ln = ln[:5] + f"{target_resname:<5}" + f"{target_resname:>5}" + ln[15:]
         new_atom_lines.append(ln)
 
     new_lines = [lines[0], lines[1], *new_atom_lines, lines[-1]]
@@ -83,6 +83,7 @@ def apply_freeze_water_fraction(
     in_molecules = False
     seen_source = False
     seen_target = False
+    inserted_target_after_source = False
     for raw in text:
         s = raw.strip()
         if s.lower() == "[ molecules ]":
@@ -106,8 +107,14 @@ def apply_freeze_water_fraction(
             if name == source_resname:
                 out.append(f"{source_resname:<16}{n_source_final}")
                 seen_source = True
+                if n_target_final > 0:
+                    out.append(f"{target_resname:<16}{n_target_final}")
+                    seen_target = True
+                    inserted_target_after_source = True
                 continue
             if name == target_resname:
+                if inserted_target_after_source:
+                    continue
                 out.append(f"{target_resname:<16}{n_target_final}")
                 seen_target = True
                 continue
@@ -117,6 +124,7 @@ def apply_freeze_water_fraction(
     if in_molecules:
         if not seen_source:
             out.append(f"{source_resname:<16}{n_source_final}")
+            seen_source = True
         if n_target_final > 0 and not seen_target:
             out.append(f"{target_resname:<16}{n_target_final}")
 

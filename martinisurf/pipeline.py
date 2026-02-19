@@ -732,6 +732,38 @@ def _sync_final_restrained_topology(top_dir: Path, final_top: Path) -> Path | No
     return final_res_top
 
 
+def _rebuild_merged_index(
+    gmx_bin: str,
+    gro_path: Path,
+    top_dir: Path,
+) -> Path:
+    index_path = top_dir / "index.ndx"
+    auto_index_path = top_dir / "_index_auto.ndx"
+
+    custom_index_text = ""
+    if index_path.exists():
+        custom_index_text = index_path.read_text()
+
+    _run_with_check(
+        [
+            gmx_bin, "make_ndx",
+            "-f", str(gro_path),
+            "-o", str(auto_index_path),
+        ],
+        cwd=top_dir,
+        stdin_text="q\n",
+    )
+
+    auto_index_text = auto_index_path.read_text().rstrip()
+    merged = auto_index_text + "\n"
+    if custom_index_text.strip():
+        merged += "\n; MartiniSurf custom index groups (appended)\n"
+        merged += custom_index_text.strip() + "\n"
+    index_path.write_text(merged)
+    auto_index_path.unlink(missing_ok=True)
+    return index_path
+
+
 def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -> None:
     if not args.solvate:
         return
@@ -795,11 +827,16 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
     )
 
     final_gro = system_dir / "final_system.gro"
+    final_alias_gro = system_dir / "system_final.gro"
     if not args.ionize:
         shutil.copy(solvated_gro, final_gro)
+        shutil.copy(final_gro, final_alias_gro)
+        merged_index = _rebuild_merged_index(gmx_bin=gmx_bin, gro_path=final_alias_gro, top_dir=top_dir)
         final_res_top = _sync_final_restrained_topology(top_dir, final_top)
         print(f"✔ Solvated system written: {final_gro}")
+        print(f"✔ Alias final system written: {final_alias_gro}")
         print(f"✔ Final topology written: {final_top}")
+        print(f"✔ Merged index written: {merged_index}")
         if final_res_top is not None:
             print(f"✔ Final restrained topology written: {final_res_top}")
         return
@@ -828,9 +865,13 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
 
     ions_mdp.unlink(missing_ok=True)
     ions_tpr.unlink(missing_ok=True)
+    shutil.copy(final_gro, final_alias_gro)
+    merged_index = _rebuild_merged_index(gmx_bin=gmx_bin, gro_path=final_alias_gro, top_dir=top_dir)
     final_res_top = _sync_final_restrained_topology(top_dir, final_top)
     print(f"✔ Ionized system written: {final_gro}")
+    print(f"✔ Alias final system written: {final_alias_gro}")
     print(f"✔ Final topology written: {final_top}")
+    print(f"✔ Merged index written: {merged_index}")
     if final_res_top is not None:
         print(f"✔ Final restrained topology written: {final_res_top}")
 
@@ -862,6 +903,10 @@ def _run_optional_dna_water_freezing(args: argparse.Namespace, simdir: Path) -> 
         alias_gro_path=alias_path,
     )
     final_res_top = _sync_final_restrained_topology(top_dir, top_path)
+    gmx_bin = _find_gmx_binary()
+    if gmx_bin is not None:
+        merged_index = _rebuild_merged_index(gmx_bin=gmx_bin, gro_path=alias_path, top_dir=top_dir)
+        print(f"✔ Merged index written: {merged_index}")
     if final_res_top is not None:
         print(f"✔ Final restrained topology written: {final_res_top}")
     print(
