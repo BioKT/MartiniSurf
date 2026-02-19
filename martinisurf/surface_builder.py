@@ -113,14 +113,15 @@ def main(argv: Iterable[str] | None = None) -> None:
     print(f"✔ {args.mode} Surface ({'Honeycomb Carbon' if args.mode == '4-1' else 'Hex Mapping'}) generated with {len(atoms)} beads.")
 
 def resolve_activeitp_destination(outdir: str) -> Path:
-    outdir_path = Path(outdir)
+    outdir_path = Path(outdir).resolve()
     default_dst = outdir_path / "system_itp" / "surface.itp"
-    if "Simulation" in str(outdir_path):
-        parts = list(outdir_path.parts)
-        if "Simulation" in parts:
-            sim_root = Path(*parts[: parts.index("Simulation") + 1])
-            topology_dir = sim_root / "0_topology" / "system_itp"
-            if topology_dir.exists(): return topology_dir / "surface.itp"
+
+    # Prefer centralized topology includes when called from MartiniSurf pipelines.
+    for base in [outdir_path, *outdir_path.parents]:
+        topology_dir = base / "0_topology" / "system_itp"
+        if topology_dir.exists():
+            return topology_dir / "surface.itp"
+
     return default_dst
 
 if __name__ == "__main__":

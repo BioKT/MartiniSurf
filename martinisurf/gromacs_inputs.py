@@ -880,9 +880,10 @@ def main(argv: Sequence[str] | None = None) -> None:
                 ndx.write(f"\n[ Anchor_{gid} ]\n")
                 write_list(atoms, ndx)
 
-    print("\n========================================")
-    print("✔ GoMartini SYSTEM SUCCESSFULLY BUILT")
-    print("========================================\n")
+    if args.go_model:
+        print("✔ GoMartini system built")
+    else:
+        print("✔ MartiniSurf system built")
 
 
 if __name__ == "__main__":

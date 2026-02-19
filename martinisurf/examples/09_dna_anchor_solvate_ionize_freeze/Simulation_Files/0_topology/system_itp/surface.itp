@@ -1,8 +1,0 @@
-;;;;;; Minimal surface topology
-
-[ moleculetype ]
-; molname nrexcl
-  SRF        1
-
-[ atoms ]
-  1   C1       1   SRF    C     1     0.000

@@ -805,7 +805,7 @@ def _update_top_molecule_count(top_path: Path, molname: str, new_count: int) -> 
             if stripped and not stripped.startswith(";"):
                 parts = stripped.split()
                 if parts and parts[0] == molname:
-                    out.append(f"{molname:<16}{int(new_count)}")
+                    out.append(f"{molname} {int(new_count)}")
                     replaced = True
                     continue
         out.append(raw)
@@ -813,9 +813,9 @@ def _update_top_molecule_count(top_path: Path, molname: str, new_count: int) -> 
     if not replaced:
         text = "\n".join(out).rstrip() + "\n"
         if "[ molecules ]" in text:
-            text += f"{molname:<16}{int(new_count)}\n"
+            text += f"{molname} {int(new_count)}\n"
         else:
-            text += "\n[ molecules ]\n" + f"{molname:<16}{int(new_count)}\n"
+            text += "\n[ molecules ]\n" + f"{molname} {int(new_count)}\n"
         top_path.write_text(text)
     else:
         top_path.write_text("\n".join(out).rstrip() + "\n")
@@ -953,6 +953,100 @@ def _extract_molecules_block(top_path: Path) -> str:
     return block
 
 
+def _parse_molecules_entries(top_path: Path) -> list[tuple[str, int]]:
+    text = top_path.read_text().splitlines()
+    in_molecules = False
+    entries: list[tuple[str, int]] = []
+    for raw in text:
+        s = raw.strip()
+        if s.lower() == "[ molecules ]":
+            in_molecules = True
+            continue
+        if not in_molecules:
+            continue
+        if s.startswith("["):
+            break
+        if not s or s.startswith(";"):
+            continue
+        parts = s.split()
+        if len(parts) < 2:
+            continue
+        name = parts[0]
+        try:
+            count = int(float(parts[1]))
+        except ValueError:
+            continue
+        entries.append((name, count))
+    return entries
+
+
+def _normalize_molecules_block(final_top: Path, base_top: Path | None = None) -> None:
+    final_entries = _parse_molecules_entries(final_top)
+    if not final_entries:
+        return
+
+    # Deduplicate by molname (keep latest count), while preserving first-seen order.
+    counts: dict[str, int] = {}
+    first_order: list[str] = []
+    for name, count in final_entries:
+        if name not in counts:
+            first_order.append(name)
+        counts[name] = int(count)
+
+    base_order: list[str] = []
+    base_counts: dict[str, int] = {}
+    if base_top is not None and base_top.exists():
+        for name, bcount in _parse_molecules_entries(base_top):
+            if name not in base_order:
+                base_order.append(name)
+            # Keep first definition from base topology.
+            if name not in base_counts:
+                base_counts[name] = int(bcount)
+
+    # Safety net: keep fundamental molecules from base topology even if
+    # downstream tools accidentally dropped them from final_top.
+    for name, bcount in base_counts.items():
+        if name not in counts:
+            counts[name] = int(bcount)
+            first_order.append(name)
+
+    water_names = ["W", "SOL", "WF"]
+    ion_names = ["NA", "CL", "K", "CA", "MG", "ZN", "LI", "RB", "CS", "BA", "SR", "F", "BR", "I"]
+
+    ordered: list[str] = []
+
+    # 1) Keep non-solvent/non-ion molecules in base topology order (e.g., biomolecule, surface, linker, substrate).
+    for name in base_order:
+        if name in counts and counts[name] > 0 and name not in water_names and name not in ion_names:
+            ordered.append(name)
+
+    # 2) Append any remaining non-solvent/non-ion molecules in first appearance order.
+    for name in first_order:
+        if name in counts and counts[name] > 0 and name not in water_names and name not in ion_names and name not in ordered:
+            ordered.append(name)
+
+    # 3) Waters.
+    for name in water_names:
+        if name in counts and counts[name] > 0:
+            ordered.append(name)
+
+    # 4) Ions.
+    for name in ion_names:
+        if name in counts and counts[name] > 0:
+            ordered.append(name)
+
+    # 5) Any unknown leftovers.
+    for name in first_order:
+        if name in counts and counts[name] > 0 and name not in ordered:
+            ordered.append(name)
+
+    block_lines = ["[ molecules ]"]
+    for name in ordered:
+        block_lines.append(f"{name} {counts[name]}")
+    molecules_block = "\n".join(block_lines) + "\n"
+    _replace_molecules_block(final_top, molecules_block)
+
+
 def _replace_molecules_block(top_path: Path, molecules_block: str) -> None:
     text = top_path.read_text()
     lines = text.splitlines()
@@ -1076,6 +1170,7 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
     final_gro = system_dir / "final_system.gro"
     final_alias_gro = system_dir / "system_final.gro"
     if not args.ionize:
+        _normalize_molecules_block(final_top=final_top, base_top=base_top)
         shutil.copy(solvated_gro, final_gro)
         shutil.copy(final_gro, final_alias_gro)
         merged_index = _rebuild_merged_index(gmx_bin=gmx_bin, gro_path=final_alias_gro, top_dir=top_dir)
@@ -1115,6 +1210,7 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
         water_resnames=water_resnames,
         ion_resnames={"NA", "CL"},
     )
+    _normalize_molecules_block(final_top=final_top, base_top=base_top)
 
     ions_mdp.unlink(missing_ok=True)
     ions_tpr.unlink(missing_ok=True)
@@ -1155,6 +1251,7 @@ def _run_optional_dna_water_freezing(args: argparse.Namespace, simdir: Path) -> 
         target_resname="WF",
         alias_gro_path=alias_path,
     )
+    _normalize_molecules_block(final_top=top_path, base_top=top_dir / "system.top")
     final_res_top = _sync_final_restrained_topology(top_dir, top_path)
     gmx_bin = _find_gmx_binary()
     if gmx_bin is not None:
@@ -1446,6 +1543,11 @@ def main(argv=None):
             print("✔ Moved generated surface.itp into topology")
         else:
             print("⚠ surface.itp not generated by surface_builder")
+
+    # Keep topology includes centralized only in 0_topology/system_itp.
+    accidental_itp_dir = system_dir / "system_itp"
+    if accidental_itp_dir.exists():
+        shutil.rmtree(accidental_itp_dir, ignore_errors=True)
 
     # ===============================================================
     # 4) ORIENTATION

@@ -10,7 +10,6 @@ nstlog                   = 20000
 nstxout-compressed       = 20000
 compressed-x-precision   = 100
 
-;energygrps               = Protein W ION GRA ; Energy groups to calculate Van der Waals energy
 
 cutoff-scheme            = Verlet
 nstlist                  = 20

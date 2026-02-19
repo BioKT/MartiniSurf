@@ -4,6 +4,12 @@
 
 module load GROMACS/2024-foss-2023a
 
+# Restrained topology file (prefer current name, fallback to legacy alias)
+RESTRAINED_TOP="system_res.top"
+if [ -f "system_anchor.top" ]; then
+  RESTRAINED_TOP="system_anchor.top"
+fi
+
 # --------------------------
 # 1. Energy Minimization
 # --------------------------
@@ -28,7 +34,7 @@ gmx_mpi mdrun  -ntomp $SLURM_CPUS_PER_TASK -deffnm npt
 # --------------------------
 # 4. Deposition — Stage 1 
 # --------------------------
-gmx_mpi grompp -p system_anchor.top -c npt.gro \
+gmx_mpi grompp -p "$RESTRAINED_TOP" -c npt.gro \
                -f deposition.mdp -o deposition.tpr \
                -t npt.cpt -r npt.gro -n index.ndx -maxwarn 3
 gmx_mpi mdrun  -ntomp $SLURM_CPUS_PER_TASK -deffnm deposition
@@ -36,8 +42,7 @@ gmx_mpi mdrun  -ntomp $SLURM_CPUS_PER_TASK -deffnm deposition
 # --------------------------
 # 5. Production — Stage 2 
 # --------------------------
-gmx_mpi grompp -p system_anchor.top -c deposition.gro \
+gmx_mpi grompp -p "$RESTRAINED_TOP" -c deposition.gro \
                -f production.mdp -o production.tpr \
                -t deposition.cpt -r deposition.gro -n index.ndx -maxwarn 3
 gmx_mpi mdrun  -ntomp $SLURM_CPUS_PER_TASK -deffnm production
-

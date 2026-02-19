@@ -1,42 +1,38 @@
 # Examples
 
-This folder contains ten end-to-end examples, grouped by biomolecule and orientation mode.
+Curated set of 7 examples covering the main MartiniSurf workflows.
 
-## 1. Protein anchor mode
+## Quick Start
+- Enter any example folder and run:
+  - `bash run.sh`
+- Standard layout per example:
+  - `inputs/`: required input files
+  - `run.sh`: full command
+  - `README.md`: short notes
+
+## Core Build Workflows
+1. Protein anchor mode  
 Path: `martinisurf/examples/01_protein_anchor`
 
-## 2. Protein linker mode
+2. Protein linker mode + surface decoration  
 Path: `martinisurf/examples/02_protein_linker`
 
-## 3. DNA anchor mode
+3. DNA anchor mode  
 Path: `martinisurf/examples/03_dna_anchor`
 
-## 4. DNA linker mode
+4. DNA linker mode  
 Path: `martinisurf/examples/04_dna_linker`
 
-## 5. Surface modes (2-1 and 4-1)
-Path: `martinisurf/examples/05_surface_modes`
+## Full Ready-To-Simulate Workflows
+5. Protein anchor + solvate + ionize  
+Path: `martinisurf/examples/05_protein_anchor_solvate_ionize`
 
-## 6. Protein linker + random surface linkers
-Path: `martinisurf/examples/06_protein_linker_surface_random`
+6. DNA anchor + solvate + ionize + frozen water  
+Path: `martinisurf/examples/06_dna_linker_solvate_ionize_freeze`
 
-## 7. Protein anchor + substrate
-Path: `martinisurf/examples/07_protein_anchor_substrate`
+7. Pre-CG protein+cofactor + substrate + solvate + ionize  
+Path: `martinisurf/examples/07_protein_nad`
 
-## 8. Protein anchor + solvate + ionize
-Path: `martinisurf/examples/08_protein_anchor_solvate_ionize`
-
-## 9. DNA anchor + solvate + ionize + 10% frozen water
-Path: `martinisurf/examples/09_dna_anchor_solvate_ionize_freeze`
-
-## 10. Pre-CG protein+cofactor + substrate + solvate + ionize
-Path: `martinisurf/examples/10_protein_nad`
-
-Each example contains:
-- `inputs/`: minimal input files
-- `run.sh`: copy/paste command(s)
-- `README.md`: quick usage notes
-
-Colab notebooks remain at the root of `examples/`:
-- `colab_protein_automartini_m3.ipynb`
-- `colab_dna_automartini_m2.ipynb`
+## Colab Notebooks
+- `martinisurf/examples/colab_protein_automartini_m3.ipynb`
+- `martinisurf/examples/colab_dna_automartini_m2.ipynb`

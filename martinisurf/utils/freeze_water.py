@@ -93,10 +93,10 @@ def apply_freeze_water_fraction(
 
         if in_molecules and s.startswith("["):
             if not seen_source:
-                out.append(f"{source_resname:<16}{n_source_final}")
+                out.append(f"{source_resname} {n_source_final}")
                 seen_source = True
             if n_target_final > 0 and not seen_target:
-                out.append(f"{target_resname:<16}{n_target_final}")
+                out.append(f"{target_resname} {n_target_final}")
                 seen_target = True
             in_molecules = False
             out.append(raw)
@@ -105,17 +105,17 @@ def apply_freeze_water_fraction(
         if in_molecules and s and not s.startswith(";"):
             name = s.split()[0]
             if name == source_resname:
-                out.append(f"{source_resname:<16}{n_source_final}")
+                out.append(f"{source_resname} {n_source_final}")
                 seen_source = True
                 if n_target_final > 0:
-                    out.append(f"{target_resname:<16}{n_target_final}")
+                    out.append(f"{target_resname} {n_target_final}")
                     seen_target = True
                     inserted_target_after_source = True
                 continue
             if name == target_resname:
                 if inserted_target_after_source:
                     continue
-                out.append(f"{target_resname:<16}{n_target_final}")
+                out.append(f"{target_resname} {n_target_final}")
                 seen_target = True
                 continue
 
@@ -123,10 +123,10 @@ def apply_freeze_water_fraction(
 
     if in_molecules:
         if not seen_source:
-            out.append(f"{source_resname:<16}{n_source_final}")
+            out.append(f"{source_resname} {n_source_final}")
             seen_source = True
         if n_target_final > 0 and not seen_target:
-            out.append(f"{target_resname:<16}{n_target_final}")
+            out.append(f"{target_resname} {n_target_final}")
 
     top_path.write_text("\n".join(out).rstrip() + "\n")
 

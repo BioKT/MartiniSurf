@@ -1,0 +1,188 @@
+# Render MartiniSurf examples with VMD + TachyonInternal.
+# Usage:
+#   vmd -dispdev text -e render_examples_vmd.tcl -args <examples_dir> <output_dir>
+
+proc pick_system_gro {example_dir} {
+    set candidates [list \
+        [file join $example_dir Simulation_Files 2_system final_system.gro] \
+        [file join $example_dir Simulation_Files 2_system system_final.gro] \
+        [file join $example_dir Simulation_Files 2_system system.gro] \
+        [file join $example_dir Simulation_Files 2_system immobilized_system.gro] \
+    ]
+    foreach c $candidates {
+        if {[file exists $c]} {
+            return $c
+        }
+    }
+    return ""
+}
+
+proc has_atoms {mol selection} {
+    set sel [atomselect $mol $selection]
+    set n [$sel num]
+    $sel delete
+    return $n
+}
+
+proc render_example {example_dir out_dir} {
+    set gro [pick_system_gro $example_dir]
+    if {$gro eq ""} {
+        puts "[file tail $example_dir]: skipped (no system GRO found)"
+        return
+    }
+
+    mol new $gro type gro waitfor all
+    set m [molinfo top]
+
+    # Keep complex components contiguous across periodic boundaries.
+    if {[catch {package require pbctools} _] == 0} {
+        set center_sel_text "resname ALK EPOX MOL1 DA DC DG DT NAD ETO or (name BB and resname ALA ARG ASN ASP CYS GLN GLU GLY HIS ILE LEU LYS MET PHE PRO SER THR TRP TYR VAL)"
+        if {[has_atoms $m $center_sel_text] == 0} {
+            set center_sel_text "all"
+        }
+        pbc unwrap -all -molid $m
+        pbc wrap -all -molid $m -compound residue -center com -centersel "$center_sel_text"
+    }
+
+    # Global display/ray settings.
+    display projection Orthographic
+    display shadows on
+    display ambientocclusion on
+    display aoambient 0.30
+    display aodirect 0.45
+    display depthcue off
+    display resize 2800 2200
+    color Display Background white
+    color change rgb 29 1.00 0.90 0.00
+    axes location Off
+
+    # Reset default reps.
+    mol delrep 0 $m
+
+    # Exclusions shared by all selections.
+    set exclude_solvent_ions "resname W WF SOL NA CL K CA MG ZN LI RB CS BA SR F BR I"
+    set protein_res "ALA ARG ASN ASP CYS GLN GLU GLY HIS ILE LEU LYS MET PHE PRO SER THR TRP TYR VAL"
+
+    # Rep 1: protein backbone beads only (BB), uniform purple.
+    set protein_bb_sel "name BB and resname $protein_res and not ($exclude_solvent_ions)"
+    if {[has_atoms $m $protein_bb_sel] > 0} {
+        mol representation VDW 1.4 24.0
+        mol color ColorID 10
+        mol selection $protein_bb_sel
+        mol material AOEdgy
+        mol addrep $m
+    }
+
+    # Rep 2: surface C-type beads in gray (supports C and C1 naming).
+    set surf_c1_sel "(resname SRF GRA) and name C C1 and not ($exclude_solvent_ions)"
+    if {[has_atoms $m $surf_c1_sel] > 0} {
+        mol representation VDW 1.0 20.0
+        mol color ColorID 2
+        mol selection $surf_c1_sel
+        mol material AOEdgy
+        mol addrep $m
+    }
+
+    # Rep 3: surface P4 beads in orange.
+    set surf_p4_sel "(resname SRF GRA) and name P4 and not ($exclude_solvent_ions)"
+    if {[has_atoms $m $surf_p4_sel] > 0} {
+        mol representation VDW 1.4 20.0
+        mol color ColorID 3
+        mol selection $surf_p4_sel
+        mol material AOEdgy
+        mol addrep $m
+    }
+
+    # Rep 4: linkers in yellow.
+    set linker_sel "resname ALK EPOX MOL1 and not ($exclude_solvent_ions)"
+    if {[has_atoms $m $linker_sel] > 0} {
+        mol representation VDW 1.0 24.0
+        mol color ColorID 0
+        mol selection $linker_sel
+        mol material Opaque
+        mol addrep $m
+    }
+
+    # Rep 5: DNA in color-by-atom-name.
+    set dna_sel "resname DA DC DG DT and not ($exclude_solvent_ions)"
+    if {[has_atoms $m $dna_sel] > 0} {
+        mol representation VDW 1.0 20.0
+        mol color Name
+        mol selection $dna_sel
+        mol material AOEdgy
+        mol addrep $m
+    }
+
+    # Rep 6: cofactors/substrates/other molecules (excluding surface/linker/protein/DNA/ions/water), color by name.
+    set cof_sub_sel "(not resname $protein_res) and not resname DA DC DG DT SRF GRA ALK EPOX MOL1 W WF SOL NA CL K CA MG ZN LI RB CS BA SR F BR I"
+    if {[has_atoms $m $cof_sub_sel] > 0} {
+        mol representation VDW 1.4 20.0
+        mol color Name
+        mol selection $cof_sub_sel
+        mol material AOEdgy
+        mol addrep $m
+    }
+
+    # Fallback: if no specific reps matched, render all non-water/non-ion atoms by Name.
+    if {[molinfo $m get numreps] == 0} {
+        set fallback_sel "not ($exclude_solvent_ions)"
+        if {[has_atoms $m $fallback_sel] > 0} {
+            mol representation VDW 1.0 20.0
+            mol color Name
+            mol selection $fallback_sel
+            mol material AOEdgy
+            mol addrep $m
+        }
+    }
+
+    # Camera: ZX-style view (look roughly along Y axis).
+    display resetview
+    rotate z by -90
+    scale by 1.8
+
+    set ex_name [file tail $example_dir]
+    set tga_out [file join $out_dir "${ex_name}_top.tga"]
+    set png_out [file join $out_dir "${ex_name}_top.png"]
+
+    render TachyonInternal $tga_out
+
+    # Convert to PNG when available.
+    if {[catch {exec magick convert $tga_out $png_out} _] != 0} {
+        if {[catch {exec convert $tga_out $png_out} _] != 0} {
+            puts "$ex_name: rendered $tga_out (PNG conversion tool not found)"
+        } else {
+            file delete -force $tga_out
+            puts "$ex_name: rendered $png_out"
+        }
+    } else {
+        file delete -force $tga_out
+        puts "$ex_name: rendered $png_out"
+    }
+
+    mol delete $m
+}
+
+# Args
+set examples_dir [pwd]
+set out_dir [file join $examples_dir images]
+if {[llength $argv] >= 1} {
+    set examples_dir [lindex $argv 0]
+}
+if {[llength $argv] >= 2} {
+    set out_dir [lindex $argv 1]
+}
+
+file mkdir $out_dir
+
+set dirs [lsort [glob -nocomplain -directory $examples_dir -types d {[0-9][0-9]_*}]]
+
+if {[llength $dirs] == 0} {
+    puts "No numbered example directories found under $examples_dir"
+    quit
+}
+
+foreach d $dirs {
+    render_example $d $out_dir
+}
+
+quit
