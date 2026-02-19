@@ -70,6 +70,9 @@ def write_top_files(
     linker_itp_name: str = "linker.itp",
     linker_moltype: str | None = None,
     linker_count: int = 0,
+    cofactor_itp_name: str | None = None,
+    cofactor_moltype: str | None = None,
+    cofactor_count: int = 0,
     substrate_itp_name: str | None = None,
     substrate_moltype: str | None = None,
     substrate_count: int = 0,
@@ -108,6 +111,8 @@ def write_top_files(
         lines.append('#include "system_itp/surface.itp"')
         if use_linker:
             lines.append(f'#include "system_itp/{linker_itp_name}"')
+        if cofactor_itp_name and cofactor_count > 0:
+            lines.append(f'#include "system_itp/{cofactor_itp_name}"')
         if substrate_itp_name and substrate_count > 0:
             lines.append(f'#include "system_itp/{substrate_itp_name}"')
         return "\n".join(lines)
@@ -119,23 +124,27 @@ def write_top_files(
     if use_linker and linker_count > 0:
         linker_name = linker_moltype or Path(linker_itp_name).stem
         linker_line = f"{linker_name} {linker_count}\n"
+    cofactor_line = ""
+    if cofactor_count > 0:
+        cofactor_name = cofactor_moltype or (Path(cofactor_itp_name).stem if cofactor_itp_name else "COF")
+        cofactor_line = f"{cofactor_name} {cofactor_count}\n"
     substrate_line = ""
-    if substrate_itp_name and substrate_count > 0:
-        substrate_name = substrate_moltype or Path(substrate_itp_name).stem
+    if substrate_count > 0:
+        substrate_name = substrate_moltype or (Path(substrate_itp_name).stem if substrate_itp_name else "SUB")
         substrate_line = f"{substrate_name} {substrate_count}\n"
 
     with open(system_top, "w") as fh:
         fh.write(
             _include_block(mol_itp_name)
             + "\n\n[ system ]\nMartiniSurf system\n\n[ molecules ]\n"
-            + f"{moltype} 1\n{surface_moltype} {surface_count}\n{linker_line}{substrate_line}"
+            + f"{moltype} 1\n{cofactor_line}{surface_moltype} {surface_count}\n{linker_line}{substrate_line}"
         )
 
     with open(system_res_top, "w") as fh:
         fh.write(
             _include_block(anchor_itp_name)
             + "\n\n[ system ]\nMartiniSurf restrained system\n\n[ molecules ]\n"
-            + f"{moltype} 1\n{surface_moltype} {surface_count}\n{linker_line}{substrate_line}"
+            + f"{moltype} 1\n{cofactor_line}{surface_moltype} {surface_count}\n{linker_line}{substrate_line}"
         )
 
     # Compatibility alias for legacy workflows/scripts that still expect system_anchor.top.
@@ -161,6 +170,30 @@ def _read_itp_moleculetype(itp_path: Path) -> str | None:
             token = line.split()[0]
             return token
     return None
+
+
+def _read_itp_moleculetype_set(itp_path: Path) -> set[str]:
+    moltypes: set[str] = set()
+    if not itp_path.exists():
+        return moltypes
+
+    lines = itp_path.read_text().splitlines()
+    in_moleculetype = False
+    for raw in lines:
+        line = raw.strip()
+        if not line or line.startswith(";"):
+            continue
+        if line.lower().startswith("[") and "moleculetype" in line.lower():
+            in_moleculetype = True
+            continue
+        if in_moleculetype:
+            if line.startswith("["):
+                in_moleculetype = False
+                continue
+            token = line.split()[0]
+            moltypes.add(token)
+            in_moleculetype = False
+    return moltypes
 
 
 def _write_itp_with_moleculetype(src_itp: Path, dst_itp: Path, new_moltype: str) -> None:
@@ -361,6 +394,10 @@ def write_custom_mdp(
 def _validate_cli_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     if args.use_linker and args.linker_size is not None and args.linker_size <= 0:
         parser.error("--linker-size must be > 0.")
+    if args.cofactor_count < 0:
+        parser.error("--cofactor-count must be >= 0.")
+    if args.cofactor_count > 0 and not args.cofactor_itp_name:
+        parser.error("--cofactor-count requires --cofactor-itp-name.")
     if args.substrate_count < 0:
         parser.error("--substrate-count must be >= 0.")
     if args.substrate_count > 0 and not args.substrate_itp_name:
@@ -399,6 +436,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--linker-pull-init-prot", type=float, default=0.8, help="Pull init (nm) for biomolecule↔linker.")
     parser.add_argument("--linker-pull-init-surf", type=float, default=0.8, help="Pull init (nm) for linker↔surface.")
     parser.add_argument("--go-model", action="store_true", help="Add GO_VIRT define to generated protein topologies.")
+    parser.add_argument("--cofactor-itp-name", help="Cofactor topology filename in system_itp.")
+    parser.add_argument("--cofactor-count", type=int, default=0, help="Number of cofactor molecules in the system.")
     parser.add_argument("--substrate-itp-name", help="Substrate topology filename in system_itp.")
     parser.add_argument("--substrate-count", type=int, default=0, help="Number of substrate molecules in the system.")
 
@@ -607,11 +646,19 @@ def main(argv: Sequence[str] | None = None) -> None:
         src = src_itp_dir / fname
         if src.exists():
             shutil.copy(src, dst_itp_dir / fname)
+    ff_moltypes: set[str] = set()
+    for fname in required:
+        ff_moltypes.update(_read_itp_moleculetype_set(dst_itp_dir / fname))
 
     if args.use_linker and not (dst_itp_dir / args.linker_itp_name).exists():
         raise FileNotFoundError(
             "❌ Linker mode requested but "
             f"0_topology/system_itp/{args.linker_itp_name} is missing."
+        )
+    if args.cofactor_count > 0 and args.cofactor_itp_name and not (dst_itp_dir / args.cofactor_itp_name).exists():
+        raise FileNotFoundError(
+            "❌ Cofactor mode requested but "
+            f"0_topology/system_itp/{args.cofactor_itp_name} is missing."
         )
     if args.substrate_count > 0 and args.substrate_itp_name and not (dst_itp_dir / args.substrate_itp_name).exists():
         raise FileNotFoundError(
@@ -637,10 +684,23 @@ def main(argv: Sequence[str] | None = None) -> None:
 
         linker_itp_path = dst_itp_dir / args.linker_itp_name
         linker_moltype_name = _read_itp_moleculetype(linker_itp_path) or linker_itp_path.stem
+    cofactor_moltype_name: str | None = None
+    if args.cofactor_count > 0 and args.cofactor_itp_name:
+        cofactor_itp_path = dst_itp_dir / args.cofactor_itp_name
+        cofactor_moltype_name = _read_itp_moleculetype(cofactor_itp_path) or cofactor_itp_path.stem
     substrate_moltype_name: str | None = None
     if args.substrate_count > 0 and args.substrate_itp_name:
         substrate_itp_path = dst_itp_dir / args.substrate_itp_name
         substrate_moltype_name = _read_itp_moleculetype(substrate_itp_path) or substrate_itp_path.stem
+
+    include_cofactor_itp = bool(args.cofactor_count > 0 and args.cofactor_itp_name)
+    include_substrate_itp = bool(args.substrate_count > 0 and args.substrate_itp_name)
+    if include_cofactor_itp and cofactor_moltype_name in ff_moltypes:
+        include_cofactor_itp = False
+        print(f"ℹ {cofactor_moltype_name} detected in Martini FF, skipping {args.cofactor_itp_name} include.")
+    if include_substrate_itp and substrate_moltype_name in ff_moltypes:
+        include_substrate_itp = False
+        print(f"ℹ {substrate_moltype_name} detected in Martini FF, skipping {args.substrate_itp_name} include.")
 
     # ===============================================================
     # Detect molecule ITP (UNCHANGED)
@@ -651,6 +711,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             if not p.name.startswith("martini_")
             and p.name != "surface.itp"
             and p.name != args.linker_itp_name
+            and p.name != (args.cofactor_itp_name or "")
             and p.name != (args.substrate_itp_name or "")
         ]
         if not possible_itps:
@@ -675,6 +736,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                         "go_atomtypes.itp",
                         "go_nbparams.itp",
                         args.linker_itp_name,
+                        (args.cofactor_itp_name or ""),
                         (args.substrate_itp_name or ""),
                     }
                     and not p.name.endswith("_anchor.itp")
@@ -798,7 +860,10 @@ def main(argv: Sequence[str] | None = None) -> None:
         linker_itp_name=args.linker_itp_name,
         linker_moltype=linker_moltype_name,
         linker_count=linker_total,
-        substrate_itp_name=args.substrate_itp_name,
+        cofactor_itp_name=args.cofactor_itp_name if include_cofactor_itp else None,
+        cofactor_moltype=cofactor_moltype_name,
+        cofactor_count=args.cofactor_count,
+        substrate_itp_name=args.substrate_itp_name if include_substrate_itp else None,
         substrate_moltype=substrate_moltype_name,
         substrate_count=args.substrate_count,
         surface_moltype=surface_moltype,

@@ -283,6 +283,88 @@ def test_substrate_molecules_fall_back_to_itp_stem(tmp_path, monkeypatch):
     assert "cg_substrate 2" in system_top
 
 
+def test_cofactor_itp_include_and_molecules_count(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    (sim / "system_itp" / "NAD.itp").write_text(
+        "[ moleculetype ]\nNAD 1\n"
+    )
+
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "1",
+        "--cofactor-itp-name", "NAD.itp",
+        "--cofactor-count", "1",
+    ])
+
+    system_top = (sim / "0_topology" / "system.top").read_text()
+    system_res_top = (sim / "0_topology" / "system_res.top").read_text()
+
+    assert '#include "system_itp/NAD.itp"' in system_top
+    assert '#include "system_itp/NAD.itp"' in system_res_top
+    assert "NAD 1" in system_top
+    assert "NAD 1" in system_res_top
+    lines_top = [line.strip() for line in system_top.splitlines()]
+    assert lines_top.index("ENZ 1") < lines_top.index("NAD 1")
+    molecules_idx = lines_top.index("[ molecules ]")
+    molecule_lines = [
+        ln for ln in lines_top[molecules_idx + 1:]
+        if ln and not ln.startswith(";")
+    ]
+    assert molecule_lines[0] == "ENZ 1"
+    assert molecule_lines[1] == "NAD 1"
+
+
+def test_cofactor_and_substrate_can_coexist(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    (sim / "system_itp" / "NAD.itp").write_text(
+        "[ moleculetype ]\nNAD 1\n"
+    )
+    (sim / "system_itp" / "substrate.itp").write_text(
+        "[ moleculetype ]\nSUBX 1\n"
+    )
+
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "1",
+        "--cofactor-itp-name", "NAD.itp",
+        "--cofactor-count", "1",
+        "--substrate-itp-name", "substrate.itp",
+        "--substrate-count", "3",
+    ])
+
+    system_top = (sim / "0_topology" / "system.top").read_text()
+    assert "NAD 1" in system_top
+    assert "SUBX 3" in system_top
+
+
+def test_substrate_include_is_skipped_when_moltype_exists_in_forcefield(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    # Simulate ETO already defined in the Martini solvent FF include.
+    (sim / "system_itp" / "martini_v3.0.0_solvents_v1.itp").write_text(
+        "[ moleculetype ]\nETO 1\n"
+    )
+    (sim / "system_itp" / "ETO.itp").write_text(
+        "[ moleculetype ]\nETO 1\n"
+    )
+
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "1",
+        "--substrate-itp-name", "ETO.itp",
+        "--substrate-count", "10",
+    ])
+
+    system_top = (sim / "0_topology" / "system.top").read_text()
+    assert '#include "system_itp/ETO.itp"' not in system_top
+    assert "ETO 10" in system_top
+
+
 def test_restrained_topology_compatibility_alias_is_written(tmp_path, monkeypatch):
     sim, _ = prepare_simulation_structure(tmp_path)
     monkeypatch.chdir(sim / "2_system")

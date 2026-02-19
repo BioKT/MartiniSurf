@@ -1,6 +1,6 @@
 # Examples
 
-This folder contains nine end-to-end examples, grouped by biomolecule and orientation mode.
+This folder contains ten end-to-end examples, grouped by biomolecule and orientation mode.
 
 ## 1. Protein anchor mode
 Path: `martinisurf/examples/01_protein_anchor`
@@ -28,6 +28,9 @@ Path: `martinisurf/examples/08_protein_anchor_solvate_ionize`
 
 ## 9. DNA anchor + solvate + ionize + 10% frozen water
 Path: `martinisurf/examples/09_dna_anchor_solvate_ionize_freeze`
+
+## 10. Pre-CG protein+cofactor + substrate + solvate + ionize
+Path: `martinisurf/examples/10_protein_nad`
 
 Each example contains:
 - `inputs/`: minimal input files

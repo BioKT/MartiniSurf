@@ -19,7 +19,7 @@ import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from martinisurf.utils.pdb_generation import load_clean_pdb
 from martinisurf.utils.pdb_to_gro import pdb_to_gro
@@ -305,14 +305,208 @@ def _normalize_merge_groups(merge_values: Optional[list[str]]) -> list[str]:
     return groups
 
 
+def _parse_simple_yaml_value(raw: str) -> Any:
+    text = raw.strip()
+    if not text:
+        return ""
+    if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
+        return text[1:-1]
+    if text.lower() in {"true", "false"}:
+        return text.lower() == "true"
+    if text.startswith("[") and text.endswith("]"):
+        inner = text[1:-1].strip()
+        if not inner:
+            return []
+        return [_parse_simple_yaml_value(item.strip()) for item in inner.split(",")]
+    if re.fullmatch(r"[+-]?\d+", text):
+        return int(text)
+    if re.fullmatch(r"[+-]?\d+\.\d*", text):
+        return float(text)
+    return text
+
+
+def _load_simple_yaml(path: Path) -> dict[str, Any]:
+    data: dict[str, Any] = {}
+    current_section: str | None = None
+
+    for raw in path.read_text().splitlines():
+        line = raw.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        stripped = line.strip()
+        if ":" not in stripped:
+            raise ValueError(f"Invalid YAML line in {path}: {raw}")
+        key, value = stripped.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+
+        if indent == 0:
+            if value == "":
+                data[key] = {}
+                current_section = key
+            else:
+                data[key] = _parse_simple_yaml_value(value)
+                current_section = None
+        else:
+            if not current_section:
+                raise ValueError(f"Invalid nested YAML line in {path}: {raw}")
+            section = data.get(current_section)
+            if not isinstance(section, dict):
+                raise ValueError(f"Invalid YAML section in {path}: {current_section}")
+            section[key] = _parse_simple_yaml_value(value)
+
+    return data
+
+
+def _read_itp_moleculetype_name(itp_path: Path) -> str | None:
+    if not itp_path.exists():
+        return None
+    in_moleculetype = False
+    for raw in itp_path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith(";"):
+            continue
+        if line.startswith("[") and "moleculetype" in line.lower():
+            in_moleculetype = True
+            continue
+        if in_moleculetype:
+            if line.startswith("["):
+                break
+            return line.split()[0]
+    return None
+
+
+def _load_pre_cg_complex_config(config_path: Path) -> dict[str, Any]:
+    if not config_path.exists():
+        raise FileNotFoundError(f"Complex config not found: {config_path}")
+
+    cfg = _load_simple_yaml(config_path)
+    if str(cfg.get("mode", "")).strip() != "pre_cg_complex":
+        raise ValueError("complex_config.yaml must define mode: pre_cg_complex")
+
+    input_dir = config_path.parent
+    complex_gro_name = str(cfg.get("complex_gro", "")).strip()
+    if not complex_gro_name:
+        raise ValueError("complex_config.yaml missing required key: complex_gro")
+    complex_gro = (input_dir / complex_gro_name).resolve()
+    if not complex_gro.exists():
+        raise FileNotFoundError(f"Complex GRO not found: {complex_gro}")
+
+    protein = cfg.get("protein")
+    if not isinstance(protein, dict):
+        raise ValueError("complex_config.yaml missing required section: protein")
+    protein_molname = str(protein.get("molname", "")).strip()
+    if not protein_molname:
+        raise ValueError("complex_config.yaml missing required key: protein.molname")
+    anchor_groups_cfg = protein.get("anchor_groups")
+    anchor_groups: list[list[int]] = []
+    if isinstance(anchor_groups_cfg, list) and anchor_groups_cfg:
+        for raw_group in anchor_groups_cfg:
+            if not isinstance(raw_group, str):
+                raise ValueError("protein.anchor_groups entries must be strings like '1 8 10 11'")
+            parts = raw_group.split()
+            if len(parts) < 2:
+                raise ValueError(
+                    "Each protein.anchor_groups entry must include group id and at least one residue "
+                    "(example: '1 8 10 11')"
+                )
+            try:
+                parsed = [int(x) for x in parts]
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    "protein.anchor_groups entries must contain integers only "
+                    "(example: '2 1025 1027 1028')"
+                ) from exc
+            anchor_groups.append(parsed)
+    elif "orient_by_residues" in protein:
+        orient_by = protein.get("orient_by_residues")
+        if not isinstance(orient_by, list) or not orient_by:
+            raise ValueError(
+                "complex_config.yaml requires either protein.anchor_groups "
+                "or protein.orient_by_residues as a non-empty list"
+            )
+        try:
+            orient_residues = [int(x) for x in orient_by]
+        except (TypeError, ValueError) as exc:
+            raise ValueError("protein.orient_by_residues must be a list of integers") from exc
+        anchor_groups = [[1] + orient_residues]
+    else:
+        anchor_groups = []
+
+    cofactor = cfg.get("cofactor")
+    if not isinstance(cofactor, dict):
+        raise ValueError("complex_config.yaml missing required section: cofactor")
+    cofactor_molname = str(cofactor.get("molname", "")).strip()
+    cofactor_itp_name = str(cofactor.get("itp", "")).strip()
+    cofactor_count = cofactor.get("count")
+    if not cofactor_molname:
+        raise ValueError("complex_config.yaml missing required key: cofactor.molname")
+    if not cofactor_itp_name:
+        raise ValueError("complex_config.yaml missing required key: cofactor.itp")
+    if not isinstance(cofactor_count, int) or cofactor_count < 1:
+        raise ValueError("complex_config.yaml requires cofactor.count as an integer >= 1")
+
+    topology = cfg.get("topology")
+    if not isinstance(topology, dict):
+        raise ValueError("complex_config.yaml missing required section: topology")
+    protein_itp_name = str(topology.get("protein_itp", "")).strip()
+    include_go = bool(topology.get("include_go", False))
+    go_glob = str(topology.get("go_files_glob", "go_*")).strip() or "go_*"
+    if not protein_itp_name:
+        raise ValueError("complex_config.yaml missing required key: topology.protein_itp")
+
+    protein_itp = (input_dir / protein_itp_name).resolve()
+    if not protein_itp.exists():
+        raise FileNotFoundError(f"Protein ITP not found: {protein_itp}")
+    cofactor_itp = (input_dir / cofactor_itp_name).resolve()
+    if not cofactor_itp.exists():
+        raise FileNotFoundError(f"Cofactor ITP not found: {cofactor_itp}")
+
+    protein_itp_moltype = _read_itp_moleculetype_name(protein_itp)
+    if protein_itp_moltype and protein_itp_moltype != protein_molname:
+        raise ValueError(
+            f"protein.molname ({protein_molname}) does not match moleculetype in {protein_itp.name} "
+            f"({protein_itp_moltype})"
+        )
+    cofactor_itp_moltype = _read_itp_moleculetype_name(cofactor_itp)
+    if cofactor_itp_moltype and cofactor_itp_moltype != cofactor_molname:
+        raise ValueError(
+            f"cofactor.molname ({cofactor_molname}) does not match moleculetype in {cofactor_itp.name} "
+            f"({cofactor_itp_moltype})"
+        )
+
+    go_files = sorted(input_dir.glob(go_glob))
+    if include_go and not go_files:
+        raise FileNotFoundError(
+            f"include_go is true but no files match '{go_glob}' in {input_dir}"
+        )
+
+    return {
+        "complex_gro": complex_gro,
+        "protein_molname": protein_molname,
+        "anchor_groups": anchor_groups,
+        "protein_itp": protein_itp,
+        "cofactor_molname": cofactor_molname,
+        "cofactor_itp": cofactor_itp,
+        "cofactor_count": cofactor_count,
+        "include_go": include_go,
+        "go_files": go_files,
+    }
+
+
 def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    complex_mode = bool(args.complex_config)
+    if not complex_mode and not args.pdb:
+        parser.error("--pdb is required unless --complex-config is provided.")
+
     if not args.surface and (args.lx is None or args.ly is None):
         parser.error("When --surface is not provided, both --lx and --ly are required.")
 
     if args.linker and not args.linker_group:
         parser.error("Linker mode requires at least one --linker-group.")
 
-    if not args.linker and not args.anchor:
+    if not args.linker and not args.anchor and not complex_mode:
         parser.error("Provide --anchor in classical mode, or use --linker mode.")
 
     if args.anchor and args.linker:
@@ -343,14 +537,28 @@ def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
         parser.error("--freeze-water-fraction is currently supported only with --dna.")
     if args.freeze_water_fraction > 0 and not args.solvate:
         parser.error("--freeze-water-fraction requires --solvate.")
+    if complex_mode:
+        if args.dna:
+            parser.error("--complex-config currently supports protein systems only (no --dna).")
+        if args.pdb:
+            print("⚠ --pdb is ignored when --complex-config is provided.")
 
 
 def _print_config_summary(args: argparse.Namespace) -> None:
+    if args.complex_config:
+        print("\n=== MartiniSurf Configuration ===")
+        print("Mode:             Protein (pre-CG complex)")
+        print(f"Complex config:   {args.complex_config}")
+        print("Orientation:      anchor (from config)")
+        print(f"Output:           {args.outdir}")
+        print("=================================\n")
+        return
+
     mode = "DNA" if args.dna else "Protein"
     orient_mode = "linker" if args.linker else "anchor"
     print("\n=== MartiniSurf Configuration ===")
     print(f"Mode:            {mode}")
-    print(f"PDB/Input:        {args.pdb}")
+    print(f"PDB/Input:       {args.pdb}")
     print(f"Orientation:      {orient_mode}")
     print(f"Output:           {args.outdir}")
     if args.go and not args.dna:
@@ -394,7 +602,14 @@ def build_parser():
     )
 
     input_group = parser.add_argument_group("Input And Molecule")
-    input_group.add_argument("--pdb", required=True, help="Local PDB path, RCSB ID (4 chars), or UniProt ID (6 chars).")
+    input_group.add_argument("--pdb", help="Local PDB path, RCSB ID (4 chars), or UniProt ID (6 chars).")
+    input_group.add_argument(
+        "--complex-config",
+        help=(
+            "YAML config for pre-CG protein+cofactor workflow (skips martinization). "
+            "Example: input/complex_config.yaml."
+        ),
+    )
     input_group.add_argument("--moltype", help="Molecule name for protein topology output.")
     input_group.add_argument(
         "--go",
@@ -692,6 +907,38 @@ def _run_genion_with_fallback(
     )
 
 
+def _restore_non_solvent_from_reference(
+    reference_gro: Path,
+    target_gro: Path,
+    water_resnames: set[str],
+    ion_resnames: set[str] | None = None,
+) -> bool:
+    ions = ion_resnames or {"NA", "CL"}
+    _, ref_records, _ = _read_gro_records(str(reference_gro))
+    title, tgt_records, box = _read_gro_records(str(target_gro))
+
+    def _is_solvent_or_ion(rec: dict) -> bool:
+        res = str(rec["resname"]).strip()
+        return res in water_resnames or res in ions
+
+    ref_non_solvent = [dict(r) for r in ref_records if not _is_solvent_or_ion(r)]
+    tgt_non_solvent = [r for r in tgt_records if not _is_solvent_or_ion(r)]
+    tgt_solvent_ions = [dict(r) for r in tgt_records if _is_solvent_or_ion(r)]
+
+    if len(ref_non_solvent) != len(tgt_non_solvent):
+        print(
+            "⚠ Could not restore non-solvent atom labeling after genion: "
+            f"reference has {len(ref_non_solvent)} non-solvent atoms but target has {len(tgt_non_solvent)}."
+        )
+        return False
+
+    merged = ref_non_solvent + tgt_solvent_ions
+    for i, rec in enumerate(merged, start=1):
+        rec["atomid"] = i
+    _write_gro_records(str(target_gro), title, merged, box)
+    return True
+
+
 def _extract_molecules_block(top_path: Path) -> str:
     text = top_path.read_text()
     lines = text.splitlines()
@@ -862,6 +1109,12 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
         salt_conc=args.salt_conc,
         cwd=top_dir,
     )
+    _restore_non_solvent_from_reference(
+        reference_gro=solvated_gro,
+        target_gro=final_gro,
+        water_resnames=water_resnames,
+        ion_resnames={"NA", "CL"},
+    )
 
     ions_mdp.unlink(missing_ok=True)
     ions_tpr.unlink(missing_ok=True)
@@ -1014,106 +1267,133 @@ def main(argv=None):
     active_itp_dir = simdir / "0_topology" / "system_itp"
     system_dir     = simdir / "2_system"
 
-    tmpdir = simdir / "_martinize_tmp"
-    tmpdir.mkdir()
+    complex_cfg: dict[str, Any] | None = None
+    tmpdir: Path | None = None
+    protein_go_model = bool(args.go)
+    if args.complex_config:
+        complex_cfg = _load_pre_cg_complex_config(Path(args.complex_config).resolve())
+        mol = complex_cfg["protein_molname"]
+        protein_go_model = bool(complex_cfg["include_go"] or args.go)
 
-    mol = args.moltype if args.moltype else "DNA"
+        complex_gro_path: Path = complex_cfg["complex_gro"]
+        shutil.copy(complex_gro_path, system_dir / f"{mol}_cg.gro")
 
-    system_cg_out = tmpdir / f"{mol}_cg.pdb"
-    topfile_out   = tmpdir / f"{mol}_cg.top"
+        protein_src_itp: Path = complex_cfg["protein_itp"]
+        protein_dst_itp = active_itp_dir / f"{mol}.itp"
+        shutil.copy(protein_src_itp, protein_dst_itp)
 
-    # ===============================================================
-    # 1) CLEAN INPUT
-    # ===============================================================
-    pdb_abs = load_clean_pdb(args.pdb, workdir=simdir)
+        cofactor_src_itp: Path = complex_cfg["cofactor_itp"]
+        shutil.copy(cofactor_src_itp, active_itp_dir / cofactor_src_itp.name)
 
-    # ===============================================================
-    # 2) MARTINIZATION
-    # ===============================================================
-
-    if args.dna:
-        print("🧬 DNA mode → using martinize-dna.py")
-
-        dna_script = Path(__file__).resolve().parent / "utils" / "martinize-dna.py"
-        from martinisurf.utils.use_python2 import find_python2
-        python2 = find_python2()
-
-        dna_input_gro = tmpdir / "dna_input.gro"
-        pdb_to_gro(str(pdb_abs), str(dna_input_gro))
-
-        martinize_cmd = [
-            python2,
-            str(dna_script),
-            "-f", str(dna_input_gro),
-            "-x", str(system_cg_out),
-            "-o", str(topfile_out),
-            "-dnatype", args.dnatype,
-            "-p", args.p.capitalize(),
-            "-pf", str(args.pf),
-        ]
-        for group in merge_groups:
-            martinize_cmd += ["-merge", group]
-
-        if args.elastic:
-            martinize_cmd += ["-elastic", "-ef", str(args.ef)]
-
+        if protein_go_model:
+            if not complex_cfg["go_files"]:
+                raise FileNotFoundError(
+                    "Go model requested in pre-CG complex mode, but no go_* files were found. "
+                    "Add them to input/ or adjust topology.go_files_glob."
+                )
+            for go_file in complex_cfg["go_files"]:
+                shutil.copy(go_file, active_itp_dir / go_file.name)
     else:
-        print("🧬 Protein mode → using martinize2")
+        tmpdir = simdir / "_martinize_tmp"
+        tmpdir.mkdir()
 
-        martinize_cmd = [
-            "martinize2",
-            "-f", str(pdb_abs),
-            "-x", str(system_cg_out),
-            "-o", str(topfile_out),
-            "-ff", args.ff,
-            "-name", mol,
-            "-maxwarn", str(args.maxwarn),
-        ]
-        for group in merge_groups:
-            martinize_cmd += ["-merge", group]
+        mol = args.moltype if args.moltype else "DNA"
 
-        if args.p != "none":
-            martinize_cmd += ["-p", args.p]
+        system_cg_out = tmpdir / f"{mol}_cg.pdb"
+        topfile_out   = tmpdir / f"{mol}_cg.top"
 
-        martinize_cmd += ["-pf", str(args.pf)]
+        # ===============================================================
+        # 1) CLEAN INPUT
+        # ===============================================================
+        pdb_abs = load_clean_pdb(args.pdb, workdir=simdir)
 
-        if args.elastic:
-            martinize_cmd += ["-elastic", "-ef", str(args.ef)]
+        # ===============================================================
+        # 2) MARTINIZATION
+        # ===============================================================
 
-        if args.go:
-            martinize_cmd += ["-go"]
-            if args.go_eps is not None:
-                martinize_cmd += ["-go-eps", str(args.go_eps)]
-            if args.go_low is not None:
-                martinize_cmd += ["-go-low", str(args.go_low)]
-            if args.go_up is not None:
-                martinize_cmd += ["-go-up", str(args.go_up)]
+        if args.dna:
+            print("🧬 DNA mode → using martinize-dna.py")
 
-        if args.dssp:
-            martinize_cmd += _select_dssp_flags()
+            dna_script = Path(__file__).resolve().parent / "utils" / "martinize-dna.py"
+            from martinisurf.utils.use_python2 import find_python2
+            python2 = find_python2()
 
-    # martinize2 in some Colab/runtime setups fails when DSSP binary is present
-    # but not functional. In that case retry once without DSSP.
-    try:
-        run(martinize_cmd, cwd=tmpdir)
-    except RuntimeError:
-        if (not args.dna) and args.dssp and "-dssp" in martinize_cmd:
-            print("⚠ martinize2 failed with DSSP. Retrying without DSSP...")
-            retry_cmd = martinize_cmd[:]
-            dssp_idx = retry_cmd.index("-dssp")
-            # Remove -dssp and optional binary path if present.
-            del retry_cmd[dssp_idx]
-            if dssp_idx < len(retry_cmd) and not retry_cmd[dssp_idx].startswith("-"):
-                del retry_cmd[dssp_idx]
-            run(retry_cmd, cwd=tmpdir)
+            dna_input_gro = tmpdir / "dna_input.gro"
+            pdb_to_gro(str(pdb_abs), str(dna_input_gro))
+
+            martinize_cmd = [
+                python2,
+                str(dna_script),
+                "-f", str(dna_input_gro),
+                "-x", str(system_cg_out),
+                "-o", str(topfile_out),
+                "-dnatype", args.dnatype,
+                "-p", args.p.capitalize(),
+                "-pf", str(args.pf),
+            ]
+            for group in merge_groups:
+                martinize_cmd += ["-merge", group]
+
+            if args.elastic:
+                martinize_cmd += ["-elastic", "-ef", str(args.ef)]
+
         else:
-            raise
+            print("🧬 Protein mode → using martinize2")
 
-    # Move ITP files
-    for f in tmpdir.glob("*.itp"):
-        shutil.move(str(f), active_itp_dir / f.name)
+            martinize_cmd = [
+                "martinize2",
+                "-f", str(pdb_abs),
+                "-x", str(system_cg_out),
+                "-o", str(topfile_out),
+                "-ff", args.ff,
+                "-name", mol,
+                "-maxwarn", str(args.maxwarn),
+            ]
+            for group in merge_groups:
+                martinize_cmd += ["-merge", group]
 
-    shutil.copy(system_cg_out, system_dir / f"{mol}_cg.pdb")
+            if args.p != "none":
+                martinize_cmd += ["-p", args.p]
+
+            martinize_cmd += ["-pf", str(args.pf)]
+
+            if args.elastic:
+                martinize_cmd += ["-elastic", "-ef", str(args.ef)]
+
+            if args.go:
+                martinize_cmd += ["-go"]
+                if args.go_eps is not None:
+                    martinize_cmd += ["-go-eps", str(args.go_eps)]
+                if args.go_low is not None:
+                    martinize_cmd += ["-go-low", str(args.go_low)]
+                if args.go_up is not None:
+                    martinize_cmd += ["-go-up", str(args.go_up)]
+
+            if args.dssp:
+                martinize_cmd += _select_dssp_flags()
+
+        # martinize2 in some Colab/runtime setups fails when DSSP binary is present
+        # but not functional. In that case retry once without DSSP.
+        try:
+            run(martinize_cmd, cwd=tmpdir)
+        except RuntimeError:
+            if (not args.dna) and args.dssp and "-dssp" in martinize_cmd:
+                print("⚠ martinize2 failed with DSSP. Retrying without DSSP...")
+                retry_cmd = martinize_cmd[:]
+                dssp_idx = retry_cmd.index("-dssp")
+                # Remove -dssp and optional binary path if present.
+                del retry_cmd[dssp_idx]
+                if dssp_idx < len(retry_cmd) and not retry_cmd[dssp_idx].startswith("-"):
+                    del retry_cmd[dssp_idx]
+                run(retry_cmd, cwd=tmpdir)
+            else:
+                raise
+
+        # Move ITP files
+        for f in tmpdir.glob("*.itp"):
+            shutil.move(str(f), active_itp_dir / f.name)
+
+        shutil.copy(system_cg_out, system_dir / f"{mol}_cg.pdb")
 
     # ===============================================================
     # 3) SURFACE
@@ -1174,7 +1454,8 @@ def main(argv=None):
     import martinisurf.system_tethered as orient_mod
 
     system_gro = system_dir / f"{mol}_cg.gro"
-    pdb_to_gro(str(system_dir / f"{mol}_cg.pdb"), str(system_gro))
+    if not complex_cfg:
+        pdb_to_gro(str(system_dir / f"{mol}_cg.pdb"), str(system_gro))
 
     orient_args = [
         "--surface", str(surface_gro),
@@ -1240,6 +1521,15 @@ def main(argv=None):
         orient_args += ["--dist", str(args.dist)]
         for group in args.anchor:
             orient_args += ["--anchor"] + [str(x) for x in group]
+    elif complex_cfg:
+        if not complex_cfg["anchor_groups"]:
+            raise ValueError(
+                "complex_config.yaml must define protein.anchor_groups or protein.orient_by_residues "
+                "when not using --linker mode."
+            )
+        orient_args += ["--dist", str(args.dist)]
+        for group in complex_cfg["anchor_groups"]:
+            orient_args += ["--anchor"] + [str(x) for x in group]
 
     orient_mod.main(orient_args)
 
@@ -1261,7 +1551,7 @@ def main(argv=None):
 
     if not args.dna:
         final_args += ["--moltype", mol]
-        if args.go:
+        if protein_go_model:
             final_args += ["--go-model"]
 
     if args.linker:
@@ -1291,6 +1581,11 @@ def main(argv=None):
         final_args += ["--substrate-count", str(args.substrate_count)]
         print(f"✔ Copied {substrate_itp.name} into topology")
 
+    if complex_cfg:
+        cofactor_itp_path: Path = complex_cfg["cofactor_itp"]
+        final_args += ["--cofactor-itp-name", cofactor_itp_path.name]
+        final_args += ["--cofactor-count", str(complex_cfg["cofactor_count"])]
+
     # If classical anchor mode
     if args.anchor:
         for group in args.anchor:
@@ -1300,12 +1595,16 @@ def main(argv=None):
     elif args.linker_group:
         for group in args.linker_group:
             final_args += ["--anchor"] + [str(x) for x in group]
+    elif complex_cfg:
+        for group in complex_cfg["anchor_groups"]:
+            final_args += ["--anchor"] + [str(x) for x in group]
 
     gsm.main(final_args)
     _run_optional_solvation_ionization(args, simdir)
     _run_optional_dna_water_freezing(args, simdir)
 
-    shutil.rmtree(tmpdir)
+    if tmpdir and tmpdir.exists():
+        shutil.rmtree(tmpdir)
 
     print("\n=====================================")
     print("✔ MartiniSurf Finished Successfully")

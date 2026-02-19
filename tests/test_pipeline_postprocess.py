@@ -25,6 +25,34 @@ def test_parser_accepts_solvate_flags():
     assert args.solvate_surface_clearance == 0.4
 
 
+def test_parser_accepts_complex_config_without_pdb(tmp_path):
+    parser = pipeline.build_parser()
+    surface = tmp_path / "surface.gro"
+    surface.write_text("surface\n0\n1 1 1\n")
+    cfg = tmp_path / "complex_config.yaml"
+    cfg.write_text("mode: pre_cg_complex\n")
+    args = parser.parse_args([
+        "--complex-config", str(cfg),
+        "--surface", str(surface),
+    ])
+    pipeline._validate_args(parser, args)
+
+
+def test_parser_accepts_complex_config_with_linker_mode(tmp_path):
+    parser = pipeline.build_parser()
+    surface = tmp_path / "surface.gro"
+    surface.write_text("surface\n0\n1 1 1\n")
+    cfg = tmp_path / "complex_config.yaml"
+    cfg.write_text("mode: pre_cg_complex\n")
+    args = parser.parse_args([
+        "--complex-config", str(cfg),
+        "--surface", str(surface),
+        "--linker", "input/linker.gro",
+        "--linker-group", "1", "8", "10", "11",
+    ])
+    pipeline._validate_args(parser, args)
+
+
 def test_parser_rejects_ionize_without_solvate():
     parser = pipeline.build_parser()
     with pytest.raises(SystemExit):
@@ -232,3 +260,41 @@ def test_rebuild_merged_index_appends_custom_groups(monkeypatch, tmp_path):
     assert "[ System ]" in merged
     assert "[ Anchor_1 ]" in merged
     assert merged.index("[ System ]") < merged.index("[ Anchor_1 ]")
+
+
+def test_restore_non_solvent_from_reference_keeps_solute_labels(tmp_path):
+    ref = tmp_path / "solvated.gro"
+    tgt = tmp_path / "final.gro"
+    ref.write_text(
+        "Ref\n"
+        "    5\n"
+        "    1PRO     BB    1   1.000   1.000   1.000\n"
+        "    1PRO    SC1    2   1.100   1.100   1.100\n"
+        "    2SRF     C1    3   0.500   0.500   0.100\n"
+        "    3W       W     4   2.000   2.000   2.000\n"
+        "    4W       W     5   2.500   2.500   2.500\n"
+        "   3.00000   3.00000   3.00000\n"
+    )
+    tgt.write_text(
+        "Final\n"
+        "    5\n"
+        "    1PRO     BB    1   9.000   9.000   9.000\n"
+        "    1PRO    CA     2   9.100   9.100   9.100\n"
+        "    2SRF     C1    3   9.200   9.200   9.200\n"
+        "    3W       W     4   2.000   2.000   2.000\n"
+        "    5NA      NA    5   2.500   2.500   2.500\n"
+        "   3.00000   3.00000   3.00000\n"
+    )
+
+    ok = pipeline._restore_non_solvent_from_reference(
+        reference_gro=ref,
+        target_gro=tgt,
+        water_resnames={"W"},
+        ion_resnames={"NA", "CL"},
+    )
+    assert ok is True
+    out = tgt.read_text()
+    assert "PRO     BB" in out
+    assert "PRO    SC1" in out
+    assert "PRO    CA" not in out
+    assert "NA      NA" in out

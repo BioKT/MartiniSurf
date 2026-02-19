@@ -184,10 +184,12 @@ def save_full_system(output_gro,
                      enz_coords,
                      box_line,
                      dna_mode: bool = False):
+    surf_out = np.array(surf_coords, dtype=float, copy=True)
+    enz_out = np.array(enz_coords, dtype=float, copy=True)
+    total = len(surf_out) + len(enz_out)
 
-    total = len(surf_coords) + len(enz_coords)
-
-    # Keep original XY from input box, but ensure Z is tall enough for the oriented system.
+    # Keep original XY when possible, but expand/shift when needed so all coordinates
+    # fit inside the declared box and avoid PBC-splitting artifacts downstream.
     # GRO coordinates are written in nm; internal coords here are in Angstrom.
     box_tokens = box_line.split()
     if len(box_tokens) >= 3:
@@ -200,20 +202,41 @@ def save_full_system(output_gro,
     else:
         box_x = box_y = box_z = 0.0
 
-    if len(enz_coords) > 0:
+    xy_parts = []
+    if len(surf_out) > 0:
+        xy_parts.append(surf_out[:, :2])
+    if len(enz_out) > 0:
+        xy_parts.append(enz_out[:, :2])
+    if xy_parts:
+        xy = np.vstack(xy_parts)
+        min_x = float(np.min(xy[:, 0]))
+        min_y = float(np.min(xy[:, 1]))
+        shift_x = -min_x if min_x < 0 else 0.0
+        shift_y = -min_y if min_y < 0 else 0.0
+        if shift_x or shift_y:
+            if len(surf_out) > 0:
+                surf_out[:, 0] += shift_x
+                surf_out[:, 1] += shift_y
+            if len(enz_out) > 0:
+                enz_out[:, 0] += shift_x
+                enz_out[:, 1] += shift_y
+        box_x = max(box_x, float(np.max(xy[:, 0] + shift_x)) / 10.0)
+        box_y = max(box_y, float(np.max(xy[:, 1] + shift_y)) / 10.0)
+
+    if len(enz_out) > 0:
         if dna_mode:
             dna_resnames = {"DA", "DT", "DG", "DC"}
             dna_idx = [i for i, (_, rn, _, _) in enumerate(enz_atoms) if str(rn).strip() in dna_resnames]
             if dna_idx:
-                z_req_nm = float(np.max(enz_coords[dna_idx, 2])) / 10.0 + 3.0
+                z_req_nm = float(np.max(enz_out[dna_idx, 2])) / 10.0 + 3.0
             else:
-                z_req_nm = float(np.max(enz_coords[:, 2])) / 10.0 + 3.0
+                z_req_nm = float(np.max(enz_out[:, 2])) / 10.0 + 3.0
         else:
-            z_req_nm = float(np.max(enz_coords[:, 2])) / 10.0 + 3.0
+            z_req_nm = float(np.max(enz_out[:, 2])) / 10.0 + 3.0
     else:
         z_req_nm = 3.0
-    if len(surf_coords) > 0:
-        z_req_nm = max(z_req_nm, float(np.max(surf_coords[:, 2])) / 10.0 + 0.5)
+    if len(surf_out) > 0:
+        z_req_nm = max(z_req_nm, float(np.max(surf_out[:, 2])) / 10.0 + 0.5)
     if dna_mode:
         box_z = z_req_nm
     else:
@@ -229,7 +252,7 @@ def save_full_system(output_gro,
         next_atom = 1
         res_map = {}
 
-        for (r,rn,a,_),(x,y,z) in zip(enz_atoms, enz_coords):
+        for (r,rn,a,_),(x,y,z) in zip(enz_atoms, enz_out):
             if r not in res_map:
                 res_map[r] = next_res
                 next_res += 1
@@ -238,7 +261,7 @@ def save_full_system(output_gro,
                      f"{x/10:8.3f}{y/10:8.3f}{z/10:8.3f}\n")
             next_atom += 1
 
-        for (r,rn,a,_),(x,y,z) in zip(surf_atoms, surf_coords):
+        for (r,rn,a,_),(x,y,z) in zip(surf_atoms, surf_out):
             fh.write(f"{next_res:5d}{rn:<5}{a:>5}{next_atom:5d}"
                      f"{x/10:8.3f}{y/10:8.3f}{z/10:8.3f}\n")
             next_atom += 1

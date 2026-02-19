@@ -232,6 +232,30 @@ def test_save_full_system(tmp_path):
     assert float(box_vals[2]) >= 5.0
 
 
+def test_save_full_system_expands_xy_box_when_needed(tmp_path):
+    out = tmp_path / "expanded_xy.gro"
+
+    surf_atoms = [(1, "SRF", "C1", 1)]
+    surf_coords = np.array([[0.0, 0.0, 0.0]])
+    enz_atoms = [(1, "ALA", "CA", 1)]
+    enz_coords = np.array([[200.0, 210.0, 20.0]])  # 20.0 nm, 21.0 nm
+    box_line = "2.00000 2.00000 2.00000"
+
+    enz.save_full_system(
+        out,
+        surf_atoms,
+        surf_coords,
+        enz_atoms,
+        enz_coords,
+        box_line,
+    )
+
+    lines = out.read_text().splitlines()
+    box_vals = lines[-1].split()
+    assert float(box_vals[0]) >= 20.0
+    assert float(box_vals[1]) >= 21.0
+
+
 def test_invert_linker_switches_attachment_side(tmp_path):
     surface = tmp_path / "surface.gro"
     system = tmp_path / "system.gro"
@@ -294,3 +318,4 @@ def test_linker_mode_raises_clear_error_for_missing_group_residues(tmp_path):
         assert "Requested residues: [99]" in msg
     else:
         raise AssertionError("Expected ValueError for missing linker-group residues.")
+
