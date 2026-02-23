@@ -36,8 +36,7 @@ MartiniSurf builds complete GROMACS-ready simulation folders for:
 Main capabilities:
 - Coarse-graining via `martinize2` (protein) or `martinize-dna.py` (DNA)
 - Surface generation or reuse of provided surfaces
-- Classical anchor orientation or linker-based orientation
-- Dynamic pull block generation in `.mdp` files (not fixed to one template)
+- Not explicit linker (anchor) or linker-based orientation
 - Automatic topology assembly (`system.top`, `system_res.top`, index groups, templates)
 
 ## Installation
@@ -54,12 +53,6 @@ MartiniSurf expects the following tools in your environment:
 - Python 2.7 for DNA mode (`martinize-dna.py`)
 - GROMACS for running the generated workflows
 
-### DSSP / Secondary Structure Notes (Protein Mode)
-- `--dssp` is enabled by default in MartiniSurf protein mode.
-- Following martinize2 recommendations, MartiniSurf prefers `mdtraj` for secondary-structure assignment.
-- If `mdtraj` is not available, MartiniSurf can use a DSSP binary via `-dssp /path/to/dssp`.
-- Important: martinize2 is only compatible with DSSP versions `3.1.4` or lower.
-- In Colab, if DSSP causes failures, install `mdtraj` and avoid newer `mkdssp` binaries.
 
 ## Quick Start (Recommended Complete Examples)
 These are the most complete examples (system build + solvation/ionization + simulation workflow):
@@ -90,13 +83,6 @@ bash work_flow_gromacs.sh
   - `--invert-linker`
 - For multiple linker instances, pull/index groups are generated per linker automatically.
 - If not provided manually, linker distances are estimated from Martini bead-size sigma rules.
-
-## Dynamic Pull Generation
-Generated `.mdp` pull sections are built from system content:
-- Classical mode: number of pulls follows number of anchor groups
-- Linker mode: groups and pulls are generated per linker instance
-
-This removes the old fixed “always 1 or 2 pulls” limitation.
 
 ## CLI Help
 Use:

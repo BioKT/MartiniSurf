@@ -10,7 +10,7 @@ Goal:
 ## 1) 30-second rules
 
 - Choose only ONE orientation mode:
-  - `--anchor ...` (classic anchor mode), or
+  - `--anchor ...` (Not explicit Linker / anchor mode), or
   - `--linker ... --linker-group ...` (linker mode).
 - If you do NOT pass `--surface`, you must pass `--lx` and `--ly`.
 - `--ionize` always requires `--solvate`.
@@ -41,11 +41,11 @@ python2.7 -V
 ## 3) Pick your workflow
 
 - Atomistic protein PDB to surface:
-use protein mode + `--anchor`.
+use protein mode + Not explicit Linker (`--anchor`).
 - Protein with linker to surface:
 use protein mode + `--linker` + `--linker-group`.
 - Atomistic DNA PDB to surface:
-use `--dna` + `--anchor` or `--linker`.
+use `--dna` + Not explicit Linker (`--anchor`) or explicit linker (`--linker`).
 - Already CG protein+cofactor complex:
 use `--complex-config`.
 
@@ -65,78 +65,66 @@ bash work_flow_gromacs.sh
 
 If you want the most complete and production-oriented setups, use examples `05`, `06`, and `07` above.
 
-### A) Protein + anchors (best first run)
+### A) Example 05: Protein + Not explicit Linker (`--anchor`) + solvate + ionize
 
 ```bash
 martinisurf \
-  --pdb 1RJW \
+  --pdb inputs/1RJW.pdb \
+  --dssp \
+  --go \
   --moltype Protein \
   --surface-mode 4-1 \
-  --lx 15 --ly 15 --dx 0.47 \
   --surface-bead P4 \
+  --dx 0.47 \
+  --lx 15 --ly 15 \
   --anchor 1 8 10 11 \
   --anchor 2 1025 1027 1028 \
-  --merge A,B,C,D
-```
-
-### B) Protein + linker
-
-```bash
-martinisurf \
-  --pdb 1RJW \
-  --moltype Protein \
-  --surface-mode 4-1 \
-  --lx 15 --ly 15 --dx 0.47 \
-  --surface-bead P4 \
-  --linker inputs/EPOXY.gro \
-  --linker-group 1 8 10 11 \
-  --linker-group 2 1025 1027 1028 \
-  --merge A,B,C,D
-```
-
-Note: if you use `EPOXY.gro`, `EPOXY.itp` must exist next to it.
-
-### C) DNA + anchors
-
-```bash
-martinisurf \
-  --dna \
-  --pdb 4C64.pdb \
-  --surface inputs/surface.gro \
-  --anchor 1 1 \
   --dist 10 \
-  --merge A,B
+  --solvate \
+  --ionize \
+  --salt-conc 0.15 \
+  --merge A,B,C,D
 ```
 
-### D) DNA + linker + solvation + ions
+### B) Example 06: DNA + linker + solvate + ionize + frozen water
 
 ```bash
 martinisurf \
   --dna \
-  --pdb 4C64.pdb \
+  --dnatype ds-stiff \
+  --pdb inputs/4C64.pdb \
   --surface-mode 4-1 \
-  --lx 10 --ly 10 --dx 0.27 \
+  --lx 10 \
+  --ly 10 \
+  --dx 0.27 \
   --surface-bead C1 \
   --linker inputs/ALK.gro \
   --linker-group 1 1 \
   --solvate \
   --ionize \
   --salt-conc 0.15 \
+  --freeze-water-fraction 0.10 \
+  --freeze-water-seed 42 \
   --merge A,B
 ```
 
-### E) Prebuilt CG complex (`--complex-config`)
+### C) Example 07: pre-CG protein+cofactor + substrate + solvate + ionize
 
 ```bash
 martinisurf \
   --complex-config input/complex_config.yaml \
   --surface-mode 4-1 \
-  --lx 15 --ly 15 --dx 0.47 \
   --surface-bead P4 \
+  --dx 0.47 \
+  --lx 15 \
+  --ly 15 \
   --dist 10 \
   --substrate input/ETO.gro \
   --substrate-count 10 \
-  --solvate --ionize --salt-conc 0.15
+  --solvate \
+  --ionize \
+  --salt-conc 0.15 \
+  --outdir Simulation_Files
 ```
 
 ## 5) Flags you will use most often
@@ -149,7 +137,7 @@ martinisurf \
 | `--surface` | Reuses an existing surface file | `surface.gro` |
 | `--surface-mode` | Builds 2-1 or 4-1 surface | `4-1` |
 | `--lx --ly --dx` | Size and spacing for generated surface | `15 15 0.47` |
-| `--anchor ...` | Residue-based anchor orientation | `--anchor 1 8 10 11` |
+| `--anchor ...` | Not explicit Linker orientation (anchor mode) | `--anchor 1 8 10 11` |
 | `--linker` | Linker GRO file | `ALK.gro` |
 | `--linker-group ...` | Residue groups for linker attachment | `--linker-group 1 1` |
 | `--merge` | Chain merge during martinization | `A,B` / `A,B,C,D` |

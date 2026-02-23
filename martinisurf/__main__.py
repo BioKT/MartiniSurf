@@ -3,6 +3,62 @@ import argparse
 import sys
 
 
+def _print_compact_package_help():
+    print(
+        "MartiniSurf CLI\n"
+        "Compact package help.\n"
+    )
+    print("Usage:")
+    print("  martinisurf [build flags]")
+    print("  martinisurf build [build flags]")
+    print("  martinisurf surface [surface flags]")
+    print("  martinisurf orient [orientation flags]")
+    print("  martinisurf system [topology/index flags]")
+    print("")
+    print("Main command groups:")
+    print("  build   Main pipeline (protein, DNA, linker, complex-config, solvation/ionization).")
+    print("  surface Surface generator.")
+    print("  orient  Orientation module.")
+    print("  system  Topology/index generation module.")
+    print("")
+    print("Detailed options by module:")
+    print("  martinisurf build -h")
+    print("  martinisurf surface -h")
+    print("  martinisurf orient -h")
+    print("  martinisurf system -h")
+    print("")
+    print("Optional verbose package help:")
+    print("  martinisurf --full-help")
+
+
+def _print_full_package_help():
+    from martinisurf.pipeline import build_parser
+    import martinisurf.surface_builder as surface_builder
+    import martinisurf.system_tethered as system_tethered
+    import martinisurf.gromacs_inputs as gromacs_inputs
+
+    print("=== BUILD (main pipeline) ===")
+    build_parser().print_help()
+    print("")
+    print("=== SURFACE MODULE ===")
+    try:
+        surface_builder.main(["-h"])
+    except SystemExit:
+        pass
+    print("")
+    print("=== ORIENT MODULE ===")
+    try:
+        system_tethered.main(["-h"])
+    except SystemExit:
+        pass
+    print("")
+    print("=== SYSTEM MODULE ===")
+    try:
+        gromacs_inputs.main(["-h"])
+    except SystemExit:
+        pass
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="martinisurf",
@@ -19,7 +75,12 @@ def main():
     parser.add_argument(
         "-h", "--help",
         action="store_true",
-        help="Show detailed help (build flags)"
+        help="Show compact package help"
+    )
+    parser.add_argument(
+        "--full-help",
+        action="store_true",
+        help="Show full verbose help for all modules"
     )
 
     subparsers = parser.add_subparsers(dest="tool")
@@ -86,21 +147,23 @@ def main():
     args = sys.argv[1:]
 
     # CASE 1 → top-level help
-    if "-h" in args or "--help" in args:
-        from martinisurf.pipeline import build_parser
-        build_parser().print_help()
+    if "--full-help" in args:
+        _print_full_package_help()
         return
 
-    # CASE 2 → no args
-    if len(args) == 0:
-        parser.print_help()
-        return
-
-    # CASE 3 → explicit subcommand help
-    if args[0] in ("surface", "orient", "system", "build") and (
+    # CASE 2 → explicit subcommand help
+    if args and args[0] in ("surface", "orient", "system", "build") and (
         "-h" in args or "--help" in args
     ):
-        parser.parse_args(args)
+        # Route to the module help (not top-level compact help).
+        pass
+    elif "-h" in args or "--help" in args:
+        _print_compact_package_help()
+        return
+
+    # CASE 3 → no args
+    if len(args) == 0:
+        _print_compact_package_help()
         return
 
     # CASE 4 → implicit build mode
