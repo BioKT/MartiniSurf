@@ -379,7 +379,7 @@ def test_restrained_topology_compatibility_alias_is_written(tmp_path, monkeypatc
     assert system_res_top == system_anchor_top
 
 
-def test_workflow_uses_restrained_top_variable(tmp_path, monkeypatch):
+def test_legacy_gromacs_workflow_is_not_generated(tmp_path, monkeypatch):
     sim, _ = prepare_simulation_structure(tmp_path)
     monkeypatch.chdir(sim / "2_system")
 
@@ -388,9 +388,7 @@ def test_workflow_uses_restrained_top_variable(tmp_path, monkeypatch):
         "--anchor", "1", "1",
     ])
 
-    workflow = (sim / "1_mdp" / "gromacs_workflow").read_text()
-    assert 'RESTRAINED_TOP="system_res.top"' in workflow
-    assert '-p "$RESTRAINED_TOP"' in workflow
+    assert not (sim / "1_mdp" / "gromacs_workflow").exists()
 
 
 def test_linker_pull_generates_two_coordinates(tmp_path, monkeypatch):
