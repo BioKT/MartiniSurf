@@ -3,18 +3,13 @@
 #include "system_itp/martini_v3.0.0.itp"
 #include "system_itp/martini_v3.0.0_solvents_v1.itp"
 #include "system_itp/martini_v3.0.0_ions_v1.itp"
-#include "system_itp/Active.itp"
+#include "system_itp/Protein.itp"
 #include "system_itp/surface.itp"
-#include "system_itp/NAD.itp"
 
 [ system ]
 MartiniSurf system in water
 
 [ molecules ]
-Active 1
-NAD 4
+Protein 1
 SRF 792
-ETO 10
-W 22823
-NA 326
-CL 302
+W               22603

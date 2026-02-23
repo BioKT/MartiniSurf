@@ -85,13 +85,14 @@ def _read_gro_atom_count(gro_path: str) -> int | None:
 def _write_minimal_surface_itp(itp_path: Path, resname: str, bead: str, charge: float = 0.0) -> None:
     clean_res = (resname or "SRF").strip()[:6] or "SRF"
     clean_bead = (bead or "C1").strip()[:6] or "C1"
+    atom_name = clean_bead
     itp_path.write_text(
         ";;;;;; Minimal surface topology (auto-generated fallback)\n\n"
         "[ moleculetype ]\n"
         "; molname nrexcl\n"
         f"  {clean_res}        1\n\n"
         "[ atoms ]\n"
-        f"  1   {clean_bead:<6}   1   {clean_res:<4}   C     1     {float(charge):.3f}\n"
+        f"  1   {clean_bead:<6}   1   {clean_res:<4}   {atom_name:<5} 1     {float(charge):.3f}\n"
     )
 
 
@@ -777,6 +778,349 @@ def _read_itp_moleculetype(itp_path: Path) -> str | None:
     return None
 
 
+def _read_itp_atomname_for_moltype(itp_path: Path, moltype: str) -> str | None:
+    if not itp_path.exists():
+        return None
+
+    current_moltype: str | None = None
+    in_moleculetype = False
+    in_atoms = False
+
+    for raw in itp_path.read_text().splitlines():
+        line = raw.split(";", 1)[0].strip()
+        if not line:
+            continue
+
+        if line.startswith("["):
+            section = line.strip("[]").strip().lower()
+            in_moleculetype = section == "moleculetype"
+            in_atoms = section == "atoms"
+            continue
+
+        if in_moleculetype:
+            current_moltype = line.split()[0]
+            in_moleculetype = False
+            continue
+
+        if in_atoms and current_moltype == moltype:
+            parts = line.split()
+            if len(parts) >= 5:
+                return parts[4]
+
+    return None
+
+
+def _read_itp_uniform_atomname_for_moltype(itp_path: Path, moltype: str) -> str | None:
+    if not itp_path.exists():
+        return None
+
+    current_moltype: str | None = None
+    in_moleculetype = False
+    in_atoms = False
+    atom_names: list[str] = []
+
+    for raw in itp_path.read_text().splitlines():
+        line = raw.split(";", 1)[0].strip()
+        if not line:
+            continue
+
+        if line.startswith("["):
+            section = line.strip("[]").strip().lower()
+            in_moleculetype = section == "moleculetype"
+            in_atoms = section == "atoms"
+            continue
+
+        if in_moleculetype:
+            current_moltype = line.split()[0]
+            in_moleculetype = False
+            atom_names = []
+            continue
+
+        if in_atoms and current_moltype == moltype:
+            parts = line.split()
+            if len(parts) >= 5:
+                atom_names.append(parts[4])
+
+    if not atom_names:
+        return None
+    unique = set(atom_names)
+    if len(unique) != 1:
+        return None
+    return atom_names[0]
+
+
+def _read_itp_moleculetype_names(itp_path: Path) -> list[str]:
+    if not itp_path.exists():
+        return []
+
+    names: list[str] = []
+    in_moleculetype = False
+    for raw in itp_path.read_text().splitlines():
+        line = raw.split(";", 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith("["):
+            section = line.strip("[]").strip().lower()
+            in_moleculetype = section == "moleculetype"
+            continue
+        if in_moleculetype:
+            names.append(line.split()[0])
+            in_moleculetype = False
+    return names
+
+
+def _load_moltype_atoms_from_itp_dir(itp_dir: Path) -> dict[str, list[str]]:
+    mol_atoms: dict[str, list[str]] = {}
+    if not itp_dir.exists():
+        return mol_atoms
+
+    for itp in sorted(itp_dir.glob("*.itp")):
+        current_moltype: str | None = None
+        in_moleculetype = False
+        in_atoms = False
+        collecting_atoms: list[str] | None = None
+
+        for raw in itp.read_text().splitlines():
+            line = raw.split(";", 1)[0].strip()
+            if not line:
+                continue
+
+            if line.startswith("["):
+                # Finalize previously collected atoms before switching section.
+                if collecting_atoms is not None and current_moltype and current_moltype not in mol_atoms:
+                    mol_atoms[current_moltype] = collecting_atoms
+                    collecting_atoms = None
+                section = line.strip("[]").strip().lower()
+                in_moleculetype = section == "moleculetype"
+                in_atoms = section == "atoms"
+                continue
+
+            if in_moleculetype:
+                current_moltype = line.split()[0]
+                in_moleculetype = False
+                collecting_atoms = []
+                continue
+
+            if in_atoms and current_moltype:
+                parts = line.split()
+                if len(parts) >= 5:
+                    if collecting_atoms is not None:
+                        collecting_atoms.append(parts[4])
+
+        if collecting_atoms is not None and current_moltype and current_moltype not in mol_atoms:
+            mol_atoms[current_moltype] = collecting_atoms
+
+    return mol_atoms
+
+
+def _validate_named_molecule_atomnames(top_dir: Path, top_path: Path, gro_path: Path) -> None:
+    """
+    Validate molecules whose GRO residue name equals their moleculetype
+    (surface/cofactor/substrate/linker/ions/water).
+    """
+    if not top_path.exists() or not gro_path.exists():
+        return
+
+    molecules = _parse_molecules_entries(top_path)
+    if not molecules:
+        return
+
+    mol_atoms = _load_moltype_atoms_from_itp_dir(top_dir / "system_itp")
+    _, records, _ = _read_gro_records(str(gro_path))
+
+    grouped: dict[tuple[int, str], list[dict]] = {}
+    for rec in records:
+        key = (int(rec["resid"]), str(rec["resname"]).strip())
+        grouped.setdefault(key, []).append(rec)
+
+    by_resname: dict[str, list[list[dict]]] = {}
+    for (_, resname), atoms in grouped.items():
+        by_resname.setdefault(resname, []).append(atoms)
+    atomnames_by_resname: dict[str, list[str]] = {}
+    for rec in records:
+        res = str(rec["resname"]).strip()
+        atomnames_by_resname.setdefault(res, []).append(str(rec["atomname"]).strip())
+
+    issues: list[str] = []
+    for molname, count in molecules:
+        if count <= 0:
+            continue
+        atom_template = mol_atoms.get(molname)
+        got_atomnames = atomnames_by_resname.get(molname, [])
+        if not atom_template or not got_atomnames:
+            continue
+        expected_total = int(count) * len(atom_template)
+        if len(got_atomnames) != expected_total:
+            issues.append(
+                f"{molname}: expected {expected_total} atoms from topology, found {len(got_atomnames)} atoms in GRO"
+            )
+            continue
+
+        expected = [str(a).strip() for a in atom_template]
+        if len(set(expected)) == 1:
+            target = expected[0]
+            for idx, got_name in enumerate(got_atomnames, start=1):
+                if got_name != target:
+                    issues.append(
+                        f"{molname}: atom occurrence {idx} expected '{target}' got '{got_name}'"
+                    )
+                if len(issues) >= 200:
+                    issues.append("... truncated ...")
+                    break
+            if len(issues) >= 200:
+                break
+            continue
+
+        groups = by_resname.get(molname, [])
+        if len(groups) != count:
+            # For non-uniform atomname templates we need one GRO-residue per molecule
+            # to validate sequence safely.
+            continue
+
+        for idx, atoms in enumerate(groups, start=1):
+            got = [str(a["atomname"]).strip() for a in atoms]
+            if len(got) != len(expected):
+                continue
+            mismatch_pos = next((i for i, (e, g) in enumerate(zip(expected, got), start=1) if e != g), None)
+            if mismatch_pos is not None:
+                issues.append(
+                    f"{molname} molecule {idx}: atom {mismatch_pos} expected '{expected[mismatch_pos - 1]}' got '{got[mismatch_pos - 1]}'"
+                )
+            if len(issues) >= 200:
+                issues.append("... truncated ...")
+                break
+        if len(issues) >= 200:
+            break
+
+    if not issues:
+        return
+
+    report_path = top_dir / "atomname_validation_report.txt"
+    lines = [
+        "MartiniSurf atomname validation report",
+        f"Topology: {top_path}",
+        f"Structure: {gro_path}",
+        "",
+        "Detected mismatches:",
+        *issues,
+    ]
+    report_path.write_text("\n".join(lines) + "\n")
+    raise RuntimeError(
+        "Atomname mismatch detected between topology and GRO. "
+        f"Review and fix names, then rerun. Report: {report_path}"
+    )
+
+
+def _detect_ff_ion_moltypes(top_dir: Path) -> dict[str, str]:
+    itp_dir = top_dir / "system_itp"
+    ion_itp_candidates = [
+        itp_dir / "martini_v2.0_ions.itp",
+        itp_dir / "martini_v3.0.0_ions_v1.itp",
+    ]
+
+    available: set[str] = set()
+    for itp in ion_itp_candidates:
+        available.update(_read_itp_moleculetype_names(itp))
+
+    mapping = {
+        "NA": "NA+"
+        if "NA+" in available
+        else ("NA" if "NA" in available else "NA"),
+        "CL": "CL-"
+        if "CL-" in available
+        else ("CL" if "CL" in available else "CL"),
+    }
+    return mapping
+
+
+def _normalize_ion_atom_names_from_itp(top_dir: Path, gro_path: Path) -> bool:
+    itp_dir = top_dir / "system_itp"
+    ion_itp_candidates = [
+        itp_dir / "martini_v2.0_ions.itp",
+        itp_dir / "martini_v3.0.0_ions_v1.itp",
+    ]
+
+    ff_ions = _detect_ff_ion_moltypes(top_dir)
+    atomname_by_moltype: dict[str, str] = {}
+    for itp in ion_itp_candidates:
+        if not itp.exists():
+            continue
+        for mol in set(ff_ions.values()):
+            atom_name = _read_itp_atomname_for_moltype(itp, mol)
+            if atom_name:
+                atomname_by_moltype[mol] = atom_name
+
+    if not gro_path.exists():
+        return False
+
+    resname_to_target = {
+        "NA": ff_ions["NA"],
+        "NA+": ff_ions["NA"],
+        "CL": ff_ions["CL"],
+        "CL-": ff_ions["CL"],
+    }
+
+    title, records, box = _read_gro_records(str(gro_path))
+    changed = False
+    for rec in records:
+        res = str(rec["resname"]).strip()
+        target_res = resname_to_target.get(res)
+        if not target_res:
+            continue
+        if res != target_res:
+            rec["resname"] = target_res
+            changed = True
+        target_atom = atomname_by_moltype.get(target_res)
+        if target_atom and str(rec["atomname"]).strip() != target_atom:
+            rec["atomname"] = target_atom
+            changed = True
+
+    if changed:
+        _write_gro_records(str(gro_path), title, records, box)
+    return changed
+
+
+def _normalize_uniform_atom_names_from_itp(top_dir: Path, top_path: Path, gro_path: Path) -> bool:
+    if not top_path.exists() or not gro_path.exists():
+        return False
+
+    entries = _parse_molecules_entries(top_path)
+    if not entries:
+        return False
+
+    water_ion_names = {
+        "W", "SOL", "WF", "NA", "NA+", "CL", "CL-", "K", "CA", "MG", "ZN", "LI", "RB", "CS", "BA", "SR", "F", "BR", "I",
+    }
+    moltypes = [name for name, count in entries if count > 0 and name not in water_ion_names]
+    if not moltypes:
+        return False
+
+    uniform_map: dict[str, str] = {}
+    for itp in sorted((top_dir / "system_itp").glob("*.itp")):
+        for mol in moltypes:
+            if mol in uniform_map:
+                continue
+            atom = _read_itp_uniform_atomname_for_moltype(itp, mol)
+            if atom:
+                uniform_map[mol] = atom
+
+    if not uniform_map:
+        return False
+
+    title, records, box = _read_gro_records(str(gro_path))
+    changed = False
+    for rec in records:
+        res = str(rec["resname"]).strip()
+        target_atom = uniform_map.get(res)
+        if target_atom and str(rec["atomname"]).strip() != target_atom:
+            rec["atomname"] = target_atom
+            changed = True
+
+    if changed:
+        _write_gro_records(str(gro_path), title, records, box)
+    return changed
+
+
 def _count_residues_by_resname(records: list[dict], target_resnames: set[str]) -> int:
     keys = {
         (int(rec["resid"]), str(rec["resname"]).strip())
@@ -844,26 +1188,28 @@ def _remove_waters_below_surface(
     z_surface = sum(surf_coords) / len(surf_coords)
     clearance = float(clearance_nm)
 
+    # Build molecule-level groups to evaluate water COM against the slab,
+    # then filter by original atom order to avoid reordering GO virtual sites.
     grouped: dict[tuple[int, str], list[dict]] = {}
-    order: list[tuple[int, str]] = []
     for rec in records:
         key = (int(rec["resid"]), str(rec["resname"]).strip())
-        if key not in grouped:
-            grouped[key] = []
-            order.append(key)
-        grouped[key].append(rec)
+        grouped.setdefault(key, []).append(rec)
 
-    kept: list[dict] = []
-    removed_water_res = 0
-    for key in order:
+    removed_keys: set[tuple[int, str]] = set()
+    for key, atoms in grouped.items():
         _, resname = key
-        atoms = grouped[key]
-        if resname in water_resnames:
-            z_center = sum(float(a["z"]) for a in atoms) / len(atoms)
-            if abs(z_center - z_surface) <= clearance:
-                removed_water_res += 1
-                continue
-        kept.extend(atoms)
+        if resname not in water_resnames:
+            continue
+        z_center = sum(float(a["z"]) for a in atoms) / len(atoms)
+        if abs(z_center - z_surface) <= clearance:
+            removed_keys.add(key)
+
+    removed_water_res = len(removed_keys)
+    kept: list[dict] = [
+        rec
+        for rec in records
+        if (int(rec["resid"]), str(rec["resname"]).strip()) not in removed_keys
+    ]
 
     if removed_water_res == 0:
         return
@@ -984,7 +1330,11 @@ def _parse_molecules_entries(top_path: Path) -> list[tuple[str, int]]:
     return entries
 
 
-def _normalize_molecules_block(final_top: Path, base_top: Path | None = None) -> None:
+def _normalize_molecules_block(
+    final_top: Path,
+    base_top: Path | None = None,
+    top_dir: Path | None = None,
+) -> None:
     final_entries = _parse_molecules_entries(final_top)
     if not final_entries:
         return
@@ -1014,8 +1364,28 @@ def _normalize_molecules_block(final_top: Path, base_top: Path | None = None) ->
             counts[name] = int(bcount)
             first_order.append(name)
 
+    ff_ions = _detect_ff_ion_moltypes(top_dir) if top_dir is not None else {"NA": "NA", "CL": "CL"}
+
+    # Canonicalize sodium/chloride names to the active FF moltypes.
+    ion_alias_pairs = [("NA", "NA+"), ("CL", "CL-")]
+    for base_name, alt_name in ion_alias_pairs:
+        preferred = ff_ions.get(base_name, base_name)
+        alias = alt_name if preferred == base_name else base_name
+        if alias in counts:
+            counts[preferred] = int(counts.get(preferred, 0)) + int(counts[alias])
+            del counts[alias]
+
     water_names = ["W", "SOL", "WF"]
-    ion_names = ["NA", "CL", "K", "CA", "MG", "ZN", "LI", "RB", "CS", "BA", "SR", "F", "BR", "I"]
+    ion_names = [
+        ff_ions.get("NA", "NA"),
+        ff_ions.get("CL", "CL"),
+        "K", "CA", "MG", "ZN", "LI", "RB", "CS", "BA", "SR", "F", "BR", "I",
+    ]
+
+    # Non-solvent molecules should keep base topology counts (DNA/protein/surface/linker/cofactor/substrate).
+    for name, bcount in base_counts.items():
+        if name not in water_names and name not in ion_names:
+            counts[name] = int(bcount)
 
     ordered: list[str] = []
 
@@ -1174,8 +1544,9 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
     final_gro = system_dir / "final_system.gro"
     final_alias_gro = system_dir / "system_final.gro"
     if not args.ionize:
-        _normalize_molecules_block(final_top=final_top, base_top=base_top)
+        _normalize_molecules_block(final_top=final_top, base_top=base_top, top_dir=top_dir)
         shutil.copy(solvated_gro, final_gro)
+        _normalize_uniform_atom_names_from_itp(top_dir=top_dir, top_path=final_top, gro_path=final_gro)
         shutil.copy(final_gro, final_alias_gro)
         merged_index = _rebuild_merged_index(gmx_bin=gmx_bin, gro_path=final_alias_gro, top_dir=top_dir)
         final_res_top = _sync_final_restrained_topology(top_dir, final_top)
@@ -1214,7 +1585,9 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
         water_resnames=water_resnames,
         ion_resnames={"NA", "CL"},
     )
-    _normalize_molecules_block(final_top=final_top, base_top=base_top)
+    _normalize_uniform_atom_names_from_itp(top_dir=top_dir, top_path=final_top, gro_path=final_gro)
+    _normalize_ion_atom_names_from_itp(top_dir=top_dir, gro_path=final_gro)
+    _normalize_molecules_block(final_top=final_top, base_top=base_top, top_dir=top_dir)
 
     ions_mdp.unlink(missing_ok=True)
     ions_tpr.unlink(missing_ok=True)
@@ -1255,7 +1628,7 @@ def _run_optional_dna_water_freezing(args: argparse.Namespace, simdir: Path) -> 
         target_resname="WF",
         alias_gro_path=alias_path,
     )
-    _normalize_molecules_block(final_top=top_path, base_top=top_dir / "system.top")
+    _normalize_molecules_block(final_top=top_path, base_top=top_dir / "system.top", top_dir=top_dir)
     final_res_top = _sync_final_restrained_topology(top_dir, top_path)
     gmx_bin = _find_gmx_binary()
     if gmx_bin is not None:
@@ -1267,6 +1640,23 @@ def _run_optional_dna_water_freezing(args: argparse.Namespace, simdir: Path) -> 
         "✔ DNA water freezing applied "
         f"(W before={n_before}, W after={n_w}, WF={n_wf}, seed={args.freeze_water_seed})"
     )
+
+
+def _run_final_topology_structure_validation(simdir: Path) -> None:
+    top_dir = simdir / "0_topology"
+    system_dir = simdir / "2_system"
+
+    top_path = top_dir / "system_final_res.top"
+    if not top_path.exists():
+        top_path = top_dir / "system_final.top"
+    gro_path = system_dir / "system_final.gro"
+    if not gro_path.exists():
+        gro_path = system_dir / "final_system.gro"
+
+    if not top_path.exists() or not gro_path.exists():
+        return
+
+    _validate_named_molecule_atomnames(top_dir=top_dir, top_path=top_path, gro_path=gro_path)
 
 
 def _parse_version_triplet(text: str) -> tuple[int, int, int] | None:
@@ -1708,6 +2098,7 @@ def main(argv=None):
     gsm.main(final_args)
     _run_optional_solvation_ionization(args, simdir)
     _run_optional_dna_water_freezing(args, simdir)
+    _run_final_topology_structure_validation(simdir)
 
     if tmpdir and tmpdir.exists():
         shutil.rmtree(tmpdir)

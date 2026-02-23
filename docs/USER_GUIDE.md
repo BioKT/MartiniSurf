@@ -49,7 +49,21 @@ use `--dna` + `--anchor` or `--linker`.
 - Already CG protein+cofactor complex:
 use `--complex-config`.
 
+Recommended complete examples (solvated/ionized and ready for MD workflow):
+- `martinisurf/examples/05_protein_anchor_solvate_ionize`
+- `martinisurf/examples/06_dna_linker_solvate_ionize_freeze`
+- `martinisurf/examples/07_protein_nad`
+
+Run pattern:
+```bash
+cd martinisurf/examples/05_protein_anchor_solvate_ionize
+bash run.sh
+bash work_flow_gromacs.sh
+```
+
 ## 4) Copy-and-run commands
+
+If you want the most complete and production-oriented setups, use examples `05`, `06`, and `07` above.
 
 ### A) Protein + anchors (best first run)
 

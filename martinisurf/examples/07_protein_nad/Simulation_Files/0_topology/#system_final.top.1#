@@ -8,13 +8,10 @@
 #include "system_itp/NAD.itp"
 
 [ system ]
-MartiniSurf system in water
+MartiniSurf system
 
 [ molecules ]
 Active 1
 NAD 4
 SRF 792
 ETO 10
-W 22823
-NA 326
-CL 302

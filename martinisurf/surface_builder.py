@@ -103,7 +103,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     with itp_path.open("w") as fitp:
         fitp.write(";;;;;; Minimal surface topology\n\n[ moleculetype ]\n; molname nrexcl\n")
         fitp.write(f"  {args.resname}        1\n\n[ atoms ]\n")
-        fitp.write(f"  1   {args.bead:<6}   1   {args.resname:<4}   C     1     {args.charge:.3f}\n")
+        fitp.write(f"  1   {args.bead:<6}   1   {args.resname:<4}   {args.bead:<5} 1     {args.charge:.3f}\n")
 
     # Backward-compatible copy for standalone tooling/tests.
     active_dst = resolve_activeitp_destination(outdir)

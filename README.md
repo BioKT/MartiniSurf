@@ -61,39 +61,18 @@ MartiniSurf expects the following tools in your environment:
 - Important: martinize2 is only compatible with DSSP versions `3.1.4` or lower.
 - In Colab, if DSSP causes failures, install `mdtraj` and avoid newer `mkdssp` binaries.
 
-## Quick Start
-### 1) Protein, classical anchor mode
-```bash
-martinisurf \
-  --pdb 1RJW \
-  --moltype Protein \
-  --lx 20 --ly 20 \
-  --surface-bead C1 \
-  --anchor 1 8 10 11 \
-  --anchor 2 1025 1027 1028 \
-  --dist 10
-```
+## Quick Start (Recommended Complete Examples)
+These are the most complete examples (system build + solvation/ionization + simulation workflow):
 
-### 2) DNA, classical anchor mode
-```bash
-martinisurf \
-  --dna \
-  --pdb 4C64.pdb \
-  --dnatype ds-stiff \
-  --surface surface.gro \
-  --anchor 1 1 \
-  --anchor 2 24 \
-  --dist 10
-```
+- `martinisurf/examples/05_protein_anchor_solvate_ionize`
+- `martinisurf/examples/06_dna_linker_solvate_ionize_freeze`
+- `martinisurf/examples/07_protein_nad`
 
-### 3) DNA/protein linker mode
+Run any of them with:
 ```bash
-martinisurf \
-  --dna \
-  --pdb 4C64.pdb \
-  --surface surface.gro \
-  --linker linker.gro \
-  --linker-group 1 1
+cd martinisurf/examples/05_protein_anchor_solvate_ionize
+bash run.sh
+bash work_flow_gromacs.sh
 ```
 
 ## Google Colab Notebooks

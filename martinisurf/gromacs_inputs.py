@@ -137,14 +137,14 @@ def write_top_files(
         fh.write(
             _include_block(mol_itp_name)
             + "\n\n[ system ]\nMartiniSurf system\n\n[ molecules ]\n"
-            + f"{moltype} 1\n{cofactor_line}{surface_moltype} {surface_count}\n{linker_line}{substrate_line}"
+            + f"{moltype} 1\n{cofactor_line}{linker_line}{surface_moltype} {surface_count}\n{substrate_line}"
         )
 
     with open(system_res_top, "w") as fh:
         fh.write(
             _include_block(anchor_itp_name)
             + "\n\n[ system ]\nMartiniSurf restrained system\n\n[ molecules ]\n"
-            + f"{moltype} 1\n{cofactor_line}{surface_moltype} {surface_count}\n{linker_line}{substrate_line}"
+            + f"{moltype} 1\n{cofactor_line}{linker_line}{surface_moltype} {surface_count}\n{substrate_line}"
         )
 
     # Compatibility alias for legacy workflows/scripts that still expect system_anchor.top.
@@ -806,11 +806,6 @@ def main(argv: Sequence[str] | None = None) -> None:
                 "deposition.mdp": "deposition.mdp",
                 "production.mdp": "production.mdp",
             }
-
-        # workflow
-        workflow = mdp_pkg / "gromacs_workflow"
-        if workflow.exists():
-            shutil.copy(workflow, mdp_dir / "gromacs_workflow")
 
         # copy MDPs
         for src_name, dst_name in mdp_files.items():
