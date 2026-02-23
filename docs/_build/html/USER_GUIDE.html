@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MartiniSurf Quick Guide for New Users &mdash; MartiniSurf Documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=8d563738"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="CLI Reference" href="cli.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            MartiniSurf
+              <img src="_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Recommended Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">CLI Reference</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">MartiniSurf Quick Guide for New Users</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#second-rules">1) 30-second rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#minimum-installation">2) Minimum installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pick-your-workflow">3) Pick your workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#copy-and-run-commands">4) Copy-and-run commands</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#a-example-05-protein-not-explicit-linker-anchor-solvate-ionize">A) Example 05: Protein + Not explicit Linker (<code class="docutils literal notranslate"><span class="pre">--anchor</span></code>) + solvate + ionize</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#b-example-06-dna-linker-solvate-ionize-frozen-water">B) Example 06: DNA + linker + solvate + ionize + frozen water</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#c-example-07-pre-cg-protein-cofactor-substrate-solvate-ionize">C) Example 07: pre-CG protein+cofactor + substrate + solvate + ionize</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#flags-you-will-use-most-often">5) Flags you will use most often</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#full-flag-reference-martinisurf-main-pipeline">6) Full flag reference (<code class="docutils literal notranslate"><span class="pre">martinisurf</span></code> main pipeline)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#input-and-molecule">Input and molecule</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#martinization-controls">Martinization controls</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#surface">Surface</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#classic-orientation-anchors">Classic orientation (anchors)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#linker-orientation">Linker orientation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#optional-substrate">Optional substrate</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#optional-solvation-and-ionization">Optional solvation and ionization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#output">Output</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-flags-internal-modules">7) Advanced flags (internal modules)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#python-m-martinisurf-surface-builder">7.1 <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">martinisurf.surface_builder</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#python-m-martinisurf-system-tethered">7.2 <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">martinisurf.system_tethered</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#python-m-martinisurf-gromacs-inputs">7.3 <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">martinisurf.gromacs_inputs</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#legacy-wrapper-flags-in-python-m-martinisurf-orient-subcommand">7.4 Legacy wrapper flags in <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">martinisurf</span></code> (<code class="docutils literal notranslate"><span class="pre">orient</span></code> subcommand)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#output-structure-to-check">8) Output structure to check</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-errors-and-direct-fixes">9) Common errors and direct fixes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#practical-checklist-before-long-runs">10) Practical checklist before long runs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#short-software-evaluation">11) Short software evaluation</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">MartiniSurf</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">MartiniSurf Quick Guide for New Users</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/USER_GUIDE.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="martinisurf-quick-guide-for-new-users">
+<h1>MartiniSurf Quick Guide for New Users<a class="headerlink" href="#martinisurf-quick-guide-for-new-users" title="Link to this heading"></a></h1>
+<p>This guide is for users with no prior Martini or coarse-grained simulation experience.</p>
+<p>Goal:</p>
+<ul class="simple">
+<li><p>Know which command to run.</p></li>
+<li><p>Understand what each flag does.</p></li>
+<li><p>Avoid common setup errors.</p></li>
+</ul>
+<section id="second-rules">
+<h2>1) 30-second rules<a class="headerlink" href="#second-rules" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Choose only ONE orientation mode:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">...</span></code> (Not explicit Linker / anchor mode), or</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker</span> <span class="pre">...</span> <span class="pre">--linker-group</span> <span class="pre">...</span></code> (linker mode).</p></li>
+</ul>
+</li>
+<li><p>If you do NOT pass <code class="docutils literal notranslate"><span class="pre">--surface</span></code>, you must pass <code class="docutils literal notranslate"><span class="pre">--lx</span></code> and <code class="docutils literal notranslate"><span class="pre">--ly</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ionize</span></code> always requires <code class="docutils literal notranslate"><span class="pre">--solvate</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--freeze-water-fraction</span></code> works only with <code class="docutils literal notranslate"><span class="pre">--dna</span></code> and <code class="docutils literal notranslate"><span class="pre">--solvate</span></code>.</p></li>
+<li><p>If you already have a CG system (protein + cofactor), use <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>.</p></li>
+</ul>
+</section>
+<section id="minimum-installation">
+<h2>2) Minimum installation<a class="headerlink" href="#minimum-installation" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+<p>External tools:</p>
+<ul class="simple">
+<li><p>Protein mode: <code class="docutils literal notranslate"><span class="pre">martinize2</span></code></p></li>
+<li><p>DNA mode: Python 2.7</p></li>
+<li><p>Solvation/ionization: <code class="docutils literal notranslate"><span class="pre">gmx</span></code> (GROMACS)</p></li>
+</ul>
+<p>Quick checks:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>which<span class="w"> </span>martinisurf
+which<span class="w"> </span>martinize2
+which<span class="w"> </span>gmx
+python2.7<span class="w"> </span>-V
+</pre></div>
+</div>
+</section>
+<section id="pick-your-workflow">
+<h2>3) Pick your workflow<a class="headerlink" href="#pick-your-workflow" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Atomistic protein PDB to surface:
+use protein mode + Not explicit Linker (<code class="docutils literal notranslate"><span class="pre">--anchor</span></code>).</p></li>
+<li><p>Protein with linker to surface:
+use protein mode + <code class="docutils literal notranslate"><span class="pre">--linker</span></code> + <code class="docutils literal notranslate"><span class="pre">--linker-group</span></code>.</p></li>
+<li><p>Atomistic DNA PDB to surface:
+use <code class="docutils literal notranslate"><span class="pre">--dna</span></code> + Not explicit Linker (<code class="docutils literal notranslate"><span class="pre">--anchor</span></code>) or explicit linker (<code class="docutils literal notranslate"><span class="pre">--linker</span></code>).</p></li>
+<li><p>Already CG protein+cofactor complex:
+use <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>.</p></li>
+</ul>
+<p>Recommended complete examples (solvated/ionized and ready for MD workflow):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/05_protein_anchor_solvate_ionize</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/06_dna_linker_solvate_ionize_freeze</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/07_protein_nad</span></code></p></li>
+</ul>
+<p>Run pattern:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>martinisurf/examples/05_protein_anchor_solvate_ionize
+bash<span class="w"> </span>run.sh
+bash<span class="w"> </span>work_flow_gromacs.sh
+</pre></div>
+</div>
+</section>
+<section id="copy-and-run-commands">
+<h2>4) Copy-and-run commands<a class="headerlink" href="#copy-and-run-commands" title="Link to this heading"></a></h2>
+<p>If you want the most complete and production-oriented setups, use examples <code class="docutils literal notranslate"><span class="pre">05</span></code>, <code class="docutils literal notranslate"><span class="pre">06</span></code>, and <code class="docutils literal notranslate"><span class="pre">07</span></code> above.</p>
+<section id="a-example-05-protein-not-explicit-linker-anchor-solvate-ionize">
+<h3>A) Example 05: Protein + Not explicit Linker (<code class="docutils literal notranslate"><span class="pre">--anchor</span></code>) + solvate + ionize<a class="headerlink" href="#a-example-05-protein-not-explicit-linker-anchor-solvate-ionize" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>martinisurf<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--pdb<span class="w"> </span>inputs/1RJW.pdb<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dssp<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--go<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--moltype<span class="w"> </span>Protein<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--surface-mode<span class="w"> </span><span class="m">4</span>-1<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--surface-bead<span class="w"> </span>P4<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dx<span class="w"> </span><span class="m">0</span>.47<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--lx<span class="w"> </span><span class="m">15</span><span class="w"> </span>--ly<span class="w"> </span><span class="m">15</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--anchor<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">11</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--anchor<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="m">1025</span><span class="w"> </span><span class="m">1027</span><span class="w"> </span><span class="m">1028</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dist<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--solvate<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--ionize<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--salt-conc<span class="w"> </span><span class="m">0</span>.15<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--merge<span class="w"> </span>A,B,C,D
+</pre></div>
+</div>
+</section>
+<section id="b-example-06-dna-linker-solvate-ionize-frozen-water">
+<h3>B) Example 06: DNA + linker + solvate + ionize + frozen water<a class="headerlink" href="#b-example-06-dna-linker-solvate-ionize-frozen-water" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>martinisurf<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dna<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dnatype<span class="w"> </span>ds-stiff<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--pdb<span class="w"> </span>inputs/4C64.pdb<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--surface-mode<span class="w"> </span><span class="m">4</span>-1<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--lx<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--ly<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dx<span class="w"> </span><span class="m">0</span>.27<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--surface-bead<span class="w"> </span>C1<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--linker<span class="w"> </span>inputs/ALK.gro<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--linker-group<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--solvate<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--ionize<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--salt-conc<span class="w"> </span><span class="m">0</span>.15<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--freeze-water-fraction<span class="w"> </span><span class="m">0</span>.10<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--freeze-water-seed<span class="w"> </span><span class="m">42</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--merge<span class="w"> </span>A,B
+</pre></div>
+</div>
+</section>
+<section id="c-example-07-pre-cg-protein-cofactor-substrate-solvate-ionize">
+<h3>C) Example 07: pre-CG protein+cofactor + substrate + solvate + ionize<a class="headerlink" href="#c-example-07-pre-cg-protein-cofactor-substrate-solvate-ionize" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>martinisurf<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--complex-config<span class="w"> </span>input/complex_config.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--surface-mode<span class="w"> </span><span class="m">4</span>-1<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--surface-bead<span class="w"> </span>P4<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dx<span class="w"> </span><span class="m">0</span>.47<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--lx<span class="w"> </span><span class="m">15</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--ly<span class="w"> </span><span class="m">15</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dist<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--substrate<span class="w"> </span>input/ETO.gro<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--substrate-count<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--solvate<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--ionize<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--salt-conc<span class="w"> </span><span class="m">0</span>.15<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--outdir<span class="w"> </span>Simulation_Files
+</pre></div>
+</div>
+</section>
+</section>
+<section id="flags-you-will-use-most-often">
+<h2>5) Flags you will use most often<a class="headerlink" href="#flags-you-will-use-most-often" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Flag</p></th>
+<th class="head"><p>What it does</p></th>
+<th class="head"><p>Typical value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--pdb</span></code></p></td>
+<td><p>Input structure (local file, RCSB ID, or UniProt ID)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">1RJW</span></code> / <code class="docutils literal notranslate"><span class="pre">4C64.pdb</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--moltype</span></code></p></td>
+<td><p>Molecule name for protein topology</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Protein</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--dna</span></code></p></td>
+<td><p>Enables DNA workflow</p></td>
+<td><p>no value</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--surface</span></code></p></td>
+<td><p>Reuses an existing surface file</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">surface.gro</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--surface-mode</span></code></p></td>
+<td><p>Builds 2-1 or 4-1 surface</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">4-1</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--lx</span> <span class="pre">--ly</span> <span class="pre">--dx</span></code></p></td>
+<td><p>Size and spacing for generated surface</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">15</span> <span class="pre">15</span> <span class="pre">0.47</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">...</span></code></p></td>
+<td><p>Not explicit Linker orientation (anchor mode)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">1</span> <span class="pre">8</span> <span class="pre">10</span> <span class="pre">11</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--linker</span></code></p></td>
+<td><p>Linker GRO file</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ALK.gro</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">...</span></code></p></td>
+<td><p>Residue groups for linker attachment</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">1</span> <span class="pre">1</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--merge</span></code></p></td>
+<td><p>Chain merge during martinization</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">A,B</span></code> / <code class="docutils literal notranslate"><span class="pre">A,B,C,D</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--solvate</span></code></p></td>
+<td><p>Adds water with GROMACS</p></td>
+<td><p>no value</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--ionize</span></code></p></td>
+<td><p>Adds ions (requires solvation)</p></td>
+<td><p>no value</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--outdir</span></code></p></td>
+<td><p>Output folder</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Simulation_Files</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="full-flag-reference-martinisurf-main-pipeline">
+<h2>6) Full flag reference (<code class="docutils literal notranslate"><span class="pre">martinisurf</span></code> main pipeline)<a class="headerlink" href="#full-flag-reference-martinisurf-main-pipeline" title="Link to this heading"></a></h2>
+<p>This section includes ALL flags from the main pipeline.</p>
+<section id="input-and-molecule">
+<h3>Input and molecule<a class="headerlink" href="#input-and-molecule" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--pdb</span></code> (default: none): local <code class="docutils literal notranslate"><span class="pre">.pdb</span></code>, 4-character RCSB ID, or 6-character UniProt ID.</p>
+<ul>
+<li><p>Required if you do NOT use <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--complex-config</span></code> (default: none): YAML for pre-CG workflow (protein + cofactor), skipping martinization.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--moltype</span></code> (default: none): molecule name for protein topology.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--go</span></code> (default: false): enables Go model in <code class="docutils literal notranslate"><span class="pre">martinize2</span></code> (protein mode).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ff</span></code> (default: <code class="docutils literal notranslate"><span class="pre">martini3001</span></code>): force field argument for <code class="docutils literal notranslate"><span class="pre">martinize2</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dna</span></code> (default: false): enables DNA mode (<code class="docutils literal notranslate"><span class="pre">martinize-dna.py</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dnatype</span></code> (default: <code class="docutils literal notranslate"><span class="pre">ds-stiff</span></code>): DNA type for <code class="docutils literal notranslate"><span class="pre">martinize-dna.py</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--merge</span></code> (default: none, repeatable): chain merge (example: <code class="docutils literal notranslate"><span class="pre">A,B,C,D</span></code> or <code class="docutils literal notranslate"><span class="pre">all</span></code>).</p></li>
+</ul>
+</section>
+<section id="martinization-controls">
+<h3>Martinization controls<a class="headerlink" href="#martinization-controls" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--p</span> <span class="pre">{none,all,backbone}</span></code> (default: <code class="docutils literal notranslate"><span class="pre">backbone</span></code>): position restraint selection.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--pf</span></code> (default: <code class="docutils literal notranslate"><span class="pre">1000</span></code>): position restraint force constant.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--maxwarn</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0</span></code>): max allowed warnings in <code class="docutils literal notranslate"><span class="pre">martinize2</span></code> before abort.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dssp</span></code> (default: enabled): enables DSSP / secondary structure assignment in protein mode.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--no-dssp</span></code>: disables DSSP.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--elastic</span></code> (default: false): enables elastic network.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ef</span></code> (default: <code class="docutils literal notranslate"><span class="pre">700</span></code>): elastic network force constant.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--go-eps</span></code> (default: none): Go epsilon.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--go-low</span></code> (default: none): Go minimum contact distance (nm).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--go-up</span></code> (default: none): Go maximum contact distance (nm).</p></li>
+</ul>
+</section>
+<section id="surface">
+<h3>Surface<a class="headerlink" href="#surface" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--surface</span></code> (default: none): existing surface <code class="docutils literal notranslate"><span class="pre">.gro</span></code> file.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--surface-mode</span> <span class="pre">{2-1,4-1}</span></code> (default: <code class="docutils literal notranslate"><span class="pre">2-1</span></code>): grid mode for generated surfaces.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--lx</span></code> (default: none): generated surface X size (nm).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ly</span></code> (default: none): generated surface Y size (nm).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dx</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.47</span></code>): bead spacing (2-1) or C-C parameter (4-1).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--surface-bead</span></code> (default: <code class="docutils literal notranslate"><span class="pre">C1</span></code>): bead type for generated surface.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--charge</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0</span></code>): bead charge for generated surface topology.</p></li>
+</ul>
+</section>
+<section id="classic-orientation-anchors">
+<h3>Classic orientation (anchors)<a class="headerlink" href="#classic-orientation-anchors" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">GROUP</span> <span class="pre">RESID</span> <span class="pre">[RESID</span> <span class="pre">...]</span></code> (default: none, repeatable): defines anchor groups.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dist</span></code> (default: <code class="docutils literal notranslate"><span class="pre">10.0</span></code> A): target anchor-to-surface distance.</p></li>
+</ul>
+</section>
+<section id="linker-orientation">
+<h3>Linker orientation<a class="headerlink" href="#linker-orientation" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker</span></code> (default: none): linker <code class="docutils literal notranslate"><span class="pre">.gro</span></code> file.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">GROUP</span> <span class="pre">RESID</span> <span class="pre">[RESID</span> <span class="pre">...]</span></code> (default: none, repeatable): residue groups where linkers attach.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-prot-dist</span></code> (default: auto): linker-to-biomolecule distance (A).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-surf-dist</span></code> (default: auto): linker-to-surface distance (A).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--invert-linker</span></code> (default: false): reverses linker bead order.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--surface-linkers</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0</span></code>): number of additional random surface linkers.</p></li>
+</ul>
+</section>
+<section id="optional-substrate">
+<h3>Optional substrate<a class="headerlink" href="#optional-substrate" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--substrate</span></code> (default: none): substrate <code class="docutils literal notranslate"><span class="pre">.gro</span></code> file for random insertion.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--substrate-itp</span></code> (default: inferred): substrate <code class="docutils literal notranslate"><span class="pre">.itp</span></code> file.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--substrate-count</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0</span></code>): number of substrate molecules.</p></li>
+</ul>
+</section>
+<section id="optional-solvation-and-ionization">
+<h3>Optional solvation and ionization<a class="headerlink" href="#optional-solvation-and-ionization" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--solvate</span></code> (default: false): runs <code class="docutils literal notranslate"><span class="pre">gmx</span> <span class="pre">solvate</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ionize</span></code> (default: false): runs <code class="docutils literal notranslate"><span class="pre">gmx</span> <span class="pre">genion</span></code> after solvation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--salt-conc</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.15</span></code> M): target salt concentration.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--water-gro</span></code> (default: none): custom solvent <code class="docutils literal notranslate"><span class="pre">.gro</span></code> for solvation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--solvate-radius</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.21</span></code> nm): exclusion radius.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--solvate-surface-clearance</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.4</span></code> nm): removes water near surface plane.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--freeze-water-fraction</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>): fraction of <code class="docutils literal notranslate"><span class="pre">W</span></code> converted to <code class="docutils literal notranslate"><span class="pre">WF</span></code>.</p>
+<ul>
+<li><p>Requires <code class="docutils literal notranslate"><span class="pre">--dna</span></code> and <code class="docutils literal notranslate"><span class="pre">--solvate</span></code>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--freeze-water-seed</span></code> (default: <code class="docutils literal notranslate"><span class="pre">42</span></code>): seed parameter for freeze-water step.</p></li>
+</ul>
+</section>
+<section id="output">
+<h3>Output<a class="headerlink" href="#output" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--outdir</span></code> (default: <code class="docutils literal notranslate"><span class="pre">Simulation_Files</span></code>): output directory.</p></li>
+</ul>
+</section>
+</section>
+<section id="advanced-flags-internal-modules">
+<h2>7) Advanced flags (internal modules)<a class="headerlink" href="#advanced-flags-internal-modules" title="Link to this heading"></a></h2>
+<p>These commands are usually called by MartiniSurf internally. Most new users do not need them directly.</p>
+<section id="python-m-martinisurf-surface-builder">
+<h3>7.1 <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">martinisurf.surface_builder</span></code><a class="headerlink" href="#python-m-martinisurf-surface-builder" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--mode</span> <span class="pre">{2-1,4-1}</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--bead</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dx</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--lx</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ly</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--lz</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--resname</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--output</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--charge</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--layers</span></code> (4-1)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dist-z</span></code> (4-1)</p></li>
+</ul>
+</section>
+<section id="python-m-martinisurf-system-tethered">
+<h3>7.2 <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">martinisurf.system_tethered</span></code><a class="headerlink" href="#python-m-martinisurf-system-tethered" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--surface</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--system</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--out</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--anchor</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dist</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-gro</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-prot-dist</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-surf-dist</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--invert-linker</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--surface-linkers</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--surface-min-dist</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dna-mode</span></code></p></li>
+</ul>
+</section>
+<section id="python-m-martinisurf-gromacs-inputs">
+<h3>7.3 <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">martinisurf.gromacs_inputs</span></code><a class="headerlink" href="#python-m-martinisurf-gromacs-inputs" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--moltype</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--outdir</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--anchor</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-resid</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--use-linker</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-resname</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-size</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-itp-name</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-pull-init-prot</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-pull-init-surf</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--go-model</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--cofactor-itp-name</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--cofactor-count</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--substrate-itp-name</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--substrate-count</span></code></p></li>
+</ul>
+</section>
+<section id="legacy-wrapper-flags-in-python-m-martinisurf-orient-subcommand">
+<h3>7.4 Legacy wrapper flags in <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">martinisurf</span></code> (<code class="docutils literal notranslate"><span class="pre">orient</span></code> subcommand)<a class="headerlink" href="#legacy-wrapper-flags-in-python-m-martinisurf-orient-subcommand" title="Link to this heading"></a></h3>
+<p>These exist for compatibility:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--surface</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--enzyme</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--out</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dist</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--display</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--anchor</span></code></p></li>
+</ul>
+<p>Note: modern orientation module is <code class="docutils literal notranslate"><span class="pre">system_tethered</span></code> (uses <code class="docutils literal notranslate"><span class="pre">--system</span></code>, not <code class="docutils literal notranslate"><span class="pre">--enzyme</span></code>).</p>
+</section>
+</section>
+<section id="output-structure-to-check">
+<h2>8) Output structure to check<a class="headerlink" href="#output-structure-to-check" title="Link to this heading"></a></h2>
+<p>Default output:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Simulation_Files/
+  0_topology/
+    system.top
+    system_res.top
+    index.ndx
+    system_itp/
+  1_mdp/
+  2_system/
+    immobilized_system.gro
+    system.gro
+    (optional) final_system.gro
+</pre></div>
+</div>
+<p>If you use <code class="docutils literal notranslate"><span class="pre">--solvate</span></code> and <code class="docutils literal notranslate"><span class="pre">--ionize</span></code>, check especially:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">0_topology/system_final.top</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">2_system/final_system.gro</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">2_system/system_final.gro</span></code></p></li>
+</ul>
+</section>
+<section id="common-errors-and-direct-fixes">
+<h2>9) Common errors and direct fixes<a class="headerlink" href="#common-errors-and-direct-fixes" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Error: <code class="docutils literal notranslate"><span class="pre">--pdb</span> <span class="pre">is</span> <span class="pre">required</span> <span class="pre">unless</span> <span class="pre">--complex-config</span> <span class="pre">is</span> <span class="pre">provided</span></code></p>
+<ul>
+<li><p>Fix: add <code class="docutils literal notranslate"><span class="pre">--pdb</span> <span class="pre">...</span></code> or use <code class="docutils literal notranslate"><span class="pre">--complex-config</span> <span class="pre">...</span></code>.</p></li>
+</ul>
+</li>
+<li><p>Error: <code class="docutils literal notranslate"><span class="pre">When</span> <span class="pre">--surface</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">provided,</span> <span class="pre">both</span> <span class="pre">--lx</span> <span class="pre">and</span> <span class="pre">--ly</span> <span class="pre">are</span> <span class="pre">required</span></code></p>
+<ul>
+<li><p>Fix: add <code class="docutils literal notranslate"><span class="pre">--lx</span></code> and <code class="docutils literal notranslate"><span class="pre">--ly</span></code>, or pass <code class="docutils literal notranslate"><span class="pre">--surface</span></code>.</p></li>
+</ul>
+</li>
+<li><p>Error: <code class="docutils literal notranslate"><span class="pre">Linker</span> <span class="pre">mode</span> <span class="pre">requires</span> <span class="pre">at</span> <span class="pre">least</span> <span class="pre">one</span> <span class="pre">--linker-group</span></code></p>
+<ul>
+<li><p>Fix: add at least one <code class="docutils literal notranslate"><span class="pre">--linker-group</span></code>.</p></li>
+</ul>
+</li>
+<li><p>Error: <code class="docutils literal notranslate"><span class="pre">--ionize</span> <span class="pre">requires</span> <span class="pre">--solvate</span></code></p>
+<ul>
+<li><p>Fix: enable <code class="docutils literal notranslate"><span class="pre">--solvate</span></code>.</p></li>
+</ul>
+</li>
+<li><p>Error: <code class="docutils literal notranslate"><span class="pre">DNA</span> <span class="pre">mode</span> <span class="pre">requires</span> <span class="pre">python2.7</span></code></p>
+<ul>
+<li><p>Fix: install Python 2.7 or set <code class="docutils literal notranslate"><span class="pre">MARTINISURF_PYTHON2</span></code>.</p></li>
+</ul>
+</li>
+<li><p>Error: missing linker <code class="docutils literal notranslate"><span class="pre">.itp</span></code></p>
+<ul>
+<li><p>Fix: place <code class="docutils literal notranslate"><span class="pre">linker.itp</span></code> next to <code class="docutils literal notranslate"><span class="pre">linker.gro</span></code> (same basename).</p></li>
+</ul>
+</li>
+<li><p>Random substrate placement fails</p>
+<ul>
+<li><p>Fix: reduce <code class="docutils literal notranslate"><span class="pre">--substrate-count</span></code> or use a larger box (<code class="docutils literal notranslate"><span class="pre">--lx</span></code>, <code class="docutils literal notranslate"><span class="pre">--ly</span></code>, <code class="docutils literal notranslate"><span class="pre">--dist</span></code>).</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="practical-checklist-before-long-runs">
+<h2>10) Practical checklist before long runs<a class="headerlink" href="#practical-checklist-before-long-runs" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Visualize <code class="docutils literal notranslate"><span class="pre">2_system/immobilized_system.gro</span></code> before production simulation.</p></li>
+<li><p>Confirm <code class="docutils literal notranslate"><span class="pre">index.ndx</span></code> includes expected <code class="docutils literal notranslate"><span class="pre">Anchor_*</span></code> groups.</p></li>
+<li><p>Review <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">molecules</span> <span class="pre">]</span></code> in <code class="docutils literal notranslate"><span class="pre">system.top</span></code> or <code class="docutils literal notranslate"><span class="pre">system_final.top</span></code>.</p></li>
+<li><p>If using linker/substrate/cofactor, verify their <code class="docutils literal notranslate"><span class="pre">.itp</span></code> files are in <code class="docutils literal notranslate"><span class="pre">0_topology/system_itp/</span></code>.</p></li>
+<li><p>Run a short test first (for example without <code class="docutils literal notranslate"><span class="pre">--ionize</span></code>) to validate geometry.</p></li>
+</ul>
+</section>
+<section id="short-software-evaluation">
+<h2>11) Short software evaluation<a class="headerlink" href="#short-software-evaluation" title="Link to this heading"></a></h2>
+<p>What is strong:</p>
+<ul class="simple">
+<li><p>End-to-end automation (structure to GROMACS-ready system).</p></li>
+<li><p>Supports protein, DNA, linker, and pre-CG complex workflows.</p></li>
+<li><p>Early validation for incompatible flag combinations.</p></li>
+</ul>
+<p>What to keep in mind:</p>
+<ul class="simple">
+<li><p>Depends on external tools (<code class="docutils literal notranslate"><span class="pre">martinize2</span></code>, Python2, <code class="docutils literal notranslate"><span class="pre">gmx</span></code>).</p></li>
+<li><p>DNA path still depends on <code class="docutils literal notranslate"><span class="pre">martinize-dna.py</span></code> (Python2 ecosystem).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--freeze-water-seed</span></code> exists as a parameter, but current freeze-water selection is deterministic in the implementation.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="cli.html" class="btn btn-neutral float-left" title="CLI Reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, MartiniSurf Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
