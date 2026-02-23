@@ -466,11 +466,11 @@ def test_multi_linker_generates_3n_anchors_and_2n_pulls(tmp_path, monkeypatch):
     assert "[ Anchor_6 ]" in index_text
 
 
-def test_linker_pull_init_values_are_configurable(tmp_path, monkeypatch):
+def test_linker_pull_uses_start_from_current_distance(tmp_path, monkeypatch):
     sim, _ = prepare_simulation_structure(tmp_path)
     monkeypatch.chdir(sim / "2_system")
 
-    gro = """Linker init test
+    gro = """Linker start test
   2
     1ALA     CA    1   1.000   1.000   1.000
     2LNK     C1    2   1.500   1.500   0.800
@@ -485,13 +485,44 @@ def test_linker_pull_init_values_are_configurable(tmp_path, monkeypatch):
         "--use-linker",
         "--linker-resname", "LNK",
         "--linker-size", "1",
-        "--linker-pull-init-prot", "0.430",
-        "--linker-pull-init-surf", "0.365",
     ])
 
     production = (sim / "1_mdp" / "production.mdp").read_text()
-    assert "pull-coord1-init         = 0.430" in production
-    assert "pull-coord2-init         = 0.365" in production
+    assert "pull-coord1_start        = yes" in production
+    assert "pull-coord2_start        = yes" in production
+    assert "pull-coord1-init" not in production
+    assert "pull-coord2-init" not in production
+
+
+def test_write_custom_mdp_skips_pull_rewrite_when_disabled(tmp_path):
+    src = tmp_path / "nvt_dna.mdp"
+    dst = tmp_path / "nvt_dna_out.mdp"
+    original = """integrator = md
+pull                     = yes
+pull-ngroups             = 2
+pull-group1-name         = Anchor_1
+pull-group2-name         = SRF
+pull-ncoords             = 1
+pull-coord1-geometry     = distance
+pull-coord1-groups       = 1 2
+pull-coord1-type         = umbrella
+pull-coord1-k            = 1000.0
+pull-coord1-rate         = 0
+pull-coord1-dim          = N N Y
+;pull-coord1_start        = yes
+pull-coord1-init         = 0.8
+"""
+    src.write_text(original)
+
+    gms.write_custom_mdp(
+        src=src,
+        dst=dst,
+        anchor_count=1,
+        is_dna=True,
+        rewrite_pull=False,
+    )
+
+    assert dst.read_text() == original
 
 
 def test_dna_topologies_start_with_rubber_bands_define(tmp_path):

@@ -276,7 +276,7 @@ def _strip_pull_section(text: str) -> str:
     return "\n".join(keep).rstrip() + "\n"
 
 
-def _build_pull_block(anchor_count: int, surface_group: str, k: float = 1000.0, init: float = 0.8) -> str:
+def _build_pull_block(anchor_count: int, surface_group: str, k: float = 1000.0) -> str:
     if anchor_count <= 0:
         return ""
 
@@ -301,7 +301,7 @@ def _build_pull_block(anchor_count: int, surface_group: str, k: float = 1000.0, 
         lines.append(f"pull-coord{i}-k            = {k:.1f}")
         lines.append(f"pull-coord{i}-rate         = 0")
         lines.append(f"pull-coord{i}-dim          = N N Y")
-        lines.append(f"pull-coord{i}-init         = {init:.1f}")
+        lines.append(f"pull-coord{i}_start        = yes")
         lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
@@ -311,8 +311,6 @@ def _build_linker_pull_block(
     linker_count: int,
     surface_group: str,
     k: float = 1000.0,
-    init_prot: float = 0.8,
-    init_surf: float = 0.8,
 ) -> str:
     if linker_count <= 0:
         return ""
@@ -344,7 +342,7 @@ def _build_linker_pull_block(
         lines.append(f"pull-coord{coord_id}-k            = {k:.1f}")
         lines.append(f"pull-coord{coord_id}-rate         = 0")
         lines.append(f"pull-coord{coord_id}-dim          = N N Y")
-        lines.append(f"pull-coord{coord_id}-init         = {init_prot:.3f}")
+        lines.append(f"pull-coord{coord_id}_start        = yes")
         lines.append("")
         coord_id += 1
 
@@ -355,7 +353,7 @@ def _build_linker_pull_block(
         lines.append(f"pull-coord{coord_id}-k            = {k:.1f}")
         lines.append(f"pull-coord{coord_id}-rate         = 0")
         lines.append(f"pull-coord{coord_id}-dim          = N N Y")
-        lines.append(f"pull-coord{coord_id}-init         = {init_surf:.3f}")
+        lines.append(f"pull-coord{coord_id}_start        = yes")
         lines.append("")
         coord_id += 1
 
@@ -369,10 +367,12 @@ def write_custom_mdp(
     is_dna: bool,
     linker_pull: bool = False,
     linker_count: int = 1,
-    linker_pull_init_prot: float = 0.8,
-    linker_pull_init_surf: float = 0.8,
+    rewrite_pull: bool = True,
 ) -> None:
     text = src.read_text()
+    if not rewrite_pull:
+        dst.write_text(text)
+        return
     has_pull = bool(re.search(r"^\s*pull\s*=", text, flags=re.MULTILINE))
     surface_group = _infer_surface_pull_group(text, is_dna=is_dna)
     clean = _strip_pull_section(text)
@@ -382,8 +382,6 @@ def write_custom_mdp(
             clean = clean.rstrip() + "\n" + _build_linker_pull_block(
                 linker_count=linker_count,
                 surface_group=surface_group,
-                init_prot=linker_pull_init_prot,
-                init_surf=linker_pull_init_surf,
             )
         elif anchor_count > 0:
             clean = clean.rstrip() + "\n" + _build_pull_block(anchor_count, surface_group)
@@ -433,8 +431,18 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--linker-resname", help="Residue name used by linker beads in immobilized_system.gro.")
     parser.add_argument("--linker-size", type=int, help="Number of beads per linker instance.")
     parser.add_argument("--linker-itp-name", default="linker.itp", help="Linker topology filename in system_itp.")
-    parser.add_argument("--linker-pull-init-prot", type=float, default=0.8, help="Pull init (nm) for biomolecule↔linker.")
-    parser.add_argument("--linker-pull-init-surf", type=float, default=0.8, help="Pull init (nm) for linker↔surface.")
+    parser.add_argument(
+        "--linker-pull-init-prot",
+        type=float,
+        default=0.8,
+        help="Deprecated (ignored): uses pull-coord*_start = yes.",
+    )
+    parser.add_argument(
+        "--linker-pull-init-surf",
+        type=float,
+        default=0.8,
+        help="Deprecated (ignored): uses pull-coord*_start = yes.",
+    )
     parser.add_argument("--go-model", action="store_true", help="Add GO_VIRT define to generated protein topologies.")
     parser.add_argument("--cofactor-itp-name", help="Cofactor topology filename in system_itp.")
     parser.add_argument("--cofactor-count", type=int, default=0, help="Number of cofactor molecules in the system.")
@@ -811,6 +819,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         for src_name, dst_name in mdp_files.items():
             src = mdp_pkg / src_name
             if src.exists():
+                rewrite_pull = dst_name in {
+                    "deposition.mdp",
+                    "production.mdp",
+                    "deposition_dna.mdp",
+                    "production_dna.mdp",
+                }
                 write_custom_mdp(
                     src=src,
                     dst=mdp_dir / dst_name,
@@ -818,8 +832,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                     is_dna=is_dna,
                     linker_pull=linker_pull_enabled,
                     linker_count=(len(pull_anchor_atoms) // 3) if linker_pull_enabled else 1,
-                    linker_pull_init_prot=args.linker_pull_init_prot,
-                    linker_pull_init_surf=args.linker_pull_init_surf,
+                    rewrite_pull=rewrite_pull,
                 )
                 print(f"  ✔ {src_name} → {dst_name}")
             else:
