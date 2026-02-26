@@ -1990,8 +1990,17 @@ def main(argv=None):
             class_b=_bead_size_class(surface_atom or args.surface_bead),
         )
 
-        linker_prot_dist_ang = args.linker_prot_dist if args.linker_prot_dist is not None else prot_sigma_nm * 10.0
-        linker_surf_dist_ang = args.linker_surf_dist if args.linker_surf_dist is not None else surf_sigma_nm * 10.0
+        # Auto linker distances follow sigma*1.12 (converted from nm to Angstrom).
+        linker_prot_dist_ang = (
+            args.linker_prot_dist
+            if args.linker_prot_dist is not None
+            else prot_sigma_nm * 1.12 * 10.0
+        )
+        linker_surf_dist_ang = (
+            args.linker_surf_dist
+            if args.linker_surf_dist is not None
+            else surf_sigma_nm * 1.12 * 10.0
+        )
 
         print(
             f"ℹ Linker distances (A): prot={linker_prot_dist_ang:.3f} "
@@ -2058,8 +2067,8 @@ def main(argv=None):
         linker_size = _read_gro_atom_count(args.linker)
         if linker_size and linker_size > 0:
             final_args += ["--linker-size", str(linker_size)]
-        final_args += ["--linker-pull-init-prot", str(prot_sigma_nm)]
-        final_args += ["--linker-pull-init-surf", str(surf_sigma_nm)]
+        final_args += ["--linker-pull-init-prot", str(linker_prot_dist_ang / 10.0)]
+        final_args += ["--linker-pull-init-surf", str(linker_surf_dist_ang / 10.0)]
 
         linker_itp = Path(args.linker).with_suffix(".itp")
         if not linker_itp.exists():

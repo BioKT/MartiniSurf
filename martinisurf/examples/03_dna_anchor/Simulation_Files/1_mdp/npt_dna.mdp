@@ -48,13 +48,13 @@ refcoord_scaling         = all
 pull                     = yes
 pull-ngroups             = 2
 pull-group1-name         = Anchor_1
-pull-group2-name         = SRF
+pull-group2-name         = GRA
 
 pull-ncoords             = 1
 pull-coord1-geometry     = distance
 pull-coord1-groups       = 1 2
 pull-coord1-type         = umbrella
-pull-coord1-k            = 1000.0
+pull-coord1-k            = 500.0
 pull-coord1-rate         = 0
 pull-coord1-dim          = N N Y
-pull-coord1-init         = 0.8
+pull-coord1_start        = yes

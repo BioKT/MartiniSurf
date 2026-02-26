@@ -1,5 +1,5 @@
 ; This file was generated using the following command:
-; /home/jjimenez/anaconda3/bin/martinize2 -f /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/02_protein_linker/Simulation_Files/2_system/cleaned_input.pdb -x /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/02_protein_linker/Simulation_Files/_martinize_tmp/Protein_cg.pdb -o /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/02_protein_linker/Simulation_Files/_martinize_tmp/Protein_cg.top -ff martini3001 -name Protein -maxwarn 0 -merge A,B,C,D -p backbone -pf 1000 -dssp
+; /home/jjimenez/.local/bin/martinize2 -f /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/02_protein_linker/Simulation_Files/2_system/cleaned_input.pdb -x /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/02_protein_linker/Simulation_Files/_martinize_tmp/Protein_cg.pdb -o /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/02_protein_linker/Simulation_Files/_martinize_tmp/Protein_cg.top -ff martini3001 -name Protein -maxwarn 0 -merge A,B,C,D -p backbone -pf 1000 -dssp
 ; martinize with vermouth 0.15.0
 ; The following sequence of secondary structure 
 ; was used for the full system:

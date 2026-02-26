@@ -68,6 +68,7 @@ def write_top_files(
     use_linker: bool,
     go_model: bool = False,
     linker_itp_name: str = "linker.itp",
+    restrained_linker_itp_name: str | None = None,
     linker_moltype: str | None = None,
     linker_count: int = 0,
     cofactor_itp_name: str | None = None,
@@ -98,7 +99,7 @@ def write_top_files(
 
     present_forcefields = [itp for itp in forcefield_itps if itp and (dst_itp_dir / itp).exists()]
 
-    def _include_block(molecule_itp_name: str) -> str:
+    def _include_block(molecule_itp_name: str, linker_include_name: str | None = None) -> str:
         lines = []
         if is_dna:
             lines.append("#define RUBBER_BANDS")
@@ -110,7 +111,8 @@ def write_top_files(
         lines.append(f'#include "system_itp/{molecule_itp_name}"')
         lines.append('#include "system_itp/surface.itp"')
         if use_linker:
-            lines.append(f'#include "system_itp/{linker_itp_name}"')
+            chosen_linker_itp = linker_include_name or linker_itp_name
+            lines.append(f'#include "system_itp/{chosen_linker_itp}"')
         if cofactor_itp_name and cofactor_count > 0:
             lines.append(f'#include "system_itp/{cofactor_itp_name}"')
         if substrate_itp_name and substrate_count > 0:
@@ -135,14 +137,14 @@ def write_top_files(
 
     with open(system_top, "w") as fh:
         fh.write(
-            _include_block(mol_itp_name)
+            _include_block(mol_itp_name, linker_itp_name)
             + "\n\n[ system ]\nMartiniSurf system\n\n[ molecules ]\n"
             + f"{moltype} 1\n{cofactor_line}{linker_line}{surface_moltype} {surface_count}\n{substrate_line}"
         )
 
     with open(system_res_top, "w") as fh:
         fh.write(
-            _include_block(anchor_itp_name)
+            _include_block(anchor_itp_name, restrained_linker_itp_name)
             + "\n\n[ system ]\nMartiniSurf restrained system\n\n[ molecules ]\n"
             + f"{moltype} 1\n{cofactor_line}{linker_line}{surface_moltype} {surface_count}\n{substrate_line}"
         )
@@ -254,11 +256,77 @@ def _count_itp_atoms(itp_path: Path) -> int:
     return count
 
 
-def _infer_surface_pull_group(text: str, is_dna: bool) -> str:
+def _rewrite_itp_with_posres(src_itp: Path, dst_itp: Path, posres_atom_ids: List[int]) -> None:
+    """Copy an ITP replacing any existing [ position_restraints ] block with a generated one."""
+    out_lines: list[str] = []
+    in_posres = False
+
+    for raw in src_itp.read_text().splitlines(keepends=True):
+        stripped = raw.strip().lower()
+        if stripped.startswith("[") and "position_restraints" in stripped:
+            in_posres = True
+            continue
+        if in_posres:
+            if raw.strip().startswith("["):
+                in_posres = False
+                out_lines.append(raw)
+            continue
+        out_lines.append(raw)
+
+    if posres_atom_ids:
+        if out_lines and not out_lines[-1].endswith("\n"):
+            out_lines[-1] = out_lines[-1] + "\n"
+        out_lines.append("\n[ position_restraints ]\n")
+        out_lines.append("#ifdef POSRES\n")
+        for atom_id in sorted(set(posres_atom_ids)):
+            out_lines.append(f"{atom_id} 1 1000 1000 0\n")
+        out_lines.append("#endif\n")
+
+    dst_itp.write_text("".join(out_lines))
+
+
+def _infer_linker_restrained_atom_ids(
+    pull_anchor_atoms: Dict[int, List[int]],
+    linker_atom_ids: set[int],
+    linker_size: int | None,
+) -> List[int]:
+    """
+    Infer linker-local atom indices to restrain from linker-tail pull groups.
+    Falls back to the last linker bead when mapping is unavailable.
+    """
+    if not linker_size or linker_size <= 0:
+        return []
+
+    tail_global_ids = sorted(
+        {
+            int(atoms[0])
+            for gid, atoms in pull_anchor_atoms.items()
+            if gid % 3 == 0 and atoms
+        }
+    )
+    if not tail_global_ids:
+        return [linker_size]
+
+    linker_ids_sorted = sorted(int(i) for i in linker_atom_ids)
+    id_to_pos = {atom_id: idx for idx, atom_id in enumerate(linker_ids_sorted)}
+
+    local_ids: set[int] = set()
+    for tail_id in tail_global_ids:
+        pos = id_to_pos.get(tail_id)
+        if pos is None:
+            continue
+        local_ids.add((pos % linker_size) + 1)
+
+    return sorted(local_ids) if local_ids else [linker_size]
+
+
+def _infer_surface_pull_group(text: str, is_dna: bool, surface_moltype: str | None = None) -> str:
+    if surface_moltype:
+        return str(surface_moltype).strip()
     m = re.search(r"^\s*pull-group2-name\s*=\s*([A-Za-z0-9_+-]+)", text, flags=re.MULTILINE)
     if m:
         return m.group(1)
-    return "SRF" if is_dna else "GRA"
+    return "SRF"
 
 
 def _strip_pull_section(text: str) -> str:
@@ -276,7 +344,12 @@ def _strip_pull_section(text: str) -> str:
     return "\n".join(keep).rstrip() + "\n"
 
 
-def _build_pull_block(anchor_count: int, surface_group: str, k: float = 1000.0) -> str:
+def _build_pull_block(
+    anchor_count: int,
+    surface_group: str,
+    k: float = 500.0,
+    init_nm: float | None = None,
+) -> str:
     if anchor_count <= 0:
         return ""
 
@@ -301,7 +374,11 @@ def _build_pull_block(anchor_count: int, surface_group: str, k: float = 1000.0) 
         lines.append(f"pull-coord{i}-k            = {k:.1f}")
         lines.append(f"pull-coord{i}-rate         = 0")
         lines.append(f"pull-coord{i}-dim          = N N Y")
-        lines.append(f"pull-coord{i}_start        = yes")
+        if init_nm is None:
+            lines.append(f"pull-coord{i}_start        = yes")
+        else:
+            lines.append(f"pull-coord{i}_start        = no")
+            lines.append(f"pull-coord{i}-init         = {init_nm:.4f}")
         lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
@@ -310,7 +387,9 @@ def _build_pull_block(anchor_count: int, surface_group: str, k: float = 1000.0) 
 def _build_linker_pull_block(
     linker_count: int,
     surface_group: str,
-    k: float = 1000.0,
+    k: float = 500.0,
+    init_prot_nm: float | None = None,
+    init_surf_nm: float | None = None,
 ) -> str:
     if linker_count <= 0:
         return ""
@@ -342,7 +421,11 @@ def _build_linker_pull_block(
         lines.append(f"pull-coord{coord_id}-k            = {k:.1f}")
         lines.append(f"pull-coord{coord_id}-rate         = 0")
         lines.append(f"pull-coord{coord_id}-dim          = N N Y")
-        lines.append(f"pull-coord{coord_id}_start        = yes")
+        if init_prot_nm is None:
+            lines.append(f"pull-coord{coord_id}_start        = yes")
+        else:
+            lines.append(f"pull-coord{coord_id}_start        = no")
+            lines.append(f"pull-coord{coord_id}-init         = {init_prot_nm:.4f}")
         lines.append("")
         coord_id += 1
 
@@ -353,7 +436,11 @@ def _build_linker_pull_block(
         lines.append(f"pull-coord{coord_id}-k            = {k:.1f}")
         lines.append(f"pull-coord{coord_id}-rate         = 0")
         lines.append(f"pull-coord{coord_id}-dim          = N N Y")
-        lines.append(f"pull-coord{coord_id}_start        = yes")
+        if init_surf_nm is None:
+            lines.append(f"pull-coord{coord_id}_start        = yes")
+        else:
+            lines.append(f"pull-coord{coord_id}_start        = no")
+            lines.append(f"pull-coord{coord_id}-init         = {init_surf_nm:.4f}")
         lines.append("")
         coord_id += 1
 
@@ -365,8 +452,12 @@ def write_custom_mdp(
     dst: Path,
     anchor_count: int,
     is_dna: bool,
+    surface_moltype: str | None = None,
     linker_pull: bool = False,
     linker_count: int = 1,
+    linker_pull_init_prot_nm: float | None = None,
+    linker_pull_init_surf_nm: float | None = None,
+    anchor_pull_init_nm: float | None = None,
     rewrite_pull: bool = True,
 ) -> None:
     text = src.read_text()
@@ -374,7 +465,7 @@ def write_custom_mdp(
         dst.write_text(text)
         return
     has_pull = bool(re.search(r"^\s*pull\s*=", text, flags=re.MULTILINE))
-    surface_group = _infer_surface_pull_group(text, is_dna=is_dna)
+    surface_group = _infer_surface_pull_group(text, is_dna=is_dna, surface_moltype=surface_moltype)
     clean = _strip_pull_section(text)
 
     if has_pull:
@@ -382,9 +473,15 @@ def write_custom_mdp(
             clean = clean.rstrip() + "\n" + _build_linker_pull_block(
                 linker_count=linker_count,
                 surface_group=surface_group,
+                init_prot_nm=linker_pull_init_prot_nm,
+                init_surf_nm=linker_pull_init_surf_nm,
             )
         elif anchor_count > 0:
-            clean = clean.rstrip() + "\n" + _build_pull_block(anchor_count, surface_group)
+            clean = clean.rstrip() + "\n" + _build_pull_block(
+                anchor_count,
+                surface_group,
+                init_nm=anchor_pull_init_nm,
+            )
 
     dst.write_text(clean)
 
@@ -400,6 +497,10 @@ def _validate_cli_args(parser: argparse.ArgumentParser, args: argparse.Namespace
         parser.error("--substrate-count must be >= 0.")
     if args.substrate_count > 0 and not args.substrate_itp_name:
         parser.error("--substrate-count requires --substrate-itp-name.")
+    if args.linker_pull_init_prot is not None and args.linker_pull_init_prot <= 0:
+        parser.error("--linker-pull-init-prot must be > 0 when provided.")
+    if args.linker_pull_init_surf is not None and args.linker_pull_init_surf <= 0:
+        parser.error("--linker-pull-init-surf must be > 0 when provided.")
 
 
 # ======================================================================
@@ -434,14 +535,14 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument(
         "--linker-pull-init-prot",
         type=float,
-        default=0.8,
-        help="Deprecated (ignored): uses pull-coord*_start = yes.",
+        default=None,
+        help="Target initial linker-protein pull distance (nm).",
     )
     parser.add_argument(
         "--linker-pull-init-surf",
         type=float,
-        default=0.8,
-        help="Deprecated (ignored): uses pull-coord*_start = yes.",
+        default=None,
+        help="Target initial linker-surface pull distance (nm).",
     )
     parser.add_argument("--go-model", action="store_true", help="Add GO_VIRT define to generated protein topologies.")
     parser.add_argument("--cofactor-itp-name", help="Cofactor topology filename in system_itp.")
@@ -815,11 +916,18 @@ def main(argv: Sequence[str] | None = None) -> None:
                 "production.mdp": "production.mdp",
             }
 
+        surface_itp_path = dst_itp_dir / "surface.itp"
+        surface_moltype = _read_itp_moleculetype(surface_itp_path) or "SRF"
+
         # copy MDPs
         for src_name, dst_name in mdp_files.items():
             src = mdp_pkg / src_name
             if src.exists():
                 rewrite_pull = dst_name in {
+                    "nvt.mdp",
+                    "npt.mdp",
+                    "nvt_dna.mdp",
+                    "npt_dna.mdp",
                     "deposition.mdp",
                     "production.mdp",
                     "deposition_dna.mdp",
@@ -830,8 +938,11 @@ def main(argv: Sequence[str] | None = None) -> None:
                     dst=mdp_dir / dst_name,
                     anchor_count=len(pull_anchor_atoms),
                     is_dna=is_dna,
+                    surface_moltype=surface_moltype,
                     linker_pull=linker_pull_enabled,
                     linker_count=(len(pull_anchor_atoms) // 3) if linker_pull_enabled else 1,
+                    linker_pull_init_prot_nm=args.linker_pull_init_prot,
+                    linker_pull_init_surf_nm=args.linker_pull_init_surf,
                     rewrite_pull=rewrite_pull,
                 )
                 print(f"  ✔ {src_name} → {dst_name}")
@@ -839,6 +950,31 @@ def main(argv: Sequence[str] | None = None) -> None:
                 print(f"⚠ Missing MDP template: {src_name}")
 
     anchor_moltype = mol_itp.stem if is_dna else moltype
+    restrained_mol_itp_name = f"{anchor_moltype}_anchor.itp"
+    restrained_linker_itp_name: str | None = None
+    if args.use_linker:
+        # In linker mode, do not restrain DNA/Protein by default.
+        restrained_mol_itp_name = mol_itp.name
+        linker_anchor_atoms = _infer_linker_restrained_atom_ids(
+            pull_anchor_atoms=pull_anchor_atoms,
+            linker_atom_ids=linker_atom_ids,
+            linker_size=args.linker_size,
+        )
+        linker_itp_path = dst_itp_dir / args.linker_itp_name
+        if linker_anchor_atoms and linker_itp_path.exists():
+            restrained_linker_itp_name = f"{Path(args.linker_itp_name).stem}_anchor.itp"
+            _rewrite_itp_with_posres(
+                src_itp=linker_itp_path,
+                dst_itp=dst_itp_dir / restrained_linker_itp_name,
+                posres_atom_ids=linker_anchor_atoms,
+            )
+            print(
+                "✔ Linker restrained topology generated: "
+                f"{restrained_linker_itp_name} (atoms {linker_anchor_atoms})"
+            )
+        else:
+            print("ℹ Linker restrained topology could not be generated; skipping linker POSRES include.")
+
     surface_itp_path = dst_itp_dir / "surface.itp"
     surface_moltype = _read_itp_moleculetype(surface_itp_path) or "SRF"
     surface_itp_atoms = _count_itp_atoms(surface_itp_path)
@@ -861,11 +997,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         dst_itp_dir=dst_itp_dir,
         moltype=moltype,
         mol_itp_name=mol_itp.name,
-        anchor_itp_name=f"{anchor_moltype}_anchor.itp",
+        anchor_itp_name=restrained_mol_itp_name,
         is_dna=is_dna,
         use_linker=args.use_linker,
         go_model=args.go_model,
         linker_itp_name=args.linker_itp_name,
+        restrained_linker_itp_name=restrained_linker_itp_name,
         linker_moltype=linker_moltype_name,
         linker_count=linker_total,
         cofactor_itp_name=args.cofactor_itp_name if include_cofactor_itp else None,

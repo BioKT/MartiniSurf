@@ -42,7 +42,7 @@ refcoord_scaling         = all
 pull                     = yes
 pull-ngroups             = 3                     ; Total number of pull groups
 pull-group1-name         = Anchor_1            ; First pull group
-pull-group2-name         = GRA                   ; Second pull group (common)
+pull-group2-name         = SRF                   ; Second pull group (common)
 pull-group3-name         = Anchor_2            ; Third pull group
 
 ;pull-pbc-ref-prev-step-com = yes
@@ -51,9 +51,9 @@ pull-group3-name         = Anchor_2            ; Third pull group
 ; First pulling coordinate (Umbrella 1)
 pull-ncoords             = 2                     ; Two pulling coordinates
 pull-coord1-geometry     = distance              ; Geometry type for the first coordinate
-pull-coord1-groups       = 1 2                   ; Groups involved in the first coordinate (Anchor_1 and GRA)
+pull-coord1-groups       = 1 2                   ; Groups involved in the first coordinate (Anchor_1 and SRF)
 pull-coord1-type         = umbrella              ; Pulling type for the first coordinate (umbrella)
-pull-coord1-k            = 1000.0                ; Force constant for the first coordinate
+pull-coord1-k            = 500.0                ; Force constant for the first coordinate
 pull-coord1-rate         = 0                     ; Pulling rate (0 for umbrella)
 pull-coord1-dim          = N N Y                 ; Pulling dimensions for the first coordinate
 pull-coord1_start        = yes                   ; Start from the current distance
@@ -61,9 +61,9 @@ pull-coord1_start        = yes                   ; Start from the current distan
 
 ; Second pulling coordinate (Umbrella 2)
 pull-coord2-geometry     = distance              ; Geometry type for the second coordinate
-pull-coord2-groups       = 3 2                   ; Groups involved in the second coordinate (Anchor_2 and GRA)
+pull-coord2-groups       = 3 2                   ; Groups involved in the second coordinate (Anchor_2 and SRF)
 pull-coord2-type         = umbrella              ; Pulling type for the second coordinate (umbrella)
-pull-coord2-k            = 1000.0                ; Force constant for the second coordinate
+pull-coord2-k            = 500.0                ; Force constant for the second coordinate
 pull-coord2-rate         = 0                     ; Pulling rate (0 for umbrella)
 pull-coord2-dim          = N N Y                 ; Pulling dimensions for the second coordinate
 pull-coord2_start        = yes                   ; Start from the current distance

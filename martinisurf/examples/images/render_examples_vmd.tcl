@@ -24,6 +24,73 @@ proc has_atoms {mol selection} {
     return $n
 }
 
+proc render_view {ex_name out_dir view_tag view_setup_cmd} {
+    # Apply camera transform for this view.
+    display resetview
+    eval $view_setup_cmd
+
+    set tga_out [file join $out_dir "${ex_name}_${view_tag}.tga"]
+    set png_out [file join $out_dir "${ex_name}_${view_tag}.png"]
+
+    render TachyonInternal $tga_out
+
+    # Convert to PNG when available.
+    if {[catch {exec magick convert $tga_out $png_out} _] != 0} {
+        if {[catch {exec convert $tga_out $png_out} _] != 0} {
+            puts "$ex_name ($view_tag): rendered $tga_out (PNG conversion tool not found)"
+            return ""
+        } else {
+            file delete -force $tga_out
+            puts "$ex_name ($view_tag): rendered $png_out"
+            return $png_out
+        }
+    } else {
+        file delete -force $tga_out
+        puts "$ex_name ($view_tag): rendered $png_out"
+        return $png_out
+    }
+}
+
+proc anchor_index_selection {example_dir} {
+    set ndx_path [file join $example_dir Simulation_Files 0_topology index.ndx]
+    if {![file exists $ndx_path]} {
+        return ""
+    }
+
+    set fh [open $ndx_path r]
+    set in_anchor_group 0
+    set atom_ids {}
+
+    while {[gets $fh line] >= 0} {
+        set s [string trim $line]
+        if {$s eq ""} {
+            continue
+        }
+        if {[regexp {^\[\s*([^\]]+)\s*\]$} $s -> group_name]} {
+            if {[string match "Anchor_*" $group_name]} {
+                set in_anchor_group 1
+            } else {
+                set in_anchor_group 0
+            }
+            continue
+        }
+        if {$in_anchor_group} {
+            foreach tok [split $s] {
+                if {[string is integer -strict $tok]} {
+                    # GROMACS index atoms are 1-based; VMD "index" is 0-based.
+                    lappend atom_ids [expr {$tok - 1}]
+                }
+            }
+        }
+    }
+    close $fh
+
+    if {[llength $atom_ids] == 0} {
+        return ""
+    }
+    return "index [join [lsort -integer -unique $atom_ids] { }]"
+}
+
 proc render_example {example_dir out_dir} {
     set gro [pick_system_gro $example_dir]
     if {$gro eq ""} {
@@ -53,6 +120,7 @@ proc render_example {example_dir out_dir} {
     display depthcue off
     display resize 2800 2200
     color Display Background white
+    color change rgb 31 1.00 0.00 0.00
     color change rgb 29 1.00 0.90 0.00
     axes location Off
 
@@ -62,14 +130,32 @@ proc render_example {example_dir out_dir} {
     # Exclusions shared by all selections.
     set exclude_solvent_ions "resname W WF SOL NA CL K CA MG ZN LI RB CS BA SR F BR I"
     set protein_res "ALA ARG ASN ASP CYS GLN GLU GLY HIS ILE LEU LYS MET PHE PRO SER THR TRP TYR VAL"
+    # Anchor residues from example 05 to highlight across protein renders.
+    set protein_anchor_resids "8 10 11 1025 1027 1028"
+    set anchor_idx_sel [anchor_index_selection $example_dir]
+    if {$anchor_idx_sel ne ""} {
+        set anchor_core_sel "same residue as ($anchor_idx_sel)"
+    } else {
+        set anchor_core_sel "resname $protein_res and resid $protein_anchor_resids"
+    }
 
     # Rep 1: protein backbone beads only (BB), uniform purple.
-    set protein_bb_sel "name BB and resname $protein_res and not ($exclude_solvent_ions)"
+    set protein_bb_sel "name BB and resname $protein_res and not ($exclude_solvent_ions) and not ($anchor_core_sel)"
     if {[has_atoms $m $protein_bb_sel] > 0} {
         mol representation VDW 1.4 24.0
         mol color ColorID 10
         mol selection $protein_bb_sel
         mol material AOEdgy
+        mol addrep $m
+    }
+
+    # Rep 1b: highlight anchor residues in red when protein is present.
+    set protein_anchor_sel "$anchor_core_sel and not ($exclude_solvent_ions)"
+    if {[has_atoms $m $protein_anchor_sel] > 0} {
+        mol representation VDW 2.2 24.0
+        mol color ColorID 31
+        mol selection $protein_anchor_sel
+        mol material Opaque
         mol addrep $m
     }
 
@@ -135,28 +221,17 @@ proc render_example {example_dir out_dir} {
         }
     }
 
-    # Camera: ZX-style view (look roughly along Y axis).
-    display resetview
-    rotate z by -90
-    scale by 1.8
-
     set ex_name [file tail $example_dir]
-    set tga_out [file join $out_dir "${ex_name}_top.tga"]
-    set png_out [file join $out_dir "${ex_name}_top.png"]
+    # Top view (existing ZX-style look, roughly along Y axis).
+    set top_png [render_view $ex_name $out_dir "top" {rotate z by -90; scale by 1.8}]
+    # Side view.
+    set side_png [render_view $ex_name $out_dir "side" {rotate y by 90; scale by 1.8}]
 
-    render TachyonInternal $tga_out
-
-    # Convert to PNG when available.
-    if {[catch {exec magick convert $tga_out $png_out} _] != 0} {
-        if {[catch {exec convert $tga_out $png_out} _] != 0} {
-            puts "$ex_name: rendered $tga_out (PNG conversion tool not found)"
-        } else {
-            file delete -force $tga_out
-            puts "$ex_name: rendered $png_out"
-        }
-    } else {
-        file delete -force $tga_out
-        puts "$ex_name: rendered $png_out"
+    # Compatibility alias used by existing docs/pages.
+    if {$side_png ne ""} {
+        file copy -force $side_png [file join $out_dir "${ex_name}_final.png"]
+    } elseif {$top_png ne ""} {
+        file copy -force $top_png [file join $out_dir "${ex_name}_final.png"]
     }
 
     mol delete $m

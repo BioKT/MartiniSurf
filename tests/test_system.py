@@ -215,6 +215,48 @@ def test_molecules_block_adds_total_linkers_with_itp_moltype(tmp_path, monkeypat
     assert "PEGX 2" in system_res_top
 
 
+def test_linker_mode_restrains_linker_and_not_biomolecule(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    gro = """Linker restraint routing test
+  6
+    1ALA     CA    1   1.000   1.000   1.200
+    2ALA     CA    2   2.000   2.000   1.200
+    3LNK     C1    3   1.050   1.050   1.100
+    3LNK     C2    4   1.050   1.050   0.300
+    4LNK     C1    5   2.050   2.050   1.100
+    4LNK     C2    6   2.050   2.050   0.300
+   4.00000   4.00000   4.00000
+"""
+    (sim / "2_system" / "immobilized_system.gro").write_text(gro)
+    (sim / "system_itp" / "peg_linker.itp").write_text(
+        "[ moleculetype ]\nPEGX 1\n\n"
+        "[ atoms ]\n"
+        "1 C1 1 LNK C1 1 0.0\n"
+        "2 C1 1 LNK C2 2 0.0\n"
+    )
+
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "1",
+        "--anchor", "2", "2",
+        "--use-linker",
+        "--linker-resname", "LNK",
+        "--linker-size", "2",
+        "--linker-itp-name", "peg_linker.itp",
+    ])
+
+    system_res_top = (sim / "0_topology" / "system_res.top").read_text()
+    linker_anchor_itp = (sim / "0_topology" / "system_itp" / "peg_linker_anchor.itp").read_text()
+
+    assert '#include "system_itp/ENZ.itp"' in system_res_top
+    assert '#include "system_itp/ENZ_anchor.itp"' not in system_res_top
+    assert '#include "system_itp/peg_linker_anchor.itp"' in system_res_top
+    assert "[ position_restraints ]" in linker_anchor_itp
+    assert "2 1 1000 1000 0" in linker_anchor_itp
+
+
 def test_molecules_block_falls_back_to_itp_stem_when_missing_moleculetype(tmp_path, monkeypatch):
     sim, _ = prepare_simulation_structure(tmp_path)
     monkeypatch.chdir(sim / "2_system")

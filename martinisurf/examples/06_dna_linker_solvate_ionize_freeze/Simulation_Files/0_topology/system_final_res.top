@@ -2,9 +2,9 @@
 
 #include "system_itp/martini_v2.1-dna.itp"
 #include "system_itp/martini_v2.0_ions.itp"
-#include "system_itp/Nucleic_A+Nucleic_B_anchor.itp"
+#include "system_itp/Nucleic_A+Nucleic_B.itp"
 #include "system_itp/surface.itp"
-#include "system_itp/ALK.itp"
+#include "system_itp/ALK_anchor.itp"
 
 [ system ]
 MartiniSurf restrained system
@@ -13,7 +13,7 @@ MartiniSurf restrained system
 Nucleic_A+Nucleic_B 1
 ALK 1
 SRF 1008
-W 6315
-WF 701
-NA 114
-CL 92
+W 6539
+WF 726
+NA 115
+CL 93

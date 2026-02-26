@@ -14,6 +14,7 @@ martinisurf.egg-info/entry_points.txt
 martinisurf.egg-info/requires.txt
 martinisurf.egg-info/top_level.txt
 tests/test_enzyme_tethered.py
+tests/test_freeze_water.py
 tests/test_pipeline_postprocess.py
 tests/test_pipeline_surface_mode.py
 tests/test_pipeline_utils.py

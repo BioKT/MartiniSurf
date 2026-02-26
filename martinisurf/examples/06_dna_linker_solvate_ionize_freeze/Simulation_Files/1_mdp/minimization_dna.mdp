@@ -24,3 +24,4 @@ rvdw                     = 1.1
 ; Freeze groups
 freezegrps = SRF
 freezedim = Y Y Y
+
