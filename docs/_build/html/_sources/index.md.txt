@@ -1,6 +1,6 @@
 # MartiniSurf Documentation
 
-MartiniSurf is a toolkit to build Martini protein/DNA systems on surfaces, including linker workflows and optional solvation/ionization.
+MartiniSurf is a toolkit to build surface-immobilized biomolecular systems in Martini simulations
 
 ```{toctree}
 :maxdepth: 2

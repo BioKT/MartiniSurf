@@ -122,6 +122,12 @@ proc render_example {example_dir out_dir} {
     color Display Background white
     color change rgb 31 1.00 0.00 0.00
     color change rgb 29 1.00 0.90 0.00
+    color change rgb 22 0.28 0.56 0.86
+    color change rgb 23 0.36 0.85 0.93
+    color change rgb 24 0.95 0.62 0.80
+    color change rgb 25 0.28 0.70 0.72
+    color change rgb 26 1.00 0.45 0.00
+    color change rgb 27 0.05 0.20 0.60
     axes location Off
 
     # Reset default reps.
@@ -134,46 +140,56 @@ proc render_example {example_dir out_dir} {
     set protein_anchor_resids "8 10 11 1025 1027 1028"
     set anchor_idx_sel [anchor_index_selection $example_dir]
     if {$anchor_idx_sel ne ""} {
-        set anchor_core_sel "same residue as ($anchor_idx_sel)"
+        set anchor_core_sel "(same residue as ($anchor_idx_sel)) and (resname $protein_res or resname DA DC DG DT)"
     } else {
         set anchor_core_sel "resname $protein_res and resid $protein_anchor_resids"
     }
 
-    # Rep 1: protein backbone beads only (BB), uniform purple.
+    # Rep 1: protein backbone beads only (BB), uniform pink.
     set protein_bb_sel "name BB and resname $protein_res and not ($exclude_solvent_ions) and not ($anchor_core_sel)"
     if {[has_atoms $m $protein_bb_sel] > 0} {
         mol representation VDW 1.4 24.0
-        mol color ColorID 10
+        mol color ColorID 24
         mol selection $protein_bb_sel
         mol material AOEdgy
         mol addrep $m
     }
 
-    # Rep 1b: highlight anchor residues in red when protein is present.
-    set protein_anchor_sel "$anchor_core_sel and not ($exclude_solvent_ions)"
+    # Rep 1b: highlight anchor protein residues in red with protein bead size.
+    set protein_anchor_sel "($anchor_core_sel) and resname $protein_res and not ($exclude_solvent_ions)"
     if {[has_atoms $m $protein_anchor_sel] > 0} {
-        mol representation VDW 2.2 24.0
-        mol color ColorID 31
+        mol representation VDW 1.4 24.0
+        mol color ColorID 26
         mol selection $protein_anchor_sel
         mol material Opaque
         mol addrep $m
     }
 
-    # Rep 2: surface C-type beads in gray (supports C and C1 naming).
+    # Rep 1c: highlight anchor DNA residues in red with DNA bead size.
+    set dna_anchor_sel "($anchor_core_sel) and resname DA DC DG DT and not ($exclude_solvent_ions)"
+    if {[has_atoms $m $dna_anchor_sel] > 0} {
+        mol representation VDW 1.0 24.0
+        mol color ColorID 31
+        mol selection $dna_anchor_sel
+        mol material Opaque
+        mol addrep $m
+    }
+
+    # Rep 2: surface C-type beads in cyan (supports C and C1 naming).
     set surf_c1_sel "(resname SRF GRA) and name C C1 and not ($exclude_solvent_ions)"
     if {[has_atoms $m $surf_c1_sel] > 0} {
         mol representation VDW 1.0 20.0
-        mol color ColorID 2
+        mol color ColorID 25
         mol selection $surf_c1_sel
         mol material AOEdgy
         mol addrep $m
     }
 
-    # Rep 3: surface P4 beads in orange.
+    # Rep 3: surface P4 beads in cyan.
     set surf_p4_sel "(resname SRF GRA) and name P4 and not ($exclude_solvent_ions)"
     if {[has_atoms $m $surf_p4_sel] > 0} {
         mol representation VDW 1.4 20.0
-        mol color ColorID 3
+        mol color ColorID 25
         mol selection $surf_p4_sel
         mol material AOEdgy
         mol addrep $m
@@ -183,24 +199,44 @@ proc render_example {example_dir out_dir} {
     set linker_sel "resname ALK EPOX MOL1 and not ($exclude_solvent_ions)"
     if {[has_atoms $m $linker_sel] > 0} {
         mol representation VDW 1.0 24.0
-        mol color ColorID 0
+        mol color ColorID 4
         mol selection $linker_sel
-        mol material Opaque
+        mol material Glossy
         mol addrep $m
     }
 
-    # Rep 5: DNA in color-by-atom-name.
-    set dna_sel "resname DA DC DG DT and not ($exclude_solvent_ions)"
-    if {[has_atoms $m $dna_sel] > 0} {
+    # Rep 5: DNA backbone beads in blue.
+    set dna_bb_sel "resname DA DC DG DT and name BB1 BB2 BB3 and not ($exclude_solvent_ions)"
+    if {[has_atoms $m $dna_bb_sel] > 0} {
         mol representation VDW 1.0 20.0
-        mol color Name
-        mol selection $dna_sel
+        mol color ColorID 22
+        mol selection $dna_bb_sel
         mol material AOEdgy
         mol addrep $m
     }
 
-    # Rep 6: cofactors/substrates/other molecules (excluding surface/linker/protein/DNA/ions/water), color by name.
-    set cof_sub_sel "(not resname $protein_res) and not resname DA DC DG DT SRF GRA ALK EPOX MOL1 W WF SOL NA CL K CA MG ZN LI RB CS BA SR F BR I"
+    # Rep 5b: DNA side beads in turquoise.
+    set dna_sc_sel "resname DA DC DG DT and name SC1 SC2 SC3 SC4 and not ($exclude_solvent_ions)"
+    if {[has_atoms $m $dna_sc_sel] > 0} {
+        mol representation VDW 1.0 20.0
+        mol color ColorID 23
+        mol selection $dna_sc_sel
+        mol material AOEdgy
+        mol addrep $m
+    }
+
+    # Rep 6: ETO substrate in dark blue.
+    set eto_sel "resname ETO and not ($exclude_solvent_ions)"
+    if {[has_atoms $m $eto_sel] > 0} {
+        mol representation VDW 1.4 20.0
+        mol color ColorID 27
+        mol selection $eto_sel
+        mol material AOEdgy
+        mol addrep $m
+    }
+
+    # Rep 7: cofactors/substrates/other molecules (excluding surface/linker/protein/DNA/ETO/ions/water), color by name.
+    set cof_sub_sel "(not resname $protein_res) and not resname DA DC DG DT SRF GRA ALK EPOX MOL1 ETO W WF SOL NA CL K CA MG ZN LI RB CS BA SR F BR I"
     if {[has_atoms $m $cof_sub_sel] > 0} {
         mol representation VDW 1.4 20.0
         mol color Name
@@ -222,17 +258,10 @@ proc render_example {example_dir out_dir} {
     }
 
     set ex_name [file tail $example_dir]
-    # Top view (existing ZX-style look, roughly along Y axis).
+    # Top view: keep Z up and Y to the right.
     set top_png [render_view $ex_name $out_dir "top" {rotate z by -90; scale by 1.8}]
-    # Side view.
-    set side_png [render_view $ex_name $out_dir "side" {rotate y by 90; scale by 1.8}]
-
-    # Compatibility alias used by existing docs/pages.
-    if {$side_png ne ""} {
-        file copy -force $side_png [file join $out_dir "${ex_name}_final.png"]
-    } elseif {$top_png ne ""} {
-        file copy -force $top_png [file join $out_dir "${ex_name}_final.png"]
-    }
+    # Side view: Z positive up and X positive to the right.
+    set side_png [render_view $ex_name $out_dir "side" {rotate x by -90; scale by 1.8}]
 
     mol delete $m
 }

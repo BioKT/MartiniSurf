@@ -2,7 +2,7 @@
 
 The recommended complete workflows are:
 
-## Example 05: Protein + Not explicit Linker + solvate + ionize
+## Protein + Not explicit Linker + solvate + ionize
 
 Path: `martinisurf/examples/05_protein_anchor_solvate_ionize`
 
@@ -12,7 +12,7 @@ bash run.sh
 bash work_flow_gromacs.sh
 ```
 
-## Example 06: DNA + linker + solvate + ionize + frozen water
+## DNA + linker + solvate + ionize + frozen water
 
 Path: `martinisurf/examples/06_dna_linker_solvate_ionize_freeze`
 
@@ -22,7 +22,7 @@ bash run.sh
 bash work_flow_gromacs.sh
 ```
 
-## Example 07: Pre-CG protein+cofactor + substrate + solvate + ionize
+## Pre-CG protein+cofactor + substrate + solvate + ionize
 
 Path: `martinisurf/examples/07_protein_nad`
 
