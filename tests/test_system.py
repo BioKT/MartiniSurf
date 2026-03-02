@@ -158,6 +158,22 @@ def test_linker_itp_include_when_enabled(tmp_path, monkeypatch):
     assert '#include "system_itp/linker.itp"' in system_res_top
 
 
+def test_protein_without_linker_ignores_linker_specific_logic(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "1",
+    ])
+
+    index_text = (sim / "0_topology" / "index.ndx").read_text()
+    system_top = (sim / "0_topology" / "system.top").read_text()
+
+    assert "[ LINKER ]" not in index_text
+    assert '#include "system_itp/linker.itp"' not in system_top
+
+
 def test_linker_itp_include_uses_cli_name(tmp_path, monkeypatch):
     sim, _ = prepare_simulation_structure(tmp_path)
     monkeypatch.chdir(sim / "2_system")

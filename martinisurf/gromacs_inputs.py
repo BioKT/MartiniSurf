@@ -487,7 +487,9 @@ def write_custom_mdp(
 
 
 def _validate_cli_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
-    if args.use_linker and args.linker_size is not None and args.linker_size <= 0:
+    linker_mode = _linker_mode_enabled(args)
+
+    if linker_mode and args.linker_size is not None and args.linker_size <= 0:
         parser.error("--linker-size must be > 0.")
     if args.cofactor_count < 0:
         parser.error("--cofactor-count must be >= 0.")
@@ -497,10 +499,31 @@ def _validate_cli_args(parser: argparse.ArgumentParser, args: argparse.Namespace
         parser.error("--substrate-count must be >= 0.")
     if args.substrate_count > 0 and not args.substrate_itp_name:
         parser.error("--substrate-count requires --substrate-itp-name.")
-    if args.linker_pull_init_prot is not None and args.linker_pull_init_prot <= 0:
+    if linker_mode and args.linker_pull_init_prot is not None and args.linker_pull_init_prot <= 0:
         parser.error("--linker-pull-init-prot must be > 0 when provided.")
-    if args.linker_pull_init_surf is not None and args.linker_pull_init_surf <= 0:
+    if linker_mode and args.linker_pull_init_surf is not None and args.linker_pull_init_surf <= 0:
         parser.error("--linker-pull-init-surf must be > 0 when provided.")
+
+
+def _linker_mode_enabled(args: argparse.Namespace) -> bool:
+    """Linker handling is only active when explicitly requested or using the legacy linker anchor mode."""
+    return bool(args.use_linker or args.linker_resid is not None)
+
+
+def _normalize_linker_args(args: argparse.Namespace) -> bool:
+    """
+    Ignore stray linker-related CLI values unless linker mode is actually active.
+    Returns the effective linker mode.
+    """
+    linker_mode = _linker_mode_enabled(args)
+    if linker_mode:
+        return True
+
+    args.linker_resname = None
+    args.linker_size = None
+    args.linker_pull_init_prot = None
+    args.linker_pull_init_surf = None
+    return False
 
 
 # ======================================================================
@@ -552,6 +575,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     args = parser.parse_args(argv) if argv else parser.parse_args()
     _validate_cli_args(parser, args)
+    linker_mode = _normalize_linker_args(args)
 
     # ===============================================================
     # Locate immobilized_system.gro
@@ -591,7 +615,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     linker_pull_enabled = False
     linker_atom_ids: set[int] = set()
 
-    if args.use_linker and args.linker_resname:
+    if linker_mode and args.linker_resname:
         linker_atom_ids = {
             int(a.index + 1)
             for a in u.atoms
@@ -759,7 +783,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     for fname in required:
         ff_moltypes.update(_read_itp_moleculetype_set(dst_itp_dir / fname))
 
-    if args.use_linker and not (dst_itp_dir / args.linker_itp_name).exists():
+    if linker_mode and not (dst_itp_dir / args.linker_itp_name).exists():
         raise FileNotFoundError(
             "❌ Linker mode requested but "
             f"0_topology/system_itp/{args.linker_itp_name} is missing."
@@ -777,7 +801,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     linker_total = 0
     linker_moltype_name: str | None = None
-    if args.use_linker and args.linker_resname:
+    if linker_mode and args.linker_resname:
         linker_atom_count = sum(
             1 for a in u.atoms if str(a.resname).strip() == args.linker_resname
         )
@@ -952,7 +976,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     anchor_moltype = mol_itp.stem if is_dna else moltype
     restrained_mol_itp_name = f"{anchor_moltype}_anchor.itp"
     restrained_linker_itp_name: str | None = None
-    if args.use_linker:
+    if linker_mode:
         # In linker mode, do not restrain DNA/Protein by default.
         restrained_mol_itp_name = mol_itp.name
         linker_anchor_atoms = _infer_linker_restrained_atom_ids(
@@ -999,7 +1023,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         mol_itp_name=mol_itp.name,
         anchor_itp_name=restrained_mol_itp_name,
         is_dna=is_dna,
-        use_linker=args.use_linker,
+        use_linker=linker_mode,
         go_model=args.go_model,
         linker_itp_name=args.linker_itp_name,
         restrained_linker_itp_name=restrained_linker_itp_name,
@@ -1038,7 +1062,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         ("W", ("W",)),
         ("WF", ("WF",)),
         ("IONS", ("NA", "CL", "K", "CA", "MG", "ZN", "LI", "RB", "CS", "BA", "SR", "F", "BR", "I")),
-        ("LINKER", (linker_moltype_name,) if use_linker and linker_moltype_name else ()),
+        ("LINKER", (linker_moltype_name,) if linker_mode and linker_moltype_name else ()),
     ):
         atoms = _collect_resname_group(*resnames)
         if atoms:
