@@ -1016,11 +1016,54 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
 
     # ===============================================================
-    # INDEX (UNCHANGED)
+    # INDEX
     # ===============================================================
-    if anchor_atoms:
+    groups_for_index = pull_anchor_atoms if pull_anchor_atoms else anchor_atoms
+    custom_groups: Dict[str, List[int]] = {}
+
+    # Lowercase alias used by current mdp templates (tc-grps = system).
+    custom_groups["system"] = [int(a.index + 1) for a in u.atoms]
+
+    def _collect_resname_group(*resnames: str) -> List[int]:
+        wanted = {str(r).strip() for r in resnames if str(r).strip()}
+        return [int(a.index + 1) for a in u.atoms if str(a.resname).strip() in wanted]
+
+    # Surface freeze/pull groups referenced by mdp templates.
+    surface_atoms = _collect_resname_group(surface_moltype)
+    if surface_atoms:
+        custom_groups[surface_moltype] = surface_atoms
+
+    # Common optional groups used in workflows and useful for downstream grompp calls.
+    for group_name, resnames in (
+        ("W", ("W",)),
+        ("WF", ("WF",)),
+        ("IONS", ("NA", "CL", "K", "CA", "MG", "ZN", "LI", "RB", "CS", "BA", "SR", "F", "BR", "I")),
+        ("LINKER", (linker_moltype_name,) if use_linker and linker_moltype_name else ()),
+    ):
+        atoms = _collect_resname_group(*resnames)
+        if atoms:
+            custom_groups[group_name] = atoms
+
+    if is_dna:
+        dna_atoms = _collect_resname_group("DA", "DC", "DG", "DT")
+        if dna_atoms:
+            custom_groups["DNA"] = dna_atoms
+    else:
+        protein_resnames = (
+            "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY",
+            "HIS", "ILE", "LEU", "LYS", "MET", "PHE", "PRO", "SER",
+            "THR", "TRP", "TYR", "VAL",
+        )
+        protein_atoms = _collect_resname_group(*protein_resnames)
+        if protein_atoms:
+            custom_groups["Protein"] = protein_atoms
+
+    if groups_for_index or custom_groups:
         with open(topo_dir / "index.ndx", "w") as ndx:
-            groups_for_index = pull_anchor_atoms if pull_anchor_atoms else anchor_atoms
+            for group_name, atoms in custom_groups.items():
+                if atoms:
+                    ndx.write(f"\n[ {group_name} ]\n")
+                    write_list(atoms, ndx)
             for gid, atoms in groups_for_index.items():
                 ndx.write(f"\n[ Anchor_{gid} ]\n")
                 write_list(atoms, ndx)
