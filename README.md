@@ -77,6 +77,12 @@ bash work_flow_gromacs.sh
   - Open in Colab: https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_DNA.ipynb
 
 ## Linker Mode Notes
+- `--anchor` and `--linker-group` accept either legacy global residue ids or chain-based residue ids from the input PDB:
+  - Legacy: `--anchor 1 8 10 11`
+  - Chain-based: `--anchor B 8 10 11`
+  - Chain-based groups are converted internally to global residue ids in input order, so the first group still becomes `Anchor_1`, the second `Anchor_2`, and so on.
+- Chain-based syntax is available for `--pdb` workflows.
+- In `--complex-config`, chain-based `protein.anchor_groups` are also supported when `protein.reference_pdb` points to the source PDB used to build the pre-CG complex.
 - The linker topology file must exist next to linker GRO with matching basename:
   - Example: `linker.gro` -> `linker.itp`
 - You can reverse linker orientation with:

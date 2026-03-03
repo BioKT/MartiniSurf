@@ -20,8 +20,9 @@ Input folder:
 
 Notes:
 - `cofactor.count` is fixed to `4` in `complex_config.yaml`.
-- Anchors are set as:
-  - `--anchor 1 8 10 11`
-  - `--anchor 2 1025 1027 1028`
+- `complex_config.yaml` in this example uses chain-based anchor groups plus `protein.reference_pdb`.
+- Anchors are set in `complex_config.yaml` as:
+  - `A 8 10 11`
+  - `D 8 10 11`
 - Uses generated surface (`--lx 20 --ly 20`), so no external `surface.gro` is required.
 - Requires GROMACS (`gmx`) available in `PATH` for `--solvate --ionize`.

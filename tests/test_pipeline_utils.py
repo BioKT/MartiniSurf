@@ -117,6 +117,66 @@ def test_load_pre_cg_complex_config_accepts_anchor_groups(tmp_path):
     assert cfg["anchor_groups"] == [[1, 8, 10, 11], [2, 1025, 1027, 1028]]
 
 
+def test_load_pre_cg_complex_config_resolves_chain_based_anchor_groups_with_reference_pdb(tmp_path):
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    (input_dir / "complex.gro").write_text("X\n0\n1 1 1\n")
+    (input_dir / "protein.itp").write_text("[ moleculetype ]\nPROT 1\n")
+    (input_dir / "cofactor.itp").write_text("[ moleculetype ]\nCOF 1\n")
+    (input_dir / "protein_ref.pdb").write_text(
+        "ATOM      1  N   GLY A   8       0.000   0.000   0.000  1.00  0.00           N\n"
+        "ATOM      2  N   SER A  10       0.100   0.000   0.000  1.00  0.00           N\n"
+        "ATOM      3  N   THR A  11       0.200   0.000   0.000  1.00  0.00           N\n"
+        "ATOM      4  N   GLY D   8       0.300   0.000   0.000  1.00  0.00           N\n"
+        "ATOM      5  N   SER D  10       0.400   0.000   0.000  1.00  0.00           N\n"
+        "ATOM      6  N   THR D  11       0.500   0.000   0.000  1.00  0.00           N\n"
+    )
+    (input_dir / "complex_config.yaml").write_text(
+        "mode: pre_cg_complex\n"
+        "complex_gro: complex.gro\n"
+        "protein:\n"
+        "  molname: PROT\n"
+        "  reference_pdb: protein_ref.pdb\n"
+        "  anchor_groups: [\"A 8 10 11\", \"D 8 10 11\"]\n"
+        "cofactor:\n"
+        "  molname: COF\n"
+        "  itp: cofactor.itp\n"
+        "  count: 1\n"
+        "topology:\n"
+        "  protein_itp: protein.itp\n"
+        "  include_go: false\n"
+    )
+
+    cfg = pipeline._load_pre_cg_complex_config(input_dir / "complex_config.yaml")
+    assert cfg["anchor_groups"] == [[1, 1, 2, 3], [2, 4, 5, 6]]
+    assert cfg["reference_pdb"] == (input_dir / "protein_ref.pdb").resolve()
+
+
+def test_load_pre_cg_complex_config_requires_reference_pdb_for_chain_based_anchor_groups(tmp_path):
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    (input_dir / "complex.gro").write_text("X\n0\n1 1 1\n")
+    (input_dir / "protein.itp").write_text("[ moleculetype ]\nPROT 1\n")
+    (input_dir / "cofactor.itp").write_text("[ moleculetype ]\nCOF 1\n")
+    (input_dir / "complex_config.yaml").write_text(
+        "mode: pre_cg_complex\n"
+        "complex_gro: complex.gro\n"
+        "protein:\n"
+        "  molname: PROT\n"
+        "  anchor_groups: [\"A 8 10 11\"]\n"
+        "cofactor:\n"
+        "  molname: COF\n"
+        "  itp: cofactor.itp\n"
+        "  count: 1\n"
+        "topology:\n"
+        "  protein_itp: protein.itp\n"
+        "  include_go: false\n"
+    )
+
+    with pytest.raises(ValueError, match="protein.reference_pdb"):
+        pipeline._load_pre_cg_complex_config(input_dir / "complex_config.yaml")
+
+
 def test_load_pre_cg_complex_config_allows_missing_anchor_groups(tmp_path):
     input_dir = tmp_path / "input"
     input_dir.mkdir()
@@ -139,3 +199,52 @@ def test_load_pre_cg_complex_config_allows_missing_anchor_groups(tmp_path):
 
     cfg = pipeline._load_pre_cg_complex_config(input_dir / "complex_config.yaml")
     assert cfg["anchor_groups"] == []
+
+
+def test_normalize_cli_residue_groups_resolves_chain_based_anchor_groups(tmp_path):
+    pdb = tmp_path / "cleaned_input.pdb"
+    pdb.write_text(
+        "ATOM      1  N   GLY A   8       0.000   0.000   0.000  1.00  0.00           N\n"
+        "ATOM      2  CA  GLY A   8       0.100   0.000   0.000  1.00  0.00           C\n"
+        "ATOM      3  N   SER A  10       0.200   0.000   0.000  1.00  0.00           N\n"
+        "ATOM      4  N   THR D   8       0.300   0.000   0.000  1.00  0.00           N\n"
+        "ATOM      5  N   TYR D  10       0.400   0.000   0.000  1.00  0.00           N\n"
+    )
+
+    groups = pipeline._normalize_cli_residue_groups(
+        [["A", "8", "10"], ["D", "8", "10"]],
+        pdb,
+        "--anchor",
+    )
+
+    assert groups == [[1, 1, 2], [2, 3, 4]]
+
+
+def test_normalize_cli_residue_groups_keeps_legacy_numeric_syntax(tmp_path):
+    pdb = tmp_path / "cleaned_input.pdb"
+    pdb.write_text(
+        "ATOM      1  N   GLY A   1       0.000   0.000   0.000  1.00  0.00           N\n"
+    )
+
+    groups = pipeline._normalize_cli_residue_groups(
+        [["7", "11", "13"]],
+        pdb,
+        "--anchor",
+    )
+
+    assert groups == [[7, 11, 13]]
+
+
+def test_normalize_cli_residue_groups_raises_clear_error_for_missing_chain_residue(tmp_path):
+    pdb = tmp_path / "cleaned_input.pdb"
+    pdb.write_text(
+        "ATOM      1  N   GLY A   8       0.000   0.000   0.000  1.00  0.00           N\n"
+        "ATOM      2  N   THR D   8       0.300   0.000   0.000  1.00  0.00           N\n"
+    )
+
+    with pytest.raises(ValueError, match="could not resolve D 10"):
+        pipeline._normalize_cli_residue_groups(
+            [["D", "10"]],
+            pdb,
+            "--linker-group",
+        )

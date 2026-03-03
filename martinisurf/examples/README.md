@@ -2,6 +2,14 @@
 
 Curated set of 7 examples. Recommended production-oriented workflows are `05`, `06`, and `07`.
 
+For examples driven from `--pdb`, the recommended syntax is now chain-based:
+- `--anchor A 8 10 11`
+- `--linker-group D 8 10 11`
+
+MartiniSurf resolves those chain-local residues to the internal global residue ids automatically.
+
+For `complex_config.yaml`, the equivalent chain-based syntax is available through `protein.anchor_groups` when `protein.reference_pdb` is provided.
+
 ## Recommended Complete Examples
 1. Protein anchor + solvate + ionize  
 Path: `martinisurf/examples/05_protein_anchor_solvate_ionize`

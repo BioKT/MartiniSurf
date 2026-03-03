@@ -10,7 +10,7 @@ martinisurf \
   --dx 0.47 \
   --lx 15 \
   --ly 15 \
-  --anchor 1 8 10 11 \
-  --anchor 2 1025 1027 1028 \
+  --anchor A 8 10 11 \
+  --anchor D 8 10 11 \
   --dist 10 \
   --merge A,B,C,D

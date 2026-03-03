@@ -53,6 +53,21 @@ def test_parser_accepts_complex_config_with_linker_mode(tmp_path):
     pipeline._validate_args(parser, args)
 
 
+def test_parser_accepts_chain_based_anchor_and_linker_groups():
+    parser = pipeline.build_parser()
+    args = parser.parse_args([
+        "--pdb", "1RJW",
+        "--anchor", "B", "8", "10", "11",
+        "--linker", "input/linker.gro",
+        "--linker-group", "D", "8", "10", "11",
+        "--lx", "10",
+        "--ly", "10",
+    ])
+
+    assert args.anchor == [["B", "8", "10", "11"]]
+    assert args.linker_group == [["D", "8", "10", "11"]]
+
+
 def test_parser_rejects_ionize_without_solvate():
     parser = pipeline.build_parser()
     with pytest.raises(SystemExit):

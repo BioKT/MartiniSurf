@@ -11,7 +11,7 @@ martinisurf \
   --dx 0.47 \
   --surface-bead P4 \
   --linker inputs/EPOXY.gro \
-  --linker-group 1 8 10 11 \
-  --linker-group 2 1025 1027 1028 \
+  --linker-group A 8 10 11 \
+  --linker-group D 8 10 11 \
   --surface-linkers 12 \
   --merge A,B,C,D

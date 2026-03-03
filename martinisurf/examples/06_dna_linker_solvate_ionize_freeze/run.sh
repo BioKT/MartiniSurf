@@ -14,7 +14,7 @@ martinisurf \
   --dx 0.27 \
   --surface-bead C1 \
   --linker inputs/ALK.gro \
-  --linker-group 1 1 \
+  --linker-group A 1 \
   --solvate \
   --ionize \
   --salt-conc 0.15 \

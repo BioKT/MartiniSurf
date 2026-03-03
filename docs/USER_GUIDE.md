@@ -12,6 +12,8 @@ Goal:
 - Choose only ONE orientation mode:
   - `--anchor ...` (Not explicit Linker / anchor mode), or
   - `--linker ... --linker-group ...` (linker mode).
+- In `--pdb` workflows, `--anchor` and `--linker-group` can use either global residue ids or `CHAIN RESID ...` syntax from the input PDB.
+- In `--complex-config`, chain-based `protein.anchor_groups` also work if you provide `protein.reference_pdb`.
 - If you do NOT pass `--surface`, you must pass `--lx` and `--ly`.
 - `--ionize` always requires `--solvate`.
 - `--freeze-water-fraction` works only with `--dna` and `--solvate`.
@@ -77,8 +79,8 @@ martinisurf \
   --surface-bead P4 \
   --dx 0.47 \
   --lx 15 --ly 15 \
-  --anchor 1 8 10 11 \
-  --anchor 2 1025 1027 1028 \
+  --anchor A 8 10 11 \
+  --anchor D 8 10 11 \
   --dist 10 \
   --solvate \
   --ionize \
@@ -99,7 +101,7 @@ martinisurf \
   --dx 0.27 \
   --surface-bead C1 \
   --linker inputs/ALK.gro \
-  --linker-group 1 1 \
+  --linker-group A 1 \
   --solvate \
   --ionize \
   --salt-conc 0.15 \
@@ -137,9 +139,9 @@ martinisurf \
 | `--surface` | Reuses an existing surface file | `surface.gro` |
 | `--surface-mode` | Builds 2-1 or 4-1 surface | `4-1` |
 | `--lx --ly --dx` | Size and spacing for generated surface | `15 15 0.47` |
-| `--anchor ...` | Not explicit Linker orientation (anchor mode) | `--anchor 1 8 10 11` |
+| `--anchor ...` | Not explicit Linker orientation (anchor mode) | `--anchor B 8 10 11` |
 | `--linker` | Linker GRO file | `ALK.gro` |
-| `--linker-group ...` | Residue groups for linker attachment | `--linker-group 1 1` |
+| `--linker-group ...` | Residue groups for linker attachment | `--linker-group A 1` |
 | `--merge` | Chain merge during martinization | `A,B` / `A,B,C,D` |
 | `--solvate` | Adds water with GROMACS | no value |
 | `--ionize` | Adds ions (requires solvation) | no value |
@@ -186,17 +188,26 @@ This section includes ALL flags from the main pipeline.
 
 ### Classic orientation (anchors)
 
-- `--anchor GROUP RESID [RESID ...]` (default: none, repeatable): defines anchor groups.
+- `--anchor GROUP_OR_CHAIN RESID [RESID ...]` (default: none, repeatable): defines anchor groups.
+  - Legacy syntax: `--anchor 1 8 10 11`
+  - Chain-based syntax for `--pdb` workflows: `--anchor D 8 10 11`
+  - Chain-based groups are converted internally to global residue ids in appearance order (`Anchor_1`, `Anchor_2`, ...).
 - `--dist` (default: `10.0` A): target anchor-to-surface distance.
 
 ### Linker orientation
 
 - `--linker` (default: none): linker `.gro` file.
-- `--linker-group GROUP RESID [RESID ...]` (default: none, repeatable): residue groups where linkers attach.
+- `--linker-group GROUP_OR_CHAIN RESID [RESID ...]` (default: none, repeatable): residue groups where linkers attach.
+  - Legacy syntax: `--linker-group 1 8 10 11`
+  - Chain-based syntax for `--pdb` workflows: `--linker-group B 8 10 11`
 - `--linker-prot-dist` (default: auto): linker-to-biomolecule distance (A).
 - `--linker-surf-dist` (default: auto): linker-to-surface distance (A).
 - `--invert-linker` (default: false): reverses linker bead order.
 - `--surface-linkers` (default: `0`): number of additional random surface linkers.
+
+Notes:
+- Chain-based syntax is resolved from the cleaned input PDB before martinization.
+- In `--complex-config`, `protein.anchor_groups` can also use chain-based syntax if `protein.reference_pdb` points to the source PDB that matches the pre-CG complex residue order.
 
 ### Optional substrate
 

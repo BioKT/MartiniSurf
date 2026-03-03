@@ -400,9 +400,17 @@ def _load_pre_cg_complex_config(config_path: Path) -> dict[str, Any]:
     protein_molname = str(protein.get("molname", "")).strip()
     if not protein_molname:
         raise ValueError("complex_config.yaml missing required key: protein.molname")
+    reference_pdb_name = str(protein.get("reference_pdb", "")).strip()
+    reference_pdb: Path | None = None
+    if reference_pdb_name:
+        reference_pdb = (input_dir / reference_pdb_name).resolve()
+        if not reference_pdb.exists():
+            raise FileNotFoundError(f"Protein reference PDB not found: {reference_pdb}")
     anchor_groups_cfg = protein.get("anchor_groups")
     anchor_groups: list[list[int]] = []
     if isinstance(anchor_groups_cfg, list) and anchor_groups_cfg:
+        raw_anchor_groups: list[list[str]] = []
+        has_chain_syntax = False
         for raw_group in anchor_groups_cfg:
             if not isinstance(raw_group, str):
                 raise ValueError("protein.anchor_groups entries must be strings like '1 8 10 11'")
@@ -412,14 +420,33 @@ def _load_pre_cg_complex_config(config_path: Path) -> dict[str, Any]:
                     "Each protein.anchor_groups entry must include group id and at least one residue "
                     "(example: '1 8 10 11')"
                 )
+            raw_anchor_groups.append(parts)
             try:
-                parsed = [int(x) for x in parts]
-            except (TypeError, ValueError) as exc:
+                int(parts[0])
+            except (TypeError, ValueError):
+                has_chain_syntax = True
+
+        if has_chain_syntax:
+            if reference_pdb is None:
                 raise ValueError(
-                    "protein.anchor_groups entries must contain integers only "
-                    "(example: '2 1025 1027 1028')"
-                ) from exc
-            anchor_groups.append(parsed)
+                    "protein.anchor_groups uses chain-based syntax, so protein.reference_pdb "
+                    "must point to the source PDB used to build the pre-CG complex."
+                )
+            anchor_groups = _normalize_cli_residue_groups(
+                raw_anchor_groups,
+                reference_pdb,
+                "protein.anchor_groups",
+            )
+        else:
+            for parts in raw_anchor_groups:
+                try:
+                    parsed = [int(x) for x in parts]
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(
+                        "protein.anchor_groups entries must contain integers only "
+                        "(example: '2 1025 1027 1028')"
+                    ) from exc
+                anchor_groups.append(parsed)
     elif "orient_by_residues" in protein:
         orient_by = protein.get("orient_by_residues")
         if not isinstance(orient_by, list) or not orient_by:
@@ -487,6 +514,7 @@ def _load_pre_cg_complex_config(config_path: Path) -> dict[str, Any]:
         "complex_gro": complex_gro,
         "protein_molname": protein_molname,
         "anchor_groups": anchor_groups,
+        "reference_pdb": reference_pdb,
         "protein_itp": protein_itp,
         "cofactor_molname": cofactor_molname,
         "cofactor_itp": cofactor_itp,
@@ -494,6 +522,120 @@ def _load_pre_cg_complex_config(config_path: Path) -> dict[str, Any]:
         "include_go": include_go,
         "go_files": go_files,
     }
+
+
+def _build_pdb_chain_residue_map(pdb_path: Path) -> dict[tuple[str, int], int]:
+    """
+    Map (chain_id, local_resid) from the cleaned input PDB to the global residue ids
+    later used in the CG GRO/system outputs.
+
+    The global residue id follows the first-seen residue order in the cleaned PDB.
+    This matches the numbering used by the downstream martinization/orientation flow.
+    """
+    residue_order: list[tuple[str, int, str]] = []
+    seen_full_keys: set[tuple[str, int, str]] = set()
+    ambiguous_keys: set[tuple[str, int]] = set()
+    chain_resid_to_global: dict[tuple[str, int], int] = {}
+
+    with open(pdb_path, "r") as fh:
+        for line in fh:
+            if not line.startswith(("ATOM", "HETATM")):
+                continue
+            if len(line) < 27:
+                continue
+
+            chain_id = line[21].strip().upper()
+            try:
+                resid = int(line[22:26])
+            except ValueError:
+                continue
+            insertion_code = line[26].strip().upper()
+
+            full_key = (chain_id, resid, insertion_code)
+            if full_key in seen_full_keys:
+                continue
+
+            seen_full_keys.add(full_key)
+            residue_order.append(full_key)
+
+            short_key = (chain_id, resid)
+            if short_key in chain_resid_to_global:
+                ambiguous_keys.add(short_key)
+                continue
+
+            chain_resid_to_global[short_key] = len(residue_order)
+
+    if ambiguous_keys:
+        preview = ", ".join(
+            f"{chain or '?'}:{resid}"
+            for chain, resid in sorted(ambiguous_keys)[:8]
+        )
+        raise ValueError(
+            "Chain-based residue lookup is ambiguous because the cleaned PDB contains "
+            f"multiple insertion-code variants for the same chain/residue id: {preview}"
+        )
+
+    return chain_resid_to_global
+
+
+def _normalize_cli_residue_groups(
+    raw_groups: list[list[str]] | None,
+    pdb_path: Path,
+    flag_name: str,
+) -> list[list[int]]:
+    """
+    Accept legacy numeric groups (GROUP RESID...) or chain-based groups
+    (CHAIN RESID...) and normalize them to the numeric format expected downstream.
+    """
+    if not raw_groups:
+        return []
+
+    chain_map = _build_pdb_chain_residue_map(pdb_path)
+    normalized: list[list[int]] = []
+
+    for idx, raw_group in enumerate(raw_groups, start=1):
+        if len(raw_group) < 2:
+            raise ValueError(
+                f"{flag_name} requires at least two values: GROUP_OR_CHAIN RESID [RESID ...]"
+            )
+
+        head = str(raw_group[0]).strip()
+        residue_tokens = raw_group[1:]
+        try:
+            residues = [int(token) for token in residue_tokens]
+        except ValueError as exc:
+            raise ValueError(
+                f"{flag_name} residue ids must be integers. Received: {' '.join(map(str, raw_group))}"
+            ) from exc
+
+        try:
+            group_id = int(head)
+        except ValueError:
+            chain_id = head.upper()
+            resolved_residues: list[int] = []
+            for resid in residues:
+                key = (chain_id, resid)
+                global_resid = chain_map.get(key)
+                if global_resid is None:
+                    available = sorted(
+                        str(r)
+                        for c, r in chain_map
+                        if c == chain_id
+                    )
+                    preview = ", ".join(available[:12])
+                    if len(available) > 12:
+                        preview += ", ..."
+                    raise ValueError(
+                        f"{flag_name} chain-based selection could not resolve {chain_id} {resid}. "
+                        f"Available residues for chain {chain_id}: [{preview}]"
+                    )
+                resolved_residues.append(global_resid)
+            group_id = idx
+            normalized.append([group_id] + resolved_residues)
+        else:
+            normalized.append([group_id] + residues)
+
+    return normalized
 
 
 def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
@@ -595,10 +737,10 @@ def build_parser():
             "Examples:\n"
             "  Anchor mode:\n"
             "    martinisurf --pdb 1RJW --moltype Protein --lx 20 --ly 20 "
-            "--anchor 1 8 10 --anchor 2 1025 1027\n"
+            "--anchor A 8 10 --anchor D 8 10\n"
             "  Linker mode:\n"
             "    martinisurf --dna --pdb 4C64.pdb --surface surface.gro "
-            "--linker linker.gro --linker-group 1 1\n"
+            "--linker linker.gro --linker-group A 1\n"
         ),
     )
 
@@ -662,8 +804,11 @@ def build_parser():
         "--anchor",
         nargs="+",
         action="append",
-        metavar=("GROUP", "RESID"),
-        help="Anchor group: GROUP RESID [RESID ...]. Repeat to define multiple groups.",
+        metavar=("GROUP_OR_CHAIN", "RESID"),
+        help=(
+            "Anchor group: GROUP RESID [RESID ...] or CHAIN RESID [RESID ...]. "
+            "Chain-based syntax is resolved from the cleaned input PDB."
+        ),
     )
     anchor_group.add_argument("--dist", type=float, default=10.0, help="Anchor-to-surface target distance (A).")
 
@@ -673,8 +818,11 @@ def build_parser():
         "--linker-group",
         nargs="+",
         action="append",
-        metavar=("GROUP", "RESID"),
-        help="Residue group(s) to attach linker(s): GROUP RESID [RESID ...].",
+        metavar=("GROUP_OR_CHAIN", "RESID"),
+        help=(
+            "Residue group(s) to attach linker(s): GROUP RESID [RESID ...] or "
+            "CHAIN RESID [RESID ...]. Chain-based syntax is resolved from the cleaned input PDB."
+        ),
     )
     linker_group.add_argument("--linker-prot-dist", type=float, help="Linker-to-protein/DNA distance (A). Auto if omitted.")
     linker_group.add_argument("--linker-surf-dist", type=float, help="Linker-to-surface distance (A). Auto if omitted.")
@@ -1797,6 +1945,8 @@ def main(argv=None):
         # 1) CLEAN INPUT
         # ===============================================================
         pdb_abs = load_clean_pdb(args.pdb, workdir=simdir)
+        resolved_anchor_groups = _normalize_cli_residue_groups(args.anchor, pdb_abs, "--anchor")
+        resolved_linker_groups = _normalize_cli_residue_groups(args.linker_group, pdb_abs, "--linker-group")
 
         # ===============================================================
         # 2) MARTINIZATION
@@ -1885,6 +2035,9 @@ def main(argv=None):
             shutil.move(str(f), active_itp_dir / f.name)
 
         shutil.copy(system_cg_out, system_dir / f"{mol}_cg.pdb")
+    if args.complex_config:
+        resolved_anchor_groups = complex_cfg["anchor_groups"]
+        resolved_linker_groups = []
 
     # ===============================================================
     # 3) SURFACE
@@ -1963,9 +2116,9 @@ def main(argv=None):
 
     if args.linker:
         first_group_resid = None
-        if args.linker_group and len(args.linker_group[0]) > 1:
+        if resolved_linker_groups and len(resolved_linker_groups[0]) > 1:
             try:
-                first_group_resid = int(args.linker_group[0][1])
+                first_group_resid = int(resolved_linker_groups[0][1])
             except ValueError:
                 first_group_resid = None
 
@@ -2018,13 +2171,13 @@ def main(argv=None):
         if args.surface_linkers > 0:
             orient_args += ["--surface-linkers", str(args.surface_linkers)]
 
-        if args.linker_group:
-            for group in args.linker_group:
+        if resolved_linker_groups:
+            for group in resolved_linker_groups:
                 orient_args += ["--linker-group"] + [str(x) for x in group]
 
     elif args.anchor:
         orient_args += ["--dist", str(args.dist)]
-        for group in args.anchor:
+        for group in resolved_anchor_groups:
             orient_args += ["--anchor"] + [str(x) for x in group]
     elif complex_cfg:
         if not complex_cfg["anchor_groups"]:
@@ -2093,12 +2246,12 @@ def main(argv=None):
 
     # If classical anchor mode
     if args.anchor:
-        for group in args.anchor:
+        for group in resolved_anchor_groups:
             final_args += ["--anchor"] + [str(x) for x in group]
 
     # If linker mode → reuse linker groups as anchors
-    elif args.linker_group:
-        for group in args.linker_group:
+    elif resolved_linker_groups:
+        for group in resolved_linker_groups:
             final_args += ["--anchor"] + [str(x) for x in group]
     elif complex_cfg:
         for group in complex_cfg["anchor_groups"]:

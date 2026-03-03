@@ -4,7 +4,8 @@ complex_gro: BsADH_NAD.gro
 
 protein:
   molname: Active
-  anchor_groups: ["1 8 10 11", "2 1025 1027 1028"]
+  reference_pdb: BsADH_reference.pdb
+  anchor_groups: ["A 8 10 11", "D 8 10 11"]
 
 cofactor:
   molname: NAD

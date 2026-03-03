@@ -5,6 +5,6 @@ martinisurf \
   --dna \
   --pdb inputs/4C64.pdb \
   --surface inputs/surface.gro \
-  --anchor 1 1 \
+  --anchor A 1 \
   --dist 10 \
   --merge A,B
