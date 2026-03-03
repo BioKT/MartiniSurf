@@ -35,5 +35,5 @@ Path: `martinisurf/examples/04_dna_linker`
 - `README.md`: short notes
 
 ## Colab Notebooks
-- `martinisurf/examples/colab_protein_automartini_m3.ipynb`
-- `martinisurf/examples/colab_dna_automartini_m2.ipynb`
+- `martinisurf/examples/MartiniSurf_Protein.ipynb`
+- `martinisurf/examples/MartiniSurf_DNA.ipynb`

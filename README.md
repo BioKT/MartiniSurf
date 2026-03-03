@@ -16,11 +16,11 @@ Toolkit for automated Martini protein/DNA surface-system setup, including linker
     <img src="https://codecov.io/gh/jjimenezgar/MartiniSurf/branch/master/graph/badge.svg" alt="Coverage">
   </a>
   <img src="https://img.shields.io/badge/python-3.9%20|%203.10%20|%203.11-blue.svg" alt="Python versions">
-  <a href="https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/colab_protein_automartini_m3.ipynb">
-    <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open Protein Colab (M3)">
+  <a href="https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_Protein.ipynb">
+    <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open MartiniSurf_Protein">
   </a>
-  <a href="https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/colab_dna_automartini_m2.ipynb">
-    <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open DNA Colab (M2)">
+  <a href="https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_DNA.ipynb">
+    <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open MartiniSurf_DNA">
   </a>
 </p>
 
@@ -70,11 +70,11 @@ bash work_flow_gromacs.sh
 
 ## Google Colab Notebooks
 - Protein workflow + optional linker generation with AutoMartini M3:
-  - Notebook: `martinisurf/examples/colab_protein_automartini_m3.ipynb`
-  - Open in Colab: https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/colab_protein_automartini_m3.ipynb
+  - Notebook: `martinisurf/examples/MartiniSurf_Protein.ipynb`
+  - Open in Colab: https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_Protein.ipynb
 - DNA workflow + optional linker generation with auto_martini M2:
-  - Notebook: `martinisurf/examples/colab_dna_automartini_m2.ipynb`
-  - Open in Colab: https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/colab_dna_automartini_m2.ipynb
+  - Notebook: `martinisurf/examples/MartiniSurf_DNA.ipynb`
+  - Open in Colab: https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_DNA.ipynb
 
 ## Linker Mode Notes
 - The linker topology file must exist next to linker GRO with matching basename:
