@@ -1,5 +1,3 @@
-define                   = -DPOSRES
-
 integrator               = md
 dt                       = 0.005
 nsteps                   = 20000000

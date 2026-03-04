@@ -628,7 +628,12 @@ def test_protein_deposition_and_production_templates_only_differ_in_nsteps():
 
     assert "compressibility          = 0 4e-5" in deposition
     assert "compressibility          = 0 4e-5" in production
-    assert _normalize_mdp_nsteps(deposition) == _normalize_mdp_nsteps(production)
+    assert "define                   = -DPOSRES" not in deposition
+    assert "define                   = -DPOSRES" in production
+
+    normalized_deposition = _normalize_mdp_nsteps(deposition)
+    normalized_production = _normalize_mdp_nsteps(production).replace("define                   = -DPOSRES\n\n", "", 1)
+    assert normalized_deposition == normalized_production
 
 
 def test_dna_deposition_and_production_templates_only_differ_in_nsteps():
@@ -638,7 +643,12 @@ def test_dna_deposition_and_production_templates_only_differ_in_nsteps():
 
     assert "compressibility          = 0 4e-5" in deposition
     assert "compressibility          = 0 4e-5" in production
-    assert _normalize_mdp_nsteps(deposition) == _normalize_mdp_nsteps(production)
+    assert "define                   = -DPOSRES" not in deposition
+    assert "define                   = -DPOSRES" in production
+
+    normalized_deposition = _normalize_mdp_nsteps(deposition)
+    normalized_production = _normalize_mdp_nsteps(production).replace("define                   = -DPOSRES\n\n", "", 1)
+    assert normalized_deposition == normalized_production
 
 
 def test_write_custom_mdp_skips_pull_rewrite_when_disabled(tmp_path):

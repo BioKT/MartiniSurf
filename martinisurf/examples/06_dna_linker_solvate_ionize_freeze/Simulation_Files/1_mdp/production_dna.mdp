@@ -39,6 +39,12 @@ cos-acceleration         = 0
 
 refcoord_scaling         = all
 
+Pcoupl                   = Parrinello-Rahman ;parrinello-rahman
+Pcoupltype               = semiisotropic
+tau-p                    = 12.0
+compressibility          = 0 4e-5
+ref-p                    = 1 1
+
 
 ; First pulling coordinate (Umbrella 1)
 
@@ -56,8 +62,7 @@ pull-coord1-type         = umbrella
 pull-coord1-k            = 500.0
 pull-coord1-rate         = 0
 pull-coord1-dim          = N N Y
-pull-coord1_start        = no
-pull-coord1-init         = 0.5264
+pull-coord1_start        = yes
 
 pull-coord2-geometry     = distance
 pull-coord2-groups       = 3 4
@@ -65,5 +70,4 @@ pull-coord2-type         = umbrella
 pull-coord2-k            = 500.0
 pull-coord2-rate         = 0
 pull-coord2-dim          = N N Y
-pull-coord2_start        = no
-pull-coord2-init         = 0.5264
+pull-coord2_start        = yes

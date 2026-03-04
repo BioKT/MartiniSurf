@@ -4,7 +4,7 @@
 #SBATCH --mem=200gb
 #SBATCH --cpus-per-task=4
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=2
+#SBATCH --ntasks-per-node=4
 #SBATCH --output=%x-%j.out
 #SBATCH --error=%x-%j.err
 #SBATCH --mail-type=ALL
