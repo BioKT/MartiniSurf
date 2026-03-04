@@ -117,6 +117,37 @@ def test_summarize_selected_residues(tmp_path):
     assert np.allclose(centroids[0], coords.mean(axis=0))
 
 
+def test_anchor_landmarks_for_groups_returns_one_centroid_per_group():
+    atom_records = [
+        (1, "ALA", "BB", 1),
+        (2, "ALA", "BB", 2),
+        (3, "ALA", "BB", 3),
+        (4, "ALA", "BB", 4),
+        (5, "ALA", "BB", 5),
+        (6, "ALA", "BB", 6),
+    ]
+    coords = np.array([
+        [0.0, 0.0, 0.0],
+        [2.0, 0.0, 0.0],
+        [4.0, 0.0, 0.0],
+        [0.0, 2.0, 2.0],
+        [2.0, 2.0, 2.0],
+        [4.0, 2.0, 2.0],
+    ])
+    groups = [("1", [1, 2, 3]), ("2", [4, 5, 6])]
+
+    grouped = enz._anchor_landmarks_for_groups(groups, atom_records, coords, "group")
+
+    assert grouped.shape == (2, 3)
+    assert np.allclose(
+        grouped,
+        np.array([
+            [2.0, 0.0, 0.0],
+            [2.0, 2.0, 2.0],
+        ]),
+    )
+
+
 # --------------------------------------------------------------
 # Test auto_orient_from_anchor_residues
 # --------------------------------------------------------------
@@ -189,6 +220,63 @@ def test_auto_orient_respects_anchor_distance_after_flip():
     transformed_anchor_min = result[[0, 1], 2].min()
     # Allow a small tolerance due to rotation/format precision.
     assert transformed_anchor_min >= target - 1e-6
+
+
+def test_auto_orient_with_two_anchor_groups_keeps_anchor_heights_similar():
+    system = np.array([
+        [0.0, 0.0, 0.0],
+        [8.0, 0.0, 6.0],
+        [4.0, 18.0, 14.0],
+        [4.0, 5.0, 20.0],
+    ])
+    anchors = np.array([
+        [0.0, 0.0, 0.0],
+        [8.0, 0.0, 6.0],
+    ])
+    surface = np.array([
+        [0.0, 0.0, 0.0],
+        [20.0, 20.0, 0.0],
+    ])
+
+    result = enz.auto_orient_from_anchor_residues(
+        system,
+        anchors,
+        surface,
+        target_z=10.0,
+        reference_coords=system,
+    )
+
+    assert abs(result[0, 2] - result[1, 2]) < 1e-6
+    assert result[:, 2].min() >= 1.0
+
+
+def test_auto_orient_can_enforce_minimum_reference_distance():
+    system = np.array([
+        [0.0, 0.0, 0.0],
+        [8.0, 0.0, 6.0],
+        [4.0, 18.0, 14.0],
+        [4.0, 5.0, 20.0],
+    ])
+    anchors = np.array([
+        [0.0, 0.0, 0.0],
+        [8.0, 0.0, 6.0],
+    ])
+    surface = np.array([
+        [0.0, 0.0, 0.0],
+        [20.0, 20.0, 0.0],
+    ])
+
+    result = enz.auto_orient_from_anchor_residues(
+        system,
+        anchors,
+        surface,
+        target_z=10.0,
+        reference_coords=system,
+        min_reference_dist=10.0,
+    )
+
+    assert abs(result[0, 2] - result[1, 2]) < 1e-6
+    assert result[:, 2].min() >= 10.0 - 1e-6
 
 
 # --------------------------------------------------------------
@@ -318,4 +406,3 @@ def test_linker_mode_raises_clear_error_for_missing_group_residues(tmp_path):
         assert "Requested residues: [99]" in msg
     else:
         raise AssertionError("Expected ValueError for missing linker-group residues.")
-

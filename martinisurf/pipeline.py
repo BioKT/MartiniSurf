@@ -408,7 +408,9 @@ def _load_pre_cg_complex_config(config_path: Path) -> dict[str, Any]:
             raise FileNotFoundError(f"Protein reference PDB not found: {reference_pdb}")
     anchor_groups_cfg = protein.get("anchor_groups")
     anchor_groups: list[list[int]] = []
+    anchor_landmark_mode = "residue"
     if isinstance(anchor_groups_cfg, list) and anchor_groups_cfg:
+        anchor_landmark_mode = "group"
         raw_anchor_groups: list[list[str]] = []
         has_chain_syntax = False
         for raw_group in anchor_groups_cfg:
@@ -514,6 +516,7 @@ def _load_pre_cg_complex_config(config_path: Path) -> dict[str, Any]:
         "complex_gro": complex_gro,
         "protein_molname": protein_molname,
         "anchor_groups": anchor_groups,
+        "anchor_landmark_mode": anchor_landmark_mode,
         "reference_pdb": reference_pdb,
         "protein_itp": protein_itp,
         "cofactor_molname": cofactor_molname,
@@ -2185,6 +2188,11 @@ def main(argv=None):
                 "complex_config.yaml must define protein.anchor_groups or protein.orient_by_residues "
                 "when not using --linker mode."
             )
+        if complex_cfg.get("anchor_landmark_mode") != "residue":
+            orient_args += ["--anchor-landmark-mode", str(complex_cfg["anchor_landmark_mode"])]
+        if complex_cfg.get("cofactor_molname"):
+            orient_args += ["--reference-exclude-resname", str(complex_cfg["cofactor_molname"])]
+        orient_args += ["--min-reference-z-dist", str(args.dist)]
         orient_args += ["--dist", str(args.dist)]
         for group in complex_cfg["anchor_groups"]:
             orient_args += ["--anchor"] + [str(x) for x in group]
@@ -2233,11 +2241,31 @@ def main(argv=None):
         print(f"✔ Copied {linker_itp.name} into topology")
 
     if args.substrate and args.substrate_count > 0:
-        substrate_itp = _resolve_sidecar_itp(args.substrate, args.substrate_itp, "Substrate")
-        shutil.copy(substrate_itp, active_itp_dir / substrate_itp.name)
-        final_args += ["--substrate-itp-name", substrate_itp.name]
+        substrate_itp: Path | None = None
+        if args.substrate_itp:
+            substrate_itp = _resolve_sidecar_itp(args.substrate, args.substrate_itp, "Substrate")
+        else:
+            inferred_itp = Path(args.substrate).with_suffix(".itp")
+            if inferred_itp.exists():
+                substrate_itp = inferred_itp
+
+        if substrate_itp is not None:
+            shutil.copy(substrate_itp, active_itp_dir / substrate_itp.name)
+            final_args += ["--substrate-itp-name", substrate_itp.name]
+            print(f"✔ Copied {substrate_itp.name} into topology")
+        else:
+            substrate_moltype = _read_gro_first_resname(args.substrate)
+            if not substrate_moltype:
+                raise FileNotFoundError(
+                    "Substrate ITP not found next to the GRO file, and the substrate resname "
+                    "could not be inferred for Martini FF fallback."
+                )
+            final_args += ["--substrate-moltype", substrate_moltype]
+            print(
+                f"ℹ No substrate ITP found for {args.substrate}. "
+                f"Will look for {substrate_moltype} in the Martini force-field includes."
+            )
         final_args += ["--substrate-count", str(args.substrate_count)]
-        print(f"✔ Copied {substrate_itp.name} into topology")
 
     if complex_cfg:
         cofactor_itp_path: Path = complex_cfg["cofactor_itp"]

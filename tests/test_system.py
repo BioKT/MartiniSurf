@@ -45,6 +45,16 @@ def prepare_simulation_structure(base: Path):
     return sim, sys2
 
 
+def _normalize_mdp_nsteps(text: str) -> str:
+    lines = []
+    for line in text.splitlines():
+        if line.strip().startswith("nsteps"):
+            lines.append("nsteps                   = <ANY>")
+        else:
+            lines.append(line)
+    return "\n".join(lines)
+
+
 # ============================================================
 # TEST SUITE
 # ============================================================
@@ -423,6 +433,26 @@ def test_substrate_include_is_skipped_when_moltype_exists_in_forcefield(tmp_path
     assert "ETO 10" in system_top
 
 
+def test_substrate_without_local_itp_uses_forcefield_moltype(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    (sim / "system_itp" / "martini_v3.0.0_solvents_v1.itp").write_text(
+        "[ moleculetype ]\nPPN 1\n"
+    )
+
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "1",
+        "--substrate-moltype", "PPN",
+        "--substrate-count", "10",
+    ])
+
+    system_top = (sim / "0_topology" / "system.top").read_text()
+    assert '#include "system_itp/PPN.itp"' not in system_top
+    assert "PPN 10" in system_top
+
+
 def test_restrained_topology_compatibility_alias_is_written(tmp_path, monkeypatch):
     sim, _ = prepare_simulation_structure(tmp_path)
     monkeypatch.chdir(sim / "2_system")
@@ -550,6 +580,65 @@ def test_linker_pull_uses_start_from_current_distance(tmp_path, monkeypatch):
     assert "pull-coord2_start        = yes" in production
     assert "pull-coord1-init" not in production
     assert "pull-coord2-init" not in production
+
+
+def test_linker_pull_ignores_legacy_init_flags(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    gro = """Linker start test
+  2
+    1ALA     CA    1   1.000   1.000   1.000
+    2LNK     C1    2   1.500   1.500   0.800
+   3.00000   3.00000   3.00000
+"""
+    (sim / "2_system" / "immobilized_system.gro").write_text(gro)
+    (sim / "system_itp" / "linker.itp").write_text("; dummy linker\n")
+
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "1",
+        "--use-linker",
+        "--linker-resname", "LNK",
+        "--linker-size", "1",
+        "--linker-pull-init-prot", "0.6",
+        "--linker-pull-init-surf", "0.7",
+    ])
+
+    production = (sim / "1_mdp" / "production.mdp").read_text()
+    assert "pull-coord1_start        = yes" in production
+    assert "pull-coord2_start        = yes" in production
+    assert "pull-coord1-init" not in production
+    assert "pull-coord2-init" not in production
+
+
+def test_anchor_pull_always_uses_start_from_current_distance():
+    block = gms._build_pull_block(anchor_count=2, surface_group="SRF", init_nm=0.8)
+
+    assert "pull-coord1_start        = yes" in block
+    assert "pull-coord2_start        = yes" in block
+    assert "pull-coord1-init" not in block
+    assert "pull-coord2-init" not in block
+
+
+def test_protein_deposition_and_production_templates_only_differ_in_nsteps():
+    mdp_dir = Path(gms.__file__).resolve().parent / "mdp_templates"
+    deposition = (mdp_dir / "deposition.mdp").read_text()
+    production = (mdp_dir / "production.mdp").read_text()
+
+    assert "compressibility          = 0 4e-5" in deposition
+    assert "compressibility          = 0 4e-5" in production
+    assert _normalize_mdp_nsteps(deposition) == _normalize_mdp_nsteps(production)
+
+
+def test_dna_deposition_and_production_templates_only_differ_in_nsteps():
+    mdp_dir = Path(gms.__file__).resolve().parent / "mdp_templates"
+    deposition = (mdp_dir / "deposition_dna.mdp").read_text()
+    production = (mdp_dir / "production_dna.mdp").read_text()
+
+    assert "compressibility          = 0 4e-5" in deposition
+    assert "compressibility          = 0 4e-5" in production
+    assert _normalize_mdp_nsteps(deposition) == _normalize_mdp_nsteps(production)
 
 
 def test_write_custom_mdp_skips_pull_rewrite_when_disabled(tmp_path):

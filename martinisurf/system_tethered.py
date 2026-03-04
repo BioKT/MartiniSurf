@@ -109,69 +109,221 @@ def _centroids_or_error(residue_list, atom_records, coords, label):
     return centroids
 
 
+def _parse_group_residues(raw_groups, option_name):
+    parsed = []
+    for group in raw_groups or []:
+        if len(group) < 2:
+            raise ValueError(
+                f"{option_name} entries must include a group id and at least one residue."
+            )
+        try:
+            residues = [int(r) for r in group[1:]]
+        except ValueError as exc:
+            raise ValueError(
+                f"{option_name} residues must be integers. Received: {group}"
+            ) from exc
+        parsed.append((str(group[0]), residues))
+    return parsed
+
+
+def _anchor_landmarks_for_groups(group_defs, atom_records, coords, mode):
+    residue_centroids = []
+    for group_id, residues in group_defs:
+        residue_centroids.append(
+            _centroids_or_error(
+                residues,
+                atom_records,
+                coords,
+                f"anchor group {group_id}",
+            )
+        )
+
+    if mode == "group":
+        return np.array([centroids.mean(axis=0) for centroids in residue_centroids], float)
+
+    return np.vstack(residue_centroids)
+
+
+def _rotation_matrix_from_vectors(source, target):
+    src = np.array(source, float)
+    dst = np.array(target, float)
+    src /= np.linalg.norm(src)
+    dst /= np.linalg.norm(dst)
+
+    cross = np.cross(src, dst)
+    s = np.linalg.norm(cross)
+    c = float(np.dot(src, dst))
+
+    if s < 1e-8:
+        if c > 0:
+            return np.eye(3)
+        ortho = np.array([1.0, 0.0, 0.0])
+        if abs(src[0]) > 0.9:
+            ortho = np.array([0.0, 1.0, 0.0])
+        axis = np.cross(src, ortho)
+        axis /= np.linalg.norm(axis)
+        x, y, z = axis
+        K = np.array([[0, -z, y], [z, 0, -x], [-y, x, 0]])
+        return np.eye(3) + 2.0 * (K @ K)
+
+    vx = np.array([[0, -cross[2], cross[1]],
+                   [cross[2], 0, -cross[0]],
+                   [-cross[1], cross[0], 0]])
+    return np.eye(3) + vx + vx @ vx * ((1 - c) / (s * s))
+
+
+def _rotation_matrix_about_axis(axis, angle):
+    axis = np.array(axis, float)
+    axis /= np.linalg.norm(axis)
+    x, y, z = axis
+    c = np.cos(angle)
+    s = np.sin(angle)
+    C = 1.0 - c
+    return np.array([
+        [c + x*x*C, x*y*C - z*s, x*z*C + y*s],
+        [y*x*C + z*s, c + y*y*C, y*z*C - x*s],
+        [z*x*C - y*s, z*y*C + x*s, c + z*z*C],
+    ])
+
+
+def _apply_rotation(coords, rotation, center):
+    return (rotation @ (coords - center).T).T + center
+
+
+def _finalize_anchor_pose(
+    system_coords,
+    anchor_coords,
+    surface_coords,
+    target_z,
+    reference_coords,
+    min_reference_dist=1.0,
+):
+    z_surface = surface_coords[:, 2].max()
+    target_anchor_z = z_surface + target_z
+
+    rot = np.array(system_coords, float, copy=True)
+    anchors_rot = np.array(anchor_coords, float, copy=True)
+    ref_rot = np.array(reference_coords, float, copy=True)
+
+    dz = target_anchor_z - anchors_rot[:, 2].mean()
+    rot[:, 2] += dz
+    anchors_rot[:, 2] += dz
+    ref_rot[:, 2] += dz
+
+    required_min_z = z_surface + float(min_reference_dist)
+    min_ref_z = ref_rot[:, 2].min()
+    if min_ref_z < required_min_z:
+        shift = required_min_z - min_ref_z
+        rot[:, 2] += shift
+        anchors_rot[:, 2] += shift
+        ref_rot[:, 2] += shift
+
+    xy_shift = surface_coords[:, :2].mean(0) - ref_rot[:, :2].mean(0)
+    rot[:, 0] += xy_shift[0]
+    rot[:, 1] += xy_shift[1]
+    anchors_rot[:, 0] += xy_shift[0]
+    anchors_rot[:, 1] += xy_shift[1]
+    ref_rot[:, 0] += xy_shift[0]
+    ref_rot[:, 1] += xy_shift[1]
+
+    return rot, anchors_rot, ref_rot
+
+
 # ================================================================
 # CLASSICAL ORIENTATION
 # ================================================================
 def auto_orient_from_anchor_residues(system_coords,
                                      anchor_centroids,
                                      surface_coords,
-                                     target_z):
+                                     target_z,
+                                     reference_coords=None,
+                                     min_reference_dist=1.0):
 
     if anchor_centroids.size == 0:
         raise ValueError("Anchor centroid selection is empty. Check --anchor/--linker-group residue ids.")
 
-    anchors  = anchor_centroids.copy()
-    centroid = anchors.mean(0)
+    anchors = np.array(anchor_centroids, float, copy=True)
+    ref = np.array(reference_coords if reference_coords is not None else system_coords, float, copy=True)
 
+    if len(anchors) == 1:
+        return _finalize_anchor_pose(
+            system_coords,
+            anchors,
+            surface_coords,
+            target_z,
+            ref,
+            min_reference_dist=min_reference_dist,
+        )[0]
+
+    if len(anchors) == 2:
+        center = anchors.mean(0)
+        axis = anchors[1] - anchors[0]
+        axis_norm = np.linalg.norm(axis)
+        if axis_norm < 1e-8:
+            raise ValueError("Anchor groups collapse onto the same point; cannot orient the system.")
+
+        target_axis = axis.copy()
+        target_axis[2] = 0.0
+        if np.linalg.norm(target_axis) < 1e-8:
+            target_axis = np.array([1.0, 0.0, 0.0])
+
+        R_align = _rotation_matrix_from_vectors(axis, target_axis)
+        base_system = _apply_rotation(system_coords, R_align, center)
+        base_anchors = _apply_rotation(anchors, R_align, center)
+        base_ref = _apply_rotation(ref, R_align, center)
+
+        roll_axis = base_anchors[1] - base_anchors[0]
+        roll_axis /= np.linalg.norm(roll_axis)
+        roll_center = base_anchors.mean(0)
+
+        best_pose = None
+        best_score = None
+        for angle in np.linspace(0.0, 2.0 * np.pi, 181, endpoint=False):
+            R_roll = _rotation_matrix_about_axis(roll_axis, angle)
+            trial_system = _apply_rotation(base_system, R_roll, roll_center)
+            trial_anchors = _apply_rotation(base_anchors, R_roll, roll_center)
+            trial_ref = _apply_rotation(base_ref, R_roll, roll_center)
+            final_system, final_anchors, final_ref = _finalize_anchor_pose(
+                trial_system,
+                trial_anchors,
+                surface_coords,
+                target_z,
+                trial_ref,
+                min_reference_dist=min_reference_dist,
+            )
+            score = float(final_ref[:, 2].mean())
+            if best_score is None or score < best_score:
+                best_score = score
+                best_pose = final_system
+
+        return best_pose
+
+    centroid = anchors.mean(0)
     A = anchors - centroid
     _, _, vh = np.linalg.svd(A)
     normal = vh[2] / np.linalg.norm(vh[2])
+    target_normal = np.array([0.0, 0.0, -1.0])
+    center = ref.mean(0)
 
-    target_normal = np.array([0, 0, -1])
+    R = _rotation_matrix_from_vectors(normal, target_normal)
+    rot = _apply_rotation(system_coords, R, center)
+    anchors_rot = _apply_rotation(anchors, R, center)
+    ref_rot = _apply_rotation(ref, R, center)
 
-    v = np.cross(normal, target_normal)
-    s = np.linalg.norm(v)
-    c = float(np.dot(normal, target_normal))
+    if ref_rot[:, 2].mean() < anchors_rot[:, 2].mean():
+        Rflip = np.diag([1.0, 1.0, -1.0])
+        rot = _apply_rotation(rot, Rflip, center)
+        anchors_rot = _apply_rotation(anchors_rot, Rflip, center)
+        ref_rot = _apply_rotation(ref_rot, Rflip, center)
 
-    if s < 1e-6:
-        R = np.eye(3)
-    else:
-        vx = np.array([[0,-v[2],v[1]],
-                       [v[2],0,-v[0]],
-                       [-v[1],v[0],0]])
-        R = np.eye(3) + vx + vx@vx*((1-c)/(s*s))
-
-    center = system_coords.mean(0)
-
-    rot = (R @ (system_coords - center).T).T + center
-    anchors_rot = (R @ (anchors - center).T).T + center
-
-    if anchors_rot[:,2].mean() > center[2]:
-        Rflip = np.diag([1,1,-1])
-        rot = (Rflip @ (rot - center).T).T + center
-        # Keep anchor coordinates consistent with the flipped system before
-        # computing z-translation.
-        anchors_rot = (Rflip @ (anchors_rot - center).T).T + center
-
-    z_anchor  = anchors_rot[:,2].min()
-    z_surface = surface_coords[:,2].max()
-
-    rot[:,2] += (z_surface + target_z) - z_anchor
-
-    # Safety guard: anchor-based placement can still leave parts of large/asymmetric
-    # proteins below the surface if selected anchors are not the lowest points.
-    # Enforce a minimal global clearance to avoid surface penetration artifacts.
-    min_clearance = 1.0  # Angstrom
-    min_system_z = rot[:, 2].min()
-    required_min_z = z_surface + min_clearance
-    if min_system_z < required_min_z:
-        rot[:, 2] += (required_min_z - min_system_z)
-
-    xy_shift = surface_coords[:,:2].mean(0) - rot[:,:2].mean(0)
-    rot[:,0] += xy_shift[0]
-    rot[:,1] += xy_shift[1]
-
-    return rot
+    return _finalize_anchor_pose(
+        rot,
+        anchors_rot,
+        surface_coords,
+        target_z,
+        ref_rot,
+        min_reference_dist=min_reference_dist,
+    )[0]
 
 
 # ================================================================
@@ -281,7 +433,13 @@ def main(argv=None):
     parser.add_argument("--out", default="system_Surface.gro")
 
     parser.add_argument("--anchor", nargs="+", action="append")
+    parser.add_argument(
+        "--anchor-landmark-mode",
+        choices=["residue", "group"],
+        default="residue",
+    )
     parser.add_argument("--dist", type=float, default=10.0)
+    parser.add_argument("--reference-exclude-resname", action="append")
 
     parser.add_argument("--linker-gro")
     parser.add_argument("--linker-group", nargs="+", action="append")
@@ -292,12 +450,19 @@ def main(argv=None):
     parser.add_argument("--surface-linkers", type=int, default=0)
     parser.add_argument("--surface-min-dist", type=float, default=3.0)
     parser.add_argument("--dna-mode", action="store_true")
+    parser.add_argument("--min-reference-z-dist", type=float, default=1.0)
 
     args = parser.parse_args(argv)
 
     surf_coords, surf_atoms = load_gro_coords(args.surface)
     sys_coords, sys_atoms   = load_gro_coords(args.system)
     box_line = open(args.surface).readlines()[-1].strip()
+    reference_coords = sys_coords
+    if args.reference_exclude_resname:
+        excluded = {name.strip() for name in args.reference_exclude_resname if name.strip()}
+        mask = np.array([resname not in excluded for (_, resname, _, _) in sys_atoms], dtype=bool)
+        if mask.any():
+            reference_coords = sys_coords[mask]
 
     # ============================================================
     # CLASSICAL MODE
@@ -307,20 +472,21 @@ def main(argv=None):
         if not args.anchor:
             raise ValueError("No anchors provided.")
 
-        all_res = sorted({int(r) for g in args.anchor for r in g[1:]})
-
-        centroids = _centroids_or_error(
-            all_res,
+        anchor_groups = _parse_group_residues(args.anchor, "--anchor")
+        centroids = _anchor_landmarks_for_groups(
+            anchor_groups,
             sys_atoms,
             sys_coords,
-            "anchor groups"
+            args.anchor_landmark_mode,
         )
 
         oriented = auto_orient_from_anchor_residues(
             sys_coords,
             centroids,
             surf_coords,
-            args.dist
+            args.dist,
+            reference_coords=reference_coords,
+            min_reference_dist=args.min_reference_z_dist,
         )
 
         final_atoms = sys_atoms
@@ -352,7 +518,9 @@ def main(argv=None):
             sys_coords,
             centroids,
             surf_coords,
-            target_z=0.0
+            target_z=0.0,
+            reference_coords=reference_coords,
+            min_reference_dist=args.min_reference_z_dist,
         )
 
         merged_coords = oriented_protein

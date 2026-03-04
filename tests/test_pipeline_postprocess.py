@@ -68,6 +68,18 @@ def test_parser_accepts_chain_based_anchor_and_linker_groups():
     assert args.linker_group == [["D", "8", "10", "11"]]
 
 
+def test_pipeline_reads_substrate_moltype_from_gro_when_itp_is_missing(tmp_path):
+    gro = tmp_path / "PPN.gro"
+    gro.write_text(
+        "PPN\n"
+        "    1\n"
+        "    1PPN    C1    1   0.100   0.100   0.100\n"
+        "   1.00000   1.00000   1.00000\n"
+    )
+
+    assert pipeline._read_gro_first_resname(str(gro)) == "PPN"
+
+
 def test_parser_rejects_ionize_without_solvate():
     parser = pipeline.build_parser()
     with pytest.raises(SystemExit):

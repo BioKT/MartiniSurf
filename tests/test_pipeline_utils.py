@@ -65,6 +65,7 @@ def test_load_pre_cg_complex_config_reads_required_fields(tmp_path):
     assert cfg["cofactor_molname"] == "COF"
     assert cfg["cofactor_count"] == 2
     assert cfg["anchor_groups"] == [[1, 45, 67, 120]]
+    assert cfg["anchor_landmark_mode"] == "residue"
     assert len(cfg["go_files"]) == 2
 
 
@@ -115,6 +116,7 @@ def test_load_pre_cg_complex_config_accepts_anchor_groups(tmp_path):
 
     cfg = pipeline._load_pre_cg_complex_config(input_dir / "complex_config.yaml")
     assert cfg["anchor_groups"] == [[1, 8, 10, 11], [2, 1025, 1027, 1028]]
+    assert cfg["anchor_landmark_mode"] == "group"
 
 
 def test_load_pre_cg_complex_config_resolves_chain_based_anchor_groups_with_reference_pdb(tmp_path):
@@ -149,6 +151,7 @@ def test_load_pre_cg_complex_config_resolves_chain_based_anchor_groups_with_refe
 
     cfg = pipeline._load_pre_cg_complex_config(input_dir / "complex_config.yaml")
     assert cfg["anchor_groups"] == [[1, 1, 2, 3], [2, 4, 5, 6]]
+    assert cfg["anchor_landmark_mode"] == "group"
     assert cfg["reference_pdb"] == (input_dir / "protein_ref.pdb").resolve()
 
 
@@ -199,6 +202,7 @@ def test_load_pre_cg_complex_config_allows_missing_anchor_groups(tmp_path):
 
     cfg = pipeline._load_pre_cg_complex_config(input_dir / "complex_config.yaml")
     assert cfg["anchor_groups"] == []
+    assert cfg["anchor_landmark_mode"] == "residue"
 
 
 def test_normalize_cli_residue_groups_resolves_chain_based_anchor_groups(tmp_path):

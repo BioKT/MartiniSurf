@@ -275,8 +275,8 @@ These commands are usually called by MartiniSurf internally. Most new users do n
 - `--linker-resname`
 - `--linker-size`
 - `--linker-itp-name`
-- `--linker-pull-init-prot`
-- `--linker-pull-init-surf`
+- `--linker-pull-init-prot` (deprecated; pull coordinates now use `pull-coord*_start = yes`)
+- `--linker-pull-init-surf` (deprecated; pull coordinates now use `pull-coord*_start = yes`)
 - `--go-model`
 - `--cofactor-itp-name`
 - `--cofactor-count`

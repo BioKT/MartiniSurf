@@ -374,11 +374,7 @@ def _build_pull_block(
         lines.append(f"pull-coord{i}-k            = {k:.1f}")
         lines.append(f"pull-coord{i}-rate         = 0")
         lines.append(f"pull-coord{i}-dim          = N N Y")
-        if init_nm is None:
-            lines.append(f"pull-coord{i}_start        = yes")
-        else:
-            lines.append(f"pull-coord{i}_start        = no")
-            lines.append(f"pull-coord{i}-init         = {init_nm:.4f}")
+        lines.append(f"pull-coord{i}_start        = yes")
         lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
@@ -421,11 +417,7 @@ def _build_linker_pull_block(
         lines.append(f"pull-coord{coord_id}-k            = {k:.1f}")
         lines.append(f"pull-coord{coord_id}-rate         = 0")
         lines.append(f"pull-coord{coord_id}-dim          = N N Y")
-        if init_prot_nm is None:
-            lines.append(f"pull-coord{coord_id}_start        = yes")
-        else:
-            lines.append(f"pull-coord{coord_id}_start        = no")
-            lines.append(f"pull-coord{coord_id}-init         = {init_prot_nm:.4f}")
+        lines.append(f"pull-coord{coord_id}_start        = yes")
         lines.append("")
         coord_id += 1
 
@@ -436,11 +428,7 @@ def _build_linker_pull_block(
         lines.append(f"pull-coord{coord_id}-k            = {k:.1f}")
         lines.append(f"pull-coord{coord_id}-rate         = 0")
         lines.append(f"pull-coord{coord_id}-dim          = N N Y")
-        if init_surf_nm is None:
-            lines.append(f"pull-coord{coord_id}_start        = yes")
-        else:
-            lines.append(f"pull-coord{coord_id}_start        = no")
-            lines.append(f"pull-coord{coord_id}-init         = {init_surf_nm:.4f}")
+        lines.append(f"pull-coord{coord_id}_start        = yes")
         lines.append("")
         coord_id += 1
 
@@ -497,8 +485,8 @@ def _validate_cli_args(parser: argparse.ArgumentParser, args: argparse.Namespace
         parser.error("--cofactor-count requires --cofactor-itp-name.")
     if args.substrate_count < 0:
         parser.error("--substrate-count must be >= 0.")
-    if args.substrate_count > 0 and not args.substrate_itp_name:
-        parser.error("--substrate-count requires --substrate-itp-name.")
+    if args.substrate_count > 0 and not (args.substrate_itp_name or args.substrate_moltype):
+        parser.error("--substrate-count requires --substrate-itp-name or --substrate-moltype.")
     if linker_mode and args.linker_pull_init_prot is not None and args.linker_pull_init_prot <= 0:
         parser.error("--linker-pull-init-prot must be > 0 when provided.")
     if linker_mode and args.linker_pull_init_surf is not None and args.linker_pull_init_surf <= 0:
@@ -559,18 +547,19 @@ def main(argv: Sequence[str] | None = None) -> None:
         "--linker-pull-init-prot",
         type=float,
         default=None,
-        help="Target initial linker-protein pull distance (nm).",
+        help="Deprecated compatibility flag. Pull coordinates now always start from the current distance.",
     )
     parser.add_argument(
         "--linker-pull-init-surf",
         type=float,
         default=None,
-        help="Target initial linker-surface pull distance (nm).",
+        help="Deprecated compatibility flag. Pull coordinates now always start from the current distance.",
     )
     parser.add_argument("--go-model", action="store_true", help="Add GO_VIRT define to generated protein topologies.")
     parser.add_argument("--cofactor-itp-name", help="Cofactor topology filename in system_itp.")
     parser.add_argument("--cofactor-count", type=int, default=0, help="Number of cofactor molecules in the system.")
     parser.add_argument("--substrate-itp-name", help="Substrate topology filename in system_itp.")
+    parser.add_argument("--substrate-moltype", help="Substrate moleculetype/resname when defined by the Martini force field.")
     parser.add_argument("--substrate-count", type=int, default=0, help="Number of substrate molecules in the system.")
 
     args = parser.parse_args(argv) if argv else parser.parse_args()
@@ -821,7 +810,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     if args.cofactor_count > 0 and args.cofactor_itp_name:
         cofactor_itp_path = dst_itp_dir / args.cofactor_itp_name
         cofactor_moltype_name = _read_itp_moleculetype(cofactor_itp_path) or cofactor_itp_path.stem
-    substrate_moltype_name: str | None = None
+    substrate_moltype_name: str | None = args.substrate_moltype or None
     if args.substrate_count > 0 and args.substrate_itp_name:
         substrate_itp_path = dst_itp_dir / args.substrate_itp_name
         substrate_moltype_name = _read_itp_moleculetype(substrate_itp_path) or substrate_itp_path.stem
@@ -834,6 +823,14 @@ def main(argv: Sequence[str] | None = None) -> None:
     if include_substrate_itp and substrate_moltype_name in ff_moltypes:
         include_substrate_itp = False
         print(f"ℹ {substrate_moltype_name} detected in Martini FF, skipping {args.substrate_itp_name} include.")
+    if args.substrate_count > 0 and not include_substrate_itp:
+        if not substrate_moltype_name:
+            raise ValueError("❌ Could not determine substrate moleculetype.")
+        if substrate_moltype_name not in ff_moltypes:
+            raise FileNotFoundError(
+                "❌ Substrate topology is not available locally and "
+                f"{substrate_moltype_name} was not found in the Martini force-field includes."
+            )
 
     # ===============================================================
     # Detect molecule ITP (UNCHANGED)
