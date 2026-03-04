@@ -551,6 +551,10 @@ def test_multi_linker_generates_3n_anchors_and_2n_pulls(tmp_path, monkeypatch):
     assert "pull-coord2-groups       = 3 7" in production
     assert "pull-coord3-groups       = 4 5" in production
     assert "pull-coord4-groups       = 6 7" in production
+    assert "pull-coord1-dim          = Y Y Y" in production
+    assert "pull-coord2-dim          = N N Y" in production
+    assert "pull-coord3-dim          = Y Y Y" in production
+    assert "pull-coord4-dim          = N N Y" in production
     assert "[ Anchor_6 ]" in index_text
 
 
@@ -578,6 +582,8 @@ def test_linker_pull_uses_start_from_current_distance(tmp_path, monkeypatch):
     production = (sim / "1_mdp" / "production.mdp").read_text()
     assert "pull-coord1_start        = yes" in production
     assert "pull-coord2_start        = yes" in production
+    assert "pull-coord1-dim          = Y Y Y" in production
+    assert "pull-coord2-dim          = N N Y" in production
     assert "pull-coord1-init" not in production
     assert "pull-coord2-init" not in production
 

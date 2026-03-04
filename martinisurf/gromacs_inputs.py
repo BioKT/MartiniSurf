@@ -416,7 +416,7 @@ def _build_linker_pull_block(
         lines.append(f"pull-coord{coord_id}-type         = umbrella")
         lines.append(f"pull-coord{coord_id}-k            = {k:.1f}")
         lines.append(f"pull-coord{coord_id}-rate         = 0")
-        lines.append(f"pull-coord{coord_id}-dim          = N N Y")
+        lines.append(f"pull-coord{coord_id}-dim          = Y Y Y")
         lines.append(f"pull-coord{coord_id}_start        = yes")
         lines.append("")
         coord_id += 1
