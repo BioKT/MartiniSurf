@@ -7,7 +7,7 @@ cd "${EXAMPLE_DIR}"
 export PYTHONPATH="${REPO_ROOT}:${PYTHONPATH:-}"
 
 python -m martinisurf \
-  --pdb inputs/1RJW.pdb \
+  --pdb 1RJW \
   --go  \
   --dssp \
   --moltype Protein \
