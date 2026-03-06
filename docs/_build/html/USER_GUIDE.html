@@ -323,11 +323,11 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <span class="w">  </span>--moltype<span class="w"> </span>Protein<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--surface-mode<span class="w"> </span><span class="m">4</span>-1<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--surface-bead<span class="w"> </span>P4<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--dx<span class="w"> </span><span class="m">4</span>.7<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dx<span class="w"> </span><span class="m">0</span>.47<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--lx<span class="w"> </span><span class="m">15</span><span class="w"> </span>--ly<span class="w"> </span><span class="m">15</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--anchor<span class="w"> </span>A<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">11</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--anchor<span class="w"> </span>D<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">11</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--dist<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dist<span class="w"> </span><span class="m">1</span>.0<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--solvate<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--ionize<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--salt-conc<span class="w"> </span><span class="m">0</span>.15<span class="w"> </span><span class="se">\</span>
@@ -344,7 +344,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <span class="w">  </span>--surface-mode<span class="w"> </span><span class="m">4</span>-1<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--lx<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--ly<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--dx<span class="w"> </span><span class="m">2</span>.7<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dx<span class="w"> </span><span class="m">0</span>.27<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--surface-bead<span class="w"> </span>C1<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--linker<span class="w"> </span>inputs/ALK.gro<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--linker-group<span class="w"> </span>A<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
@@ -363,10 +363,10 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <span class="w">  </span>--complex-config<span class="w"> </span>input/complex_config.yaml<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--surface-mode<span class="w"> </span><span class="m">4</span>-1<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--surface-bead<span class="w"> </span>P4<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--dx<span class="w"> </span><span class="m">4</span>.7<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dx<span class="w"> </span><span class="m">0</span>.47<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--lx<span class="w"> </span><span class="m">15</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--ly<span class="w"> </span><span class="m">15</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--dist<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dist<span class="w"> </span><span class="m">1</span>.0<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--substrate<span class="w"> </span>input/ETO.gro<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--substrate-count<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--solvate<span class="w"> </span><span class="se">\</span>
@@ -410,7 +410,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--lx</span> <span class="pre">--ly</span> <span class="pre">--dx</span></code></p></td>
 <td><p>Size and spacing for generated surface</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">15</span> <span class="pre">15</span> <span class="pre">4.7</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">15</span> <span class="pre">15</span> <span class="pre">0.47</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">...</span></code></p></td>
 <td><p>Not explicit Linker orientation (anchor mode)</p></td>
@@ -486,13 +486,13 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p><code class="docutils literal notranslate"><span class="pre">--surface-mode</span> <span class="pre">{2-1,4-1}</span></code> (default: <code class="docutils literal notranslate"><span class="pre">2-1</span></code>): grid mode for generated surfaces.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--lx</span></code> (default: none): generated surface X size (nm).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--ly</span></code> (default: none): generated surface Y size (nm).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--dx</span></code> (default: <code class="docutils literal notranslate"><span class="pre">4.7</span></code> A): bead spacing (2-1) or C-C parameter (4-1).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dx</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.47</span></code>): bead spacing (2-1) or C-C parameter (4-1).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--surface-bead</span></code> (default: <code class="docutils literal notranslate"><span class="pre">C1</span></code>): bead type for generated surface.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--charge</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0</span></code>): bead charge for generated surface topology.</p></li>
 </ul>
 <p>Unit note:</p>
 <ul class="simple">
-<li><p>In the main <code class="docutils literal notranslate"><span class="pre">martinisurf</span></code> CLI, <code class="docutils literal notranslate"><span class="pre">--dx</span></code> is provided in Angstrom and internally converted to nm for <code class="docutils literal notranslate"><span class="pre">surface_builder</span></code>.</p></li>
+<li><p>In the main <code class="docutils literal notranslate"><span class="pre">martinisurf</span></code> CLI, <code class="docutils literal notranslate"><span class="pre">--lx</span></code>, <code class="docutils literal notranslate"><span class="pre">--ly</span></code>, and <code class="docutils literal notranslate"><span class="pre">--dx</span></code> are provided in nm.</p></li>
 </ul>
 </section>
 <section id="classic-orientation-anchors">
@@ -505,7 +505,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p>Chain-based groups are converted internally to global residue ids in appearance order (<code class="docutils literal notranslate"><span class="pre">Anchor_1</span></code>, <code class="docutils literal notranslate"><span class="pre">Anchor_2</span></code>, …).</p></li>
 </ul>
 </li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--dist</span></code> (default: <code class="docutils literal notranslate"><span class="pre">10.0</span></code> A): target anchor-to-surface distance.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dist</span></code> (default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code> nm): target anchor-to-surface distance.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--balance-low-z</span></code> (default: <code class="docutils literal notranslate"><span class="pre">false</span></code>): in two-anchor mode, picks the roll angle that flattens the lowest-Z region.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--balance-low-z-fraction</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.2</span></code>): fraction (0,1] of lowest-Z beads used by <code class="docutils literal notranslate"><span class="pre">--balance-low-z</span></code>.</p></li>
 </ul>
@@ -520,8 +520,8 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p>Chain-based syntax for <code class="docutils literal notranslate"><span class="pre">--pdb</span></code> workflows: <code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">B</span> <span class="pre">8</span> <span class="pre">10</span> <span class="pre">11</span></code></p></li>
 </ul>
 </li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--linker-prot-dist</span></code> (default: auto): linker-to-biomolecule distance (A).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--linker-surf-dist</span></code> (default: auto): linker-to-surface distance (A).</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-prot-dist</span></code> (default: auto): linker-to-biomolecule distance (nm).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-surf-dist</span></code> (default: auto): linker-to-surface distance (nm).</p>
 <ul>
 <li><p>Auto rule: estimated from Martini bead-size sigma (<code class="docutils literal notranslate"><span class="pre">sigma</span> <span class="pre">*</span> <span class="pre">1.2</span></code>) using linker-tail and surface bead classes.</p></li>
 </ul>

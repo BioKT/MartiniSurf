@@ -314,6 +314,8 @@ def auto_orient_from_anchor_residues(system_coords,
         roll_center = base_anchors.mean(0)
 
         best_pose = None
+        best_anchors = None
+        best_ref = None
         best_score = None
         for angle in np.linspace(0.0, 2.0 * np.pi, 181, endpoint=False):
             R_roll = _rotation_matrix_about_axis(roll_axis, angle)
@@ -336,6 +338,33 @@ def auto_orient_from_anchor_residues(system_coords,
             if best_score is None or score < best_score:
                 best_score = score
                 best_pose = final_system
+                best_anchors = final_anchors
+                best_ref = final_ref
+
+        # Auto-fix mirror solutions in balanced two-anchor mode:
+        # if the selected orientation leaves the protein body below its anchors,
+        # mirror along Z and re-apply anchor/surface constraints.
+        if (
+            balance_low_z
+            and best_pose is not None
+            and best_anchors is not None
+            and best_ref is not None
+            and float(best_ref[:, 2].mean()) < float(best_anchors[:, 2].mean())
+        ):
+            flip_center = best_anchors.mean(0)
+            Rflip = np.diag([1.0, 1.0, -1.0])
+            flip_system = _apply_rotation(best_pose, Rflip, flip_center)
+            flip_anchors = _apply_rotation(best_anchors, Rflip, flip_center)
+            flip_ref = _apply_rotation(best_ref, Rflip, flip_center)
+            fixed_system, _, _ = _finalize_anchor_pose(
+                flip_system,
+                flip_anchors,
+                surface_coords,
+                target_z,
+                flip_ref,
+                min_reference_dist=min_reference_dist,
+            )
+            return fixed_system
 
         return best_pose
 

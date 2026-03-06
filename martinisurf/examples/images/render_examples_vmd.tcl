@@ -92,9 +92,10 @@ proc anchor_index_selection {example_dir} {
 }
 
 proc render_example {example_dir out_dir} {
+    set ex_name [file tail $example_dir]
     set gro [pick_system_gro $example_dir]
     if {$gro eq ""} {
-        puts "[file tail $example_dir]: skipped (no system GRO found)"
+        puts "$ex_name: skipped (no system GRO found)"
         return
     }
 
@@ -120,7 +121,7 @@ proc render_example {example_dir out_dir} {
     display depthcue off
     display resize 2800 2200
     color Display Background white
-    color change rgb 31 1.00 0.00 0.00
+    color change rgb 31 1.00 0.12 0.12
     color change rgb 29 1.00 0.90 0.00
     color change rgb 22 0.28 0.56 0.86
     color change rgb 23 0.36 0.85 0.93
@@ -128,6 +129,7 @@ proc render_example {example_dir out_dir} {
     color change rgb 25 0.28 0.70 0.72
     color change rgb 26 1.00 0.45 0.00
     color change rgb 27 0.05 0.20 0.60
+    color change rgb 28 1.00 1.00 1.00
     axes location Off
 
     # Reset default reps.
@@ -145,61 +147,51 @@ proc render_example {example_dir out_dir} {
         set anchor_core_sel "resname $protein_res and resid $protein_anchor_resids"
     }
 
-    # Rep 1: protein backbone beads only (BB), uniform pink.
+    # Rep 1: protein backbone beads only (BB), uniform white.
     set protein_bb_sel "name BB and resname $protein_res and not ($exclude_solvent_ions) and not ($anchor_core_sel)"
     if {[has_atoms $m $protein_bb_sel] > 0} {
         mol representation VDW 1.4 24.0
-        mol color ColorID 24
+        mol color ColorID 28
         mol selection $protein_bb_sel
         mol material AOEdgy
         mol addrep $m
     }
 
-    # Rep 1b: highlight anchor protein residues in red with protein bead size.
-    set protein_anchor_sel "($anchor_core_sel) and resname $protein_res and not ($exclude_solvent_ions)"
+    # Rep 1b: highlight anchor protein residues in red, BB bead only.
+    set protein_anchor_sel "($anchor_core_sel) and resname $protein_res and name BB and not ($exclude_solvent_ions)"
     if {[has_atoms $m $protein_anchor_sel] > 0} {
         mol representation VDW 1.4 24.0
-        mol color ColorID 26
+        mol color ColorID 1
         mol selection $protein_anchor_sel
-        mol material Opaque
+        mol material Glossy
         mol addrep $m
     }
 
-    # Rep 1c: highlight anchor DNA residues in red with DNA bead size.
-    set dna_anchor_sel "($anchor_core_sel) and resname DA DC DG DT and not ($exclude_solvent_ions)"
-    if {[has_atoms $m $dna_anchor_sel] > 0} {
-        mol representation VDW 1.0 24.0
-        mol color ColorID 31
-        mol selection $dna_anchor_sel
-        mol material Opaque
-        mol addrep $m
-    }
-
-    # Rep 2: surface C-type beads in cyan (supports C and C1 naming).
+    # Rep 2: surface C-type beads in orange (supports C and C1 naming).
     set surf_c1_sel "(resname SRF GRA) and name C C1 and not ($exclude_solvent_ions)"
     if {[has_atoms $m $surf_c1_sel] > 0} {
         mol representation VDW 1.0 20.0
-        mol color ColorID 25
+        mol color ColorID 3
         mol selection $surf_c1_sel
         mol material AOEdgy
         mol addrep $m
     }
 
-    # Rep 3: surface P4 beads in cyan.
+    # Rep 3: surface P4 beads in orange.
     set surf_p4_sel "(resname SRF GRA) and name P4 and not ($exclude_solvent_ions)"
     if {[has_atoms $m $surf_p4_sel] > 0} {
         mol representation VDW 1.4 20.0
-        mol color ColorID 25
+        mol color ColorID 3
         mol selection $surf_p4_sel
         mol material AOEdgy
         mol addrep $m
     }
 
-    # Rep 4: linkers in yellow.
+    # Rep 4: linkers in the same orange as the surface.
     set linker_sel "resname ALK EPOX MOL1 and not ($exclude_solvent_ions)"
     if {[has_atoms $m $linker_sel] > 0} {
         mol representation VDW 1.0 24.0
-        mol color ColorID 4
+        mol color ColorID 3
         mol selection $linker_sel
         mol material Glossy
         mol addrep $m
@@ -225,11 +217,11 @@ proc render_example {example_dir out_dir} {
         mol addrep $m
     }
 
-    # Rep 6: ETO substrate in dark blue.
+    # Rep 6: ETO substrate in blue.
     set eto_sel "resname ETO and not ($exclude_solvent_ions)"
     if {[has_atoms $m $eto_sel] > 0} {
         mol representation VDW 1.4 20.0
-        mol color ColorID 27
+        mol color ColorID 0
         mol selection $eto_sel
         mol material AOEdgy
         mol addrep $m
@@ -257,7 +249,6 @@ proc render_example {example_dir out_dir} {
         }
     }
 
-    set ex_name [file tail $example_dir]
     # Top view: keep Z up and Y to the right.
     set top_png [render_view $ex_name $out_dir "top" {rotate z by -90; scale by 1.8}]
     # Side view: Z positive up and X positive to the right.

@@ -92,7 +92,7 @@ bash work_flow_gromacs.sh
   - `--invert-linker`
 - For multiple linker instances, pull/index groups are generated per linker automatically.
 - If not provided manually, linker distances are estimated from Martini bead-size sigma rules.
-  - `--linker-surf-dist` (A) auto uses linker-tail vs surface bead classes (`sigma * 1.2`).
+  - `--linker-surf-dist` (nm) auto uses linker-tail vs surface bead classes (`sigma * 1.2`).
 - In generated MDP pull blocks, each coordinate uses either `_start` or `-init` (never both simultaneously).
 
 ## CLI Help

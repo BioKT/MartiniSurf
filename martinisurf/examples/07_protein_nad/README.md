@@ -24,5 +24,5 @@ Notes:
 - Anchors are set in `complex_config.yaml` as:
   - `A 8 10 11`
   - `D 8 10 11`
-- Uses generated surface (`--lx 20 --ly 20`), so no external `surface.gro` is required.
+- Uses generated surface (`--lx 15 --ly 15`), so no external `surface.gro` is required.
 - Requires GROMACS (`gmx`) available in `PATH` for `--solvate --ionize`.

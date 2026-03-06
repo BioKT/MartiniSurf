@@ -78,11 +78,11 @@ martinisurf \
   --moltype Protein \
   --surface-mode 4-1 \
   --surface-bead P4 \
-  --dx 4.7 \
+  --dx 0.47 \
   --lx 15 --ly 15 \
   --anchor A 8 10 11 \
   --anchor D 8 10 11 \
-  --dist 10 \
+  --dist 1.0 \
   --solvate \
   --ionize \
   --salt-conc 0.15 \
@@ -99,7 +99,7 @@ martinisurf \
   --surface-mode 4-1 \
   --lx 10 \
   --ly 10 \
-  --dx 2.7 \
+  --dx 0.27 \
   --surface-bead C1 \
   --linker inputs/ALK.gro \
   --linker-group A 1 \
@@ -118,10 +118,10 @@ martinisurf \
   --complex-config input/complex_config.yaml \
   --surface-mode 4-1 \
   --surface-bead P4 \
-  --dx 4.7 \
+  --dx 0.47 \
   --lx 15 \
   --ly 15 \
-  --dist 10 \
+  --dist 1.0 \
   --substrate input/ETO.gro \
   --substrate-count 10 \
   --solvate \
@@ -139,7 +139,7 @@ martinisurf \
 | `--dna` | Enables DNA workflow | no value |
 | `--surface` | Reuses an existing surface file | `surface.gro` |
 | `--surface-mode` | Builds 2-1 or 4-1 surface | `4-1` |
-| `--lx --ly --dx` | Size and spacing for generated surface | `15 15 4.7` |
+| `--lx --ly --dx` | Size and spacing for generated surface | `15 15 0.47` |
 | `--anchor ...` | Not explicit Linker orientation (anchor mode) | `--anchor B 8 10 11` |
 | `--linker` | Linker GRO file | `ALK.gro` |
 | `--linker-group ...` | Residue groups for linker attachment | `--linker-group A 1` |
@@ -183,12 +183,12 @@ This section includes ALL flags from the main pipeline.
 - `--surface-mode {2-1,4-1}` (default: `2-1`): grid mode for generated surfaces.
 - `--lx` (default: none): generated surface X size (nm).
 - `--ly` (default: none): generated surface Y size (nm).
-- `--dx` (default: `4.7` A): bead spacing (2-1) or C-C parameter (4-1).
+- `--dx` (default: `0.47`): bead spacing (2-1) or C-C parameter (4-1).
 - `--surface-bead` (default: `C1`): bead type for generated surface.
 - `--charge` (default: `0`): bead charge for generated surface topology.
 
 Unit note:
-- In the main `martinisurf` CLI, `--dx` is provided in Angstrom and internally converted to nm for `surface_builder`.
+- In the main `martinisurf` CLI, `--lx`, `--ly`, and `--dx` are provided in nm.
 
 ### Classic orientation (anchors)
 
@@ -196,7 +196,7 @@ Unit note:
   - Legacy syntax: `--anchor 1 8 10 11`
   - Chain-based syntax for `--pdb` workflows: `--anchor D 8 10 11`
   - Chain-based groups are converted internally to global residue ids in appearance order (`Anchor_1`, `Anchor_2`, ...).
-- `--dist` (default: `10.0` A): target anchor-to-surface distance.
+- `--dist` (default: `1.0` nm): target anchor-to-surface distance.
 - `--balance-low-z` (default: `false`): in two-anchor mode, picks the roll angle that flattens the lowest-Z region.
 - `--balance-low-z-fraction` (default: `0.2`): fraction (0,1] of lowest-Z beads used by `--balance-low-z`.
 
@@ -206,8 +206,8 @@ Unit note:
 - `--linker-group GROUP_OR_CHAIN RESID [RESID ...]` (default: none, repeatable): residue groups where linkers attach.
   - Legacy syntax: `--linker-group 1 8 10 11`
   - Chain-based syntax for `--pdb` workflows: `--linker-group B 8 10 11`
-- `--linker-prot-dist` (default: auto): linker-to-biomolecule distance (A).
-- `--linker-surf-dist` (default: auto): linker-to-surface distance (A).
+- `--linker-prot-dist` (default: auto): linker-to-biomolecule distance (nm).
+- `--linker-surf-dist` (default: auto): linker-to-surface distance (nm).
   - Auto rule: estimated from Martini bead-size sigma (`sigma * 1.2`) using linker-tail and surface bead classes.
 - `--invert-linker` (default: false): reverses linker bead order.
 - `--surface-linkers` (default: `0`): number of additional random surface linkers.

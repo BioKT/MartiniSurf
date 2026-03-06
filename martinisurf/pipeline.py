@@ -812,7 +812,7 @@ def build_parser():
     )
     surface_group.add_argument("--lx", type=float, help="Surface size in X (nm) for generated surface.")
     surface_group.add_argument("--ly", type=float, help="Surface size in Y (nm) for generated surface.")
-    surface_group.add_argument("--dx", type=float, default=4.7, help="Surface bead spacing (A).")
+    surface_group.add_argument("--dx", type=float, default=0.47, help="Surface bead spacing (nm).")
     surface_group.add_argument("--surface-bead", default="C1", help="Surface bead type for generated surface.")
     surface_group.add_argument("--charge", type=int, default=0, help="Surface bead charge for generated surface.")
 
@@ -827,7 +827,7 @@ def build_parser():
             "Chain-based syntax is resolved from the cleaned input PDB."
         ),
     )
-    anchor_group.add_argument("--dist", type=float, default=10.0, help="Anchor-to-surface target distance (A).")
+    anchor_group.add_argument("--dist", type=float, default=1.0, help="Anchor-to-surface target distance (nm).")
     anchor_group.add_argument(
         "--balance-low-z",
         action="store_true",
@@ -852,8 +852,8 @@ def build_parser():
             "CHAIN RESID [RESID ...]. Chain-based syntax is resolved from the cleaned input PDB."
         ),
     )
-    linker_group.add_argument("--linker-prot-dist", type=float, help="Linker-to-protein/DNA distance (A). Auto if omitted.")
-    linker_group.add_argument("--linker-surf-dist", type=float, help="Linker-to-surface distance (A). Auto if omitted.")
+    linker_group.add_argument("--linker-prot-dist", type=float, help="Linker-to-protein/DNA distance (nm). Auto if omitted.")
+    linker_group.add_argument("--linker-surf-dist", type=float, help="Linker-to-surface distance (nm). Auto if omitted.")
     linker_group.add_argument("--invert-linker", action="store_true", help="Reverse linker bead order before attachment.")
     linker_group.add_argument("--surface-linkers", type=int, default=0, help="Add random extra linkers on the surface.")
 
@@ -2105,7 +2105,7 @@ def main(argv=None):
             "--mode", args.surface_mode,
             "--lx", str(args.lx),
             "--ly", str(args.ly),
-            "--dx", str(args.dx / 10.0),
+            "--dx", str(args.dx),
             "--bead", args.surface_bead,
             "--charge", str(args.charge),
             "--output", str(system_dir / "surface"),
@@ -2179,23 +2179,23 @@ def main(argv=None):
             class_b=_bead_size_class(surface_atom or args.surface_bead),
         )
 
-        # Auto distances:
-        # - linker<->protein/DNA based on sigma*1.2 (converted from nm to A)
-        # - linker<->surface based on sigma*1.2 (converted from nm to A)
-        linker_prot_dist_ang = (
+        # Auto distances in nm from sigma*1.2.
+        linker_prot_dist_nm = (
             args.linker_prot_dist
             if args.linker_prot_dist is not None
-            else prot_sigma_nm * 1.2 * 10.0
+            else prot_sigma_nm * 1.2
         )
-        linker_surf_dist_ang = (
+        linker_surf_dist_nm = (
             args.linker_surf_dist
             if args.linker_surf_dist is not None
-            else surf_sigma_nm * 1.2 * 10.0
+            else surf_sigma_nm * 1.2
         )
+        linker_prot_dist_ang = linker_prot_dist_nm * 10.0
+        linker_surf_dist_ang = linker_surf_dist_nm * 10.0
 
         print(
-            f"ℹ Linker distances (A): prot={linker_prot_dist_ang:.3f} "
-            f"surf={linker_surf_dist_ang:.3f}"
+            f"ℹ Linker distances (nm): prot={linker_prot_dist_nm:.3f} "
+            f"surf={linker_surf_dist_nm:.3f}"
         )
 
         orient_args += [
@@ -2214,7 +2214,7 @@ def main(argv=None):
                 orient_args += ["--linker-group"] + [str(x) for x in group]
 
     elif args.anchor:
-        orient_args += ["--dist", str(args.dist)]
+        orient_args += ["--dist", str(args.dist * 10.0)]
         for group in resolved_anchor_groups:
             orient_args += ["--anchor"] + [str(x) for x in group]
     elif complex_cfg:
@@ -2227,8 +2227,8 @@ def main(argv=None):
             orient_args += ["--anchor-landmark-mode", str(complex_cfg["anchor_landmark_mode"])]
         if complex_cfg.get("cofactor_molname"):
             orient_args += ["--reference-exclude-resname", str(complex_cfg["cofactor_molname"])]
-        orient_args += ["--min-reference-z-dist", str(args.dist)]
-        orient_args += ["--dist", str(args.dist)]
+        orient_args += ["--min-reference-z-dist", str(args.dist * 10.0)]
+        orient_args += ["--dist", str(args.dist * 10.0)]
         for group in complex_cfg["anchor_groups"]:
             orient_args += ["--anchor"] + [str(x) for x in group]
 
@@ -2263,8 +2263,8 @@ def main(argv=None):
         linker_size = _read_gro_atom_count(args.linker)
         if linker_size and linker_size > 0:
             final_args += ["--linker-size", str(linker_size)]
-        final_args += ["--linker-pull-init-prot", str(linker_prot_dist_ang / 10.0)]
-        final_args += ["--linker-pull-init-surf", str(linker_surf_dist_ang / 10.0)]
+        final_args += ["--linker-pull-init-prot", str(linker_prot_dist_nm)]
+        final_args += ["--linker-pull-init-surf", str(linker_surf_dist_nm)]
 
         linker_itp = Path(args.linker).with_suffix(".itp")
         if not linker_itp.exists():
