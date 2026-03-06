@@ -279,6 +279,123 @@ def test_auto_orient_can_enforce_minimum_reference_distance():
     assert result[:, 2].min() >= 10.0 - 1e-6
 
 
+def test_auto_orient_balance_low_z_flattens_lowest_region():
+    surface = np.array([
+        [0.0, 0.0, 0.0],
+        [20.0, 20.0, 0.0],
+    ])
+    anchors = np.array([
+        [0.0, 0.0, 0.0],
+        [12.0, 0.0, 9.0],
+    ])
+    # Asymmetric geometry where roll selection changes low-Z flatness.
+    system = np.array([
+        [0.0, 0.0, 0.0],
+        [12.0, 0.0, 9.0],
+        [6.0, 15.0, 28.0],
+        [6.0, 18.0, -5.0],
+        [6.0, -20.0, 30.0],
+        [6.0, -24.0, -25.0],
+        [6.0, 30.0, 8.0],
+        [6.0, -32.0, 12.0],
+        [6.0, 5.0, -35.0],
+        [6.0, -6.0, 26.0],
+        [6.0, 12.0, -30.0],
+        [6.0, -10.0, 34.0],
+    ])
+
+    default_pose = enz.auto_orient_from_anchor_residues(
+        system,
+        anchors,
+        surface,
+        target_z=10.0,
+        reference_coords=system,
+    )
+    balanced_pose = enz.auto_orient_from_anchor_residues(
+        system,
+        anchors,
+        surface,
+        target_z=10.0,
+        reference_coords=system,
+        balance_low_z=True,
+        balance_low_z_fraction=0.3,
+    )
+
+    def low_z_std(coords, fraction):
+        count = max(1, int(np.ceil(len(coords) * fraction)))
+        idx = np.argsort(coords[:, 2])[:count]
+        return float(np.std(coords[idx, 2]))
+
+    assert low_z_std(balanced_pose, 0.3) < low_z_std(default_pose, 0.3)
+
+
+def test_auto_orient_balance_low_z_fraction_is_validated():
+    system = np.array([
+        [0.0, 0.0, 0.0],
+        [8.0, 0.0, 6.0],
+        [4.0, 18.0, 14.0],
+    ])
+    anchors = np.array([
+        [0.0, 0.0, 0.0],
+        [8.0, 0.0, 6.0],
+    ])
+    surface = np.array([
+        [0.0, 0.0, 0.0],
+        [20.0, 20.0, 0.0],
+    ])
+
+    try:
+        enz.auto_orient_from_anchor_residues(
+            system,
+            anchors,
+            surface,
+            target_z=10.0,
+            reference_coords=system,
+            balance_low_z=True,
+            balance_low_z_fraction=0.0,
+        )
+    except ValueError as exc:
+        assert "balance-low-z-fraction" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError for invalid balance_low_z_fraction.")
+
+
+def test_auto_orient_single_anchor_can_orient_reference_upward():
+    system = np.array([
+        [0.0, 0.0, 0.0],    # anchor
+        [0.0, 0.0, -10.0],  # reference below anchor
+        [0.0, 0.0, -8.0],   # reference below anchor
+    ])
+    anchors = np.array([[0.0, 0.0, 0.0]])
+    surface = np.array([
+        [0.0, 0.0, 0.0],
+        [2.0, 2.0, 0.0],
+    ])
+
+    default_pose = enz.auto_orient_from_anchor_residues(
+        system,
+        anchors,
+        surface,
+        target_z=0.0,
+        reference_coords=system,
+        min_reference_dist=1.0,
+        orient_single_anchor_up=False,
+    )
+    upward_pose = enz.auto_orient_from_anchor_residues(
+        system,
+        anchors,
+        surface,
+        target_z=0.0,
+        reference_coords=system,
+        min_reference_dist=1.0,
+        orient_single_anchor_up=True,
+    )
+
+    # Anchor atom is index 0.
+    assert default_pose[1:, 2].mean() < default_pose[0, 2]
+    assert upward_pose[1:, 2].mean() > upward_pose[0, 2]
+
+
 # --------------------------------------------------------------
 # Test save_full_system
 # --------------------------------------------------------------

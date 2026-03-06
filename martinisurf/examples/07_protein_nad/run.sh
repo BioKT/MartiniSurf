@@ -5,7 +5,7 @@ martinisurf \
   --complex-config input/complex_config.yaml \
   --surface-mode 4-1 \
   --surface-bead P4 \
-  --dx 0.47 \
+  --dx 4.7 \
   --lx 15 \
   --ly 15 \
   --dist 10 \

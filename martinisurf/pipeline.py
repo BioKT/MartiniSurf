@@ -463,6 +463,16 @@ def _load_pre_cg_complex_config(config_path: Path) -> dict[str, Any]:
         anchor_groups = [[1] + orient_residues]
     else:
         anchor_groups = []
+    balance_low_z_raw = protein.get("balance_low_z", False)
+    if not isinstance(balance_low_z_raw, bool):
+        raise ValueError("protein.balance_low_z must be true or false")
+    balance_low_z = bool(balance_low_z_raw)
+    balance_low_z_fraction_raw = protein.get("balance_low_z_fraction", 0.2)
+    if not isinstance(balance_low_z_fraction_raw, (int, float)):
+        raise ValueError("protein.balance_low_z_fraction must be a number in (0, 1]")
+    balance_low_z_fraction = float(balance_low_z_fraction_raw)
+    if not (0.0 < balance_low_z_fraction <= 1.0):
+        raise ValueError("protein.balance_low_z_fraction must be in the interval (0, 1]")
 
     cofactor = cfg.get("cofactor")
     if not isinstance(cofactor, dict):
@@ -517,6 +527,8 @@ def _load_pre_cg_complex_config(config_path: Path) -> dict[str, Any]:
         "protein_molname": protein_molname,
         "anchor_groups": anchor_groups,
         "anchor_landmark_mode": anchor_landmark_mode,
+        "balance_low_z": balance_low_z,
+        "balance_low_z_fraction": balance_low_z_fraction,
         "reference_pdb": reference_pdb,
         "protein_itp": protein_itp,
         "cofactor_molname": cofactor_molname,
@@ -675,6 +687,8 @@ def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
         parser.error("--solvate-radius must be > 0.")
     if args.solvate_surface_clearance < 0:
         parser.error("--solvate-surface-clearance must be >= 0.")
+    if args.balance_low_z_fraction is not None and not (0.0 < args.balance_low_z_fraction <= 1.0):
+        parser.error("--balance-low-z-fraction must be in the interval (0, 1].")
     if args.water_gro and not Path(args.water_gro).exists():
         parser.error(f"--water-gro not found: {args.water_gro}")
     if args.freeze_water_fraction < 0 or args.freeze_water_fraction > 1:
@@ -798,7 +812,7 @@ def build_parser():
     )
     surface_group.add_argument("--lx", type=float, help="Surface size in X (nm) for generated surface.")
     surface_group.add_argument("--ly", type=float, help="Surface size in Y (nm) for generated surface.")
-    surface_group.add_argument("--dx", type=float, default=0.47, help="Surface bead spacing (nm).")
+    surface_group.add_argument("--dx", type=float, default=4.7, help="Surface bead spacing (A).")
     surface_group.add_argument("--surface-bead", default="C1", help="Surface bead type for generated surface.")
     surface_group.add_argument("--charge", type=int, default=0, help="Surface bead charge for generated surface.")
 
@@ -814,6 +828,17 @@ def build_parser():
         ),
     )
     anchor_group.add_argument("--dist", type=float, default=10.0, help="Anchor-to-surface target distance (A).")
+    anchor_group.add_argument(
+        "--balance-low-z",
+        action="store_true",
+        help="In two-anchor orientation, choose the roll angle that flattens the lowest-Z region.",
+    )
+    anchor_group.add_argument(
+        "--balance-low-z-fraction",
+        type=float,
+        default=None,
+        help="Fraction (0,1] of lowest-Z beads used by --balance-low-z (default: 0.2).",
+    )
 
     linker_group = parser.add_argument_group("Orientation: Linker Mode")
     linker_group.add_argument("--linker", help="Linker .gro file.")
@@ -2080,7 +2105,7 @@ def main(argv=None):
             "--mode", args.surface_mode,
             "--lx", str(args.lx),
             "--ly", str(args.ly),
-            "--dx", str(args.dx),
+            "--dx", str(args.dx / 10.0),
             "--bead", args.surface_bead,
             "--charge", str(args.charge),
             "--output", str(system_dir / "surface"),
@@ -2116,6 +2141,14 @@ def main(argv=None):
     ]
     if args.dna:
         orient_args += ["--dna-mode"]
+    balance_low_z = bool(args.balance_low_z or (complex_cfg and complex_cfg.get("balance_low_z")))
+    balance_low_z_fraction = args.balance_low_z_fraction
+    if balance_low_z_fraction is None and complex_cfg:
+        balance_low_z_fraction = complex_cfg.get("balance_low_z_fraction")
+    if balance_low_z:
+        orient_args += ["--balance-low-z"]
+    if balance_low_z_fraction is not None:
+        orient_args += ["--balance-low-z-fraction", str(balance_low_z_fraction)]
 
     if args.linker:
         first_group_resid = None
@@ -2146,16 +2179,18 @@ def main(argv=None):
             class_b=_bead_size_class(surface_atom or args.surface_bead),
         )
 
-        # Auto linker distances follow sigma*1.12 (converted from nm to Angstrom).
+        # Auto distances:
+        # - linker<->protein/DNA based on sigma*1.2 (converted from nm to A)
+        # - linker<->surface based on sigma*1.2 (converted from nm to A)
         linker_prot_dist_ang = (
             args.linker_prot_dist
             if args.linker_prot_dist is not None
-            else prot_sigma_nm * 1.12 * 10.0
+            else prot_sigma_nm * 1.2 * 10.0
         )
         linker_surf_dist_ang = (
             args.linker_surf_dist
             if args.linker_surf_dist is not None
-            else surf_sigma_nm * 1.12 * 10.0
+            else surf_sigma_nm * 1.2 * 10.0
         )
 
         print(

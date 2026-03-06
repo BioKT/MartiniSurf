@@ -8,7 +8,7 @@ martinisurf \
   --surface-mode 4-1 \
   --lx 15 \
   --ly 15 \
-  --dx 0.47 \
+  --dx 4.7 \
   --surface-bead P4 \
   --linker inputs/EPOXY.gro \
   --linker-group A 8 10 11 \

@@ -8,7 +8,7 @@ bash run.sh
 ```
 
 What this example configures in `martinisurf`:
-- Generated surface: `--surface-mode 4-1 --lx 10 --ly 10 --dx 0.27 --surface-bead C1`
+- Generated surface: `--surface-mode 4-1 --lx 10 --ly 10 --dx 2.7 --surface-bead C1`
 - Linker from inputs: `--linker inputs/ALK.gro --linker-group A 1` (uses `inputs/ALK.itp`)
 - `--freeze-water-fraction 0.10`
 - `--freeze-water-seed 42`

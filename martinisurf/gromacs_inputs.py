@@ -349,6 +349,7 @@ def _build_pull_block(
     surface_group: str,
     k: float = 500.0,
     init_nm: float | None = None,
+    include_init: bool = True,
 ) -> str:
     if anchor_count <= 0:
         return ""
@@ -374,10 +375,29 @@ def _build_pull_block(
         lines.append(f"pull-coord{i}-k            = {k:.1f}")
         lines.append(f"pull-coord{i}-rate         = 0")
         lines.append(f"pull-coord{i}-dim          = N N Y")
-        lines.append(f"pull-coord{i}_start        = yes")
+        _append_pull_start_or_init(
+            lines=lines,
+            coord_id=i,
+            include_init=include_init,
+            init_nm=init_nm,
+        )
         lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _append_pull_start_or_init(
+    lines: list[str],
+    coord_id: int,
+    include_init: bool,
+    init_nm: float | None,
+) -> None:
+    """Write either _start or -init, never both, for one pull coordinate."""
+    has_init = include_init and init_nm is not None
+    if not has_init:
+        lines.append(f"pull-coord{coord_id}_start        = yes")
+        return
+    lines.append(f"pull-coord{coord_id}-init         = {init_nm:.3f}")
 
 
 def _build_linker_pull_block(
@@ -386,6 +406,7 @@ def _build_linker_pull_block(
     k: float = 500.0,
     init_prot_nm: float | None = None,
     init_surf_nm: float | None = None,
+    include_init: bool = True,
 ) -> str:
     if linker_count <= 0:
         return ""
@@ -417,7 +438,12 @@ def _build_linker_pull_block(
         lines.append(f"pull-coord{coord_id}-k            = {k:.1f}")
         lines.append(f"pull-coord{coord_id}-rate         = 0")
         lines.append(f"pull-coord{coord_id}-dim          = Y Y Y")
-        lines.append(f"pull-coord{coord_id}_start        = yes")
+        _append_pull_start_or_init(
+            lines=lines,
+            coord_id=coord_id,
+            include_init=include_init,
+            init_nm=init_prot_nm,
+        )
         lines.append("")
         coord_id += 1
 
@@ -428,7 +454,12 @@ def _build_linker_pull_block(
         lines.append(f"pull-coord{coord_id}-k            = {k:.1f}")
         lines.append(f"pull-coord{coord_id}-rate         = 0")
         lines.append(f"pull-coord{coord_id}-dim          = N N Y")
-        lines.append(f"pull-coord{coord_id}_start        = yes")
+        _append_pull_start_or_init(
+            lines=lines,
+            coord_id=coord_id,
+            include_init=include_init,
+            init_nm=init_surf_nm,
+        )
         lines.append("")
         coord_id += 1
 
@@ -447,6 +478,7 @@ def write_custom_mdp(
     linker_pull_init_surf_nm: float | None = None,
     anchor_pull_init_nm: float | None = None,
     rewrite_pull: bool = True,
+    include_pull_init: bool = True,
 ) -> None:
     text = src.read_text()
     if not rewrite_pull:
@@ -463,12 +495,14 @@ def write_custom_mdp(
                 surface_group=surface_group,
                 init_prot_nm=linker_pull_init_prot_nm,
                 init_surf_nm=linker_pull_init_surf_nm,
+                include_init=include_pull_init,
             )
         elif anchor_count > 0:
             clean = clean.rstrip() + "\n" + _build_pull_block(
                 anchor_count,
                 surface_group,
                 init_nm=anchor_pull_init_nm,
+                include_init=include_pull_init,
             )
 
     dst.write_text(clean)
@@ -547,13 +581,13 @@ def main(argv: Sequence[str] | None = None) -> None:
         "--linker-pull-init-prot",
         type=float,
         default=None,
-        help="Deprecated compatibility flag. Pull coordinates now always start from the current distance.",
+        help="Initial pull distance (nm) for linker-head to biomolecule anchor coordinates.",
     )
     parser.add_argument(
         "--linker-pull-init-surf",
         type=float,
         default=None,
-        help="Deprecated compatibility flag. Pull coordinates now always start from the current distance.",
+        help="Initial pull distance (nm) for linker-tail to surface coordinates.",
     )
     parser.add_argument("--go-model", action="store_true", help="Add GO_VIRT define to generated protein topologies.")
     parser.add_argument("--cofactor-itp-name", help="Cofactor topology filename in system_itp.")
@@ -954,6 +988,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                     "deposition_dna.mdp",
                     "production_dna.mdp",
                 }
+                include_pull_init = rewrite_pull
                 write_custom_mdp(
                     src=src,
                     dst=mdp_dir / dst_name,
@@ -965,6 +1000,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                     linker_pull_init_prot_nm=args.linker_pull_init_prot,
                     linker_pull_init_surf_nm=args.linker_pull_init_surf,
                     rewrite_pull=rewrite_pull,
+                    include_pull_init=include_pull_init,
                 )
                 print(f"  ✔ {src_name} → {dst_name}")
             else:

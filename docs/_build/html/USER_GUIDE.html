@@ -257,6 +257,9 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">--linker</span> <span class="pre">...</span> <span class="pre">--linker-group</span> <span class="pre">...</span></code> (linker mode).</p></li>
 </ul>
 </li>
+<li><p>In <code class="docutils literal notranslate"><span class="pre">--pdb</span></code> workflows, <code class="docutils literal notranslate"><span class="pre">--anchor</span></code> and <code class="docutils literal notranslate"><span class="pre">--linker-group</span></code> can use either global residue ids or <code class="docutils literal notranslate"><span class="pre">CHAIN</span> <span class="pre">RESID</span> <span class="pre">...</span></code> syntax from the input PDB.</p></li>
+<li><p>In <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>, chain-based <code class="docutils literal notranslate"><span class="pre">protein.anchor_groups</span></code> also work if you provide <code class="docutils literal notranslate"><span class="pre">protein.reference_pdb</span></code>.</p></li>
+<li><p>For two-anchor systems, use <code class="docutils literal notranslate"><span class="pre">--balance-low-z</span></code> (and optional <code class="docutils literal notranslate"><span class="pre">--balance-low-z-fraction</span></code>) to flatten the lowest-Z protein face against the surface.</p></li>
 <li><p>If you do NOT pass <code class="docutils literal notranslate"><span class="pre">--surface</span></code>, you must pass <code class="docutils literal notranslate"><span class="pre">--lx</span></code> and <code class="docutils literal notranslate"><span class="pre">--ly</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--ionize</span></code> always requires <code class="docutils literal notranslate"><span class="pre">--solvate</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--freeze-water-fraction</span></code> works only with <code class="docutils literal notranslate"><span class="pre">--dna</span></code> and <code class="docutils literal notranslate"><span class="pre">--solvate</span></code>.</p></li>
@@ -320,10 +323,10 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <span class="w">  </span>--moltype<span class="w"> </span>Protein<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--surface-mode<span class="w"> </span><span class="m">4</span>-1<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--surface-bead<span class="w"> </span>P4<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--dx<span class="w"> </span><span class="m">0</span>.47<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dx<span class="w"> </span><span class="m">4</span>.7<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--lx<span class="w"> </span><span class="m">15</span><span class="w"> </span>--ly<span class="w"> </span><span class="m">15</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--anchor<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">11</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--anchor<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="m">1025</span><span class="w"> </span><span class="m">1027</span><span class="w"> </span><span class="m">1028</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--anchor<span class="w"> </span>A<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">11</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--anchor<span class="w"> </span>D<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">11</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--dist<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--solvate<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--ionize<span class="w"> </span><span class="se">\</span>
@@ -341,10 +344,10 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <span class="w">  </span>--surface-mode<span class="w"> </span><span class="m">4</span>-1<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--lx<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--ly<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--dx<span class="w"> </span><span class="m">0</span>.27<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dx<span class="w"> </span><span class="m">2</span>.7<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--surface-bead<span class="w"> </span>C1<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--linker<span class="w"> </span>inputs/ALK.gro<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--linker-group<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--linker-group<span class="w"> </span>A<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--solvate<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--ionize<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--salt-conc<span class="w"> </span><span class="m">0</span>.15<span class="w"> </span><span class="se">\</span>
@@ -360,7 +363,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <span class="w">  </span>--complex-config<span class="w"> </span>input/complex_config.yaml<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--surface-mode<span class="w"> </span><span class="m">4</span>-1<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--surface-bead<span class="w"> </span>P4<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--dx<span class="w"> </span><span class="m">0</span>.47<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dx<span class="w"> </span><span class="m">4</span>.7<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--lx<span class="w"> </span><span class="m">15</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--ly<span class="w"> </span><span class="m">15</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--dist<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
@@ -407,11 +410,11 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--lx</span> <span class="pre">--ly</span> <span class="pre">--dx</span></code></p></td>
 <td><p>Size and spacing for generated surface</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">15</span> <span class="pre">15</span> <span class="pre">0.47</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">15</span> <span class="pre">15</span> <span class="pre">4.7</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">...</span></code></p></td>
 <td><p>Not explicit Linker orientation (anchor mode)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">1</span> <span class="pre">8</span> <span class="pre">10</span> <span class="pre">11</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">B</span> <span class="pre">8</span> <span class="pre">10</span> <span class="pre">11</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--linker</span></code></p></td>
 <td><p>Linker GRO file</p></td>
@@ -419,7 +422,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">...</span></code></p></td>
 <td><p>Residue groups for linker attachment</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">1</span> <span class="pre">1</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">A</span> <span class="pre">1</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--merge</span></code></p></td>
 <td><p>Chain merge during martinization</p></td>
@@ -483,27 +486,54 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p><code class="docutils literal notranslate"><span class="pre">--surface-mode</span> <span class="pre">{2-1,4-1}</span></code> (default: <code class="docutils literal notranslate"><span class="pre">2-1</span></code>): grid mode for generated surfaces.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--lx</span></code> (default: none): generated surface X size (nm).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--ly</span></code> (default: none): generated surface Y size (nm).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--dx</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.47</span></code>): bead spacing (2-1) or C-C parameter (4-1).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dx</span></code> (default: <code class="docutils literal notranslate"><span class="pre">4.7</span></code> A): bead spacing (2-1) or C-C parameter (4-1).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--surface-bead</span></code> (default: <code class="docutils literal notranslate"><span class="pre">C1</span></code>): bead type for generated surface.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--charge</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0</span></code>): bead charge for generated surface topology.</p></li>
+</ul>
+<p>Unit note:</p>
+<ul class="simple">
+<li><p>In the main <code class="docutils literal notranslate"><span class="pre">martinisurf</span></code> CLI, <code class="docutils literal notranslate"><span class="pre">--dx</span></code> is provided in Angstrom and internally converted to nm for <code class="docutils literal notranslate"><span class="pre">surface_builder</span></code>.</p></li>
 </ul>
 </section>
 <section id="classic-orientation-anchors">
 <h3>Classic orientation (anchors)<a class="headerlink" href="#classic-orientation-anchors" title="Link to this heading">¶</a></h3>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">GROUP</span> <span class="pre">RESID</span> <span class="pre">[RESID</span> <span class="pre">...]</span></code> (default: none, repeatable): defines anchor groups.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">GROUP_OR_CHAIN</span> <span class="pre">RESID</span> <span class="pre">[RESID</span> <span class="pre">...]</span></code> (default: none, repeatable): defines anchor groups.</p>
+<ul>
+<li><p>Legacy syntax: <code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">1</span> <span class="pre">8</span> <span class="pre">10</span> <span class="pre">11</span></code></p></li>
+<li><p>Chain-based syntax for <code class="docutils literal notranslate"><span class="pre">--pdb</span></code> workflows: <code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">D</span> <span class="pre">8</span> <span class="pre">10</span> <span class="pre">11</span></code></p></li>
+<li><p>Chain-based groups are converted internally to global residue ids in appearance order (<code class="docutils literal notranslate"><span class="pre">Anchor_1</span></code>, <code class="docutils literal notranslate"><span class="pre">Anchor_2</span></code>, …).</p></li>
+</ul>
+</li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--dist</span></code> (default: <code class="docutils literal notranslate"><span class="pre">10.0</span></code> A): target anchor-to-surface distance.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--balance-low-z</span></code> (default: <code class="docutils literal notranslate"><span class="pre">false</span></code>): in two-anchor mode, picks the roll angle that flattens the lowest-Z region.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--balance-low-z-fraction</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.2</span></code>): fraction (0,1] of lowest-Z beads used by <code class="docutils literal notranslate"><span class="pre">--balance-low-z</span></code>.</p></li>
 </ul>
 </section>
 <section id="linker-orientation">
 <h3>Linker orientation<a class="headerlink" href="#linker-orientation" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">--linker</span></code> (default: none): linker <code class="docutils literal notranslate"><span class="pre">.gro</span></code> file.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">GROUP</span> <span class="pre">RESID</span> <span class="pre">[RESID</span> <span class="pre">...]</span></code> (default: none, repeatable): residue groups where linkers attach.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">GROUP_OR_CHAIN</span> <span class="pre">RESID</span> <span class="pre">[RESID</span> <span class="pre">...]</span></code> (default: none, repeatable): residue groups where linkers attach.</p>
+<ul>
+<li><p>Legacy syntax: <code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">1</span> <span class="pre">8</span> <span class="pre">10</span> <span class="pre">11</span></code></p></li>
+<li><p>Chain-based syntax for <code class="docutils literal notranslate"><span class="pre">--pdb</span></code> workflows: <code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">B</span> <span class="pre">8</span> <span class="pre">10</span> <span class="pre">11</span></code></p></li>
+</ul>
+</li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--linker-prot-dist</span></code> (default: auto): linker-to-biomolecule distance (A).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--linker-surf-dist</span></code> (default: auto): linker-to-surface distance (A).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-surf-dist</span></code> (default: auto): linker-to-surface distance (A).</p>
+<ul>
+<li><p>Auto rule: estimated from Martini bead-size sigma (<code class="docutils literal notranslate"><span class="pre">sigma</span> <span class="pre">*</span> <span class="pre">1.2</span></code>) using linker-tail and surface bead classes.</p></li>
+</ul>
+</li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--invert-linker</span></code> (default: false): reverses linker bead order.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--surface-linkers</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0</span></code>): number of additional random surface linkers.</p></li>
+</ul>
+<p>Notes:</p>
+<ul class="simple">
+<li><p>Chain-based syntax is resolved from the cleaned input PDB before martinization.</p></li>
+<li><p>In <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>, <code class="docutils literal notranslate"><span class="pre">protein.anchor_groups</span></code> can also use chain-based syntax if <code class="docutils literal notranslate"><span class="pre">protein.reference_pdb</span></code> points to the source PDB that matches the pre-CG complex residue order.</p></li>
+<li><p>In <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>, you can also set <code class="docutils literal notranslate"><span class="pre">protein.balance_low_z:</span> <span class="pre">true</span></code> and optionally <code class="docutils literal notranslate"><span class="pre">protein.balance_low_z_fraction:</span> <span class="pre">0.30</span></code>.</p></li>
 </ul>
 </section>
 <section id="optional-substrate">
@@ -564,7 +594,9 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p><code class="docutils literal notranslate"><span class="pre">--system</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--out</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--anchor</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--anchor-landmark-mode</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--dist</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--reference-exclude-resname</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--linker-gro</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--linker-prot-dist</span></code></p></li>
@@ -573,6 +605,9 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p><code class="docutils literal notranslate"><span class="pre">--surface-linkers</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--surface-min-dist</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--dna-mode</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--min-reference-z-dist</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--balance-low-z</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--balance-low-z-fraction</span></code></p></li>
 </ul>
 </section>
 <section id="python-m-martinisurf-gromacs-inputs">
@@ -586,13 +621,19 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p><code class="docutils literal notranslate"><span class="pre">--linker-resname</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--linker-size</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--linker-itp-name</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--linker-pull-init-prot</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--linker-pull-init-surf</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-pull-init-prot</span></code> (optional): explicit initial distance (nm) for linker-head to biomolecule pull coordinates.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-pull-init-surf</span></code> (optional): explicit initial distance (nm) for linker-tail to surface pull coordinates.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--go-model</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--cofactor-itp-name</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--cofactor-count</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--substrate-itp-name</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--substrate-moltype</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--substrate-count</span></code></p></li>
+</ul>
+<p>MDP pull note:</p>
+<ul class="simple">
+<li><p>In generated pull coordinates, MartiniSurf writes either <code class="docutils literal notranslate"><span class="pre">pull-coordX_start</span> <span class="pre">=</span> <span class="pre">yes</span></code> or <code class="docutils literal notranslate"><span class="pre">pull-coordX-init</span> <span class="pre">=</span> <span class="pre">...</span></code>, never both for the same coordinate.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-pull-init-prot</span></code> and <code class="docutils literal notranslate"><span class="pre">--linker-pull-init-surf</span></code> in <code class="docutils literal notranslate"><span class="pre">gromacs_inputs</span></code> are in nm (internal module API).</p></li>
 </ul>
 </section>
 <section id="legacy-wrapper-flags-in-python-m-martinisurf-orient-subcommand">

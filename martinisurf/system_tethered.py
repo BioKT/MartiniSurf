@@ -229,6 +229,28 @@ def _finalize_anchor_pose(
     return rot, anchors_rot, ref_rot
 
 
+def _lowest_z_subset(coords, fraction):
+    if len(coords) == 0:
+        return np.array(coords, float, copy=True)
+    frac = float(fraction)
+    count = int(np.ceil(len(coords) * frac))
+    count = max(1, min(len(coords), count))
+    if count >= len(coords):
+        return np.array(coords, float, copy=True)
+    idx = np.argpartition(coords[:, 2], count - 1)[:count]
+    return coords[idx]
+
+
+def _score_two_anchor_pose(reference_coords, balance_low_z=False, low_z_fraction=0.2):
+    if not balance_low_z or len(reference_coords) < 3:
+        return (float(reference_coords[:, 2].mean()),)
+
+    low_z = _lowest_z_subset(reference_coords, low_z_fraction)
+    # Prefer flatter low-Z subsets (more parallel to the surface),
+    # then keep them as close as possible to the target surface distance.
+    return (float(np.std(low_z[:, 2])), float(low_z[:, 2].mean()))
+
+
 # ================================================================
 # CLASSICAL ORIENTATION
 # ================================================================
@@ -237,15 +259,30 @@ def auto_orient_from_anchor_residues(system_coords,
                                      surface_coords,
                                      target_z,
                                      reference_coords=None,
-                                     min_reference_dist=1.0):
+                                     min_reference_dist=1.0,
+                                     balance_low_z=False,
+                                     balance_low_z_fraction=0.2,
+                                     orient_single_anchor_up=False):
 
     if anchor_centroids.size == 0:
         raise ValueError("Anchor centroid selection is empty. Check --anchor/--linker-group residue ids.")
+    if balance_low_z and not (0.0 < float(balance_low_z_fraction) <= 1.0):
+        raise ValueError("--balance-low-z-fraction must be in the interval (0, 1].")
 
     anchors = np.array(anchor_centroids, float, copy=True)
     ref = np.array(reference_coords if reference_coords is not None else system_coords, float, copy=True)
 
     if len(anchors) == 1:
+        if orient_single_anchor_up:
+            center = anchors[0]
+            ref_vec = ref.mean(0) - center
+            if np.linalg.norm(ref_vec) < 1e-8:
+                ref_vec = np.array([0.0, 0.0, 1.0])
+            target_vec = np.array([0.0, 0.0, 1.0])
+            R_up = _rotation_matrix_from_vectors(ref_vec, target_vec)
+            system_coords = _apply_rotation(system_coords, R_up, center)
+            anchors = _apply_rotation(anchors, R_up, center)
+            ref = _apply_rotation(ref, R_up, center)
         return _finalize_anchor_pose(
             system_coords,
             anchors,
@@ -291,7 +328,11 @@ def auto_orient_from_anchor_residues(system_coords,
                 trial_ref,
                 min_reference_dist=min_reference_dist,
             )
-            score = float(final_ref[:, 2].mean())
+            score = _score_two_anchor_pose(
+                final_ref,
+                balance_low_z=balance_low_z,
+                low_z_fraction=balance_low_z_fraction,
+            )
             if best_score is None or score < best_score:
                 best_score = score
                 best_pose = final_system
@@ -451,8 +492,21 @@ def main(argv=None):
     parser.add_argument("--surface-min-dist", type=float, default=3.0)
     parser.add_argument("--dna-mode", action="store_true")
     parser.add_argument("--min-reference-z-dist", type=float, default=1.0)
+    parser.add_argument(
+        "--balance-low-z",
+        action="store_true",
+        help="In two-anchor mode, pick the roll angle that flattens the lowest-Z reference region.",
+    )
+    parser.add_argument(
+        "--balance-low-z-fraction",
+        type=float,
+        default=0.2,
+        help="Fraction (0,1] of lowest-Z reference beads used to score flatness in --balance-low-z mode.",
+    )
 
     args = parser.parse_args(argv)
+    if not (0.0 < args.balance_low_z_fraction <= 1.0):
+        raise ValueError("--balance-low-z-fraction must be in the interval (0, 1].")
 
     surf_coords, surf_atoms = load_gro_coords(args.surface)
     sys_coords, sys_atoms   = load_gro_coords(args.system)
@@ -487,6 +541,8 @@ def main(argv=None):
             args.dist,
             reference_coords=reference_coords,
             min_reference_dist=args.min_reference_z_dist,
+            balance_low_z=args.balance_low_z,
+            balance_low_z_fraction=args.balance_low_z_fraction,
         )
 
         final_atoms = sys_atoms
@@ -521,6 +577,9 @@ def main(argv=None):
             target_z=0.0,
             reference_coords=reference_coords,
             min_reference_dist=args.min_reference_z_dist,
+            balance_low_z=args.balance_low_z,
+            balance_low_z_fraction=args.balance_low_z_fraction,
+            orient_single_anchor_up=True,
         )
 
         merged_coords = oriented_protein

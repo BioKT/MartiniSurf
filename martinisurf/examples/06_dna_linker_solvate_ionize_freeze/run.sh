@@ -11,8 +11,9 @@ martinisurf \
   --surface-mode 4-1 \
   --lx 10 \
   --ly 10 \
-  --dx 0.27 \
+  --dx 2.7 \
   --surface-bead C1 \
+  --linker-surf-dist 6.0 \
   --linker inputs/ALK.gro \
   --linker-group A 1 \
   --solvate \

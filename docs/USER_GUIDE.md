@@ -14,6 +14,7 @@ Goal:
   - `--linker ... --linker-group ...` (linker mode).
 - In `--pdb` workflows, `--anchor` and `--linker-group` can use either global residue ids or `CHAIN RESID ...` syntax from the input PDB.
 - In `--complex-config`, chain-based `protein.anchor_groups` also work if you provide `protein.reference_pdb`.
+- For two-anchor systems, use `--balance-low-z` (and optional `--balance-low-z-fraction`) to flatten the lowest-Z protein face against the surface.
 - If you do NOT pass `--surface`, you must pass `--lx` and `--ly`.
 - `--ionize` always requires `--solvate`.
 - `--freeze-water-fraction` works only with `--dna` and `--solvate`.
@@ -77,7 +78,7 @@ martinisurf \
   --moltype Protein \
   --surface-mode 4-1 \
   --surface-bead P4 \
-  --dx 0.47 \
+  --dx 4.7 \
   --lx 15 --ly 15 \
   --anchor A 8 10 11 \
   --anchor D 8 10 11 \
@@ -98,7 +99,7 @@ martinisurf \
   --surface-mode 4-1 \
   --lx 10 \
   --ly 10 \
-  --dx 0.27 \
+  --dx 2.7 \
   --surface-bead C1 \
   --linker inputs/ALK.gro \
   --linker-group A 1 \
@@ -117,7 +118,7 @@ martinisurf \
   --complex-config input/complex_config.yaml \
   --surface-mode 4-1 \
   --surface-bead P4 \
-  --dx 0.47 \
+  --dx 4.7 \
   --lx 15 \
   --ly 15 \
   --dist 10 \
@@ -138,7 +139,7 @@ martinisurf \
 | `--dna` | Enables DNA workflow | no value |
 | `--surface` | Reuses an existing surface file | `surface.gro` |
 | `--surface-mode` | Builds 2-1 or 4-1 surface | `4-1` |
-| `--lx --ly --dx` | Size and spacing for generated surface | `15 15 0.47` |
+| `--lx --ly --dx` | Size and spacing for generated surface | `15 15 4.7` |
 | `--anchor ...` | Not explicit Linker orientation (anchor mode) | `--anchor B 8 10 11` |
 | `--linker` | Linker GRO file | `ALK.gro` |
 | `--linker-group ...` | Residue groups for linker attachment | `--linker-group A 1` |
@@ -182,9 +183,12 @@ This section includes ALL flags from the main pipeline.
 - `--surface-mode {2-1,4-1}` (default: `2-1`): grid mode for generated surfaces.
 - `--lx` (default: none): generated surface X size (nm).
 - `--ly` (default: none): generated surface Y size (nm).
-- `--dx` (default: `0.47`): bead spacing (2-1) or C-C parameter (4-1).
+- `--dx` (default: `4.7` A): bead spacing (2-1) or C-C parameter (4-1).
 - `--surface-bead` (default: `C1`): bead type for generated surface.
 - `--charge` (default: `0`): bead charge for generated surface topology.
+
+Unit note:
+- In the main `martinisurf` CLI, `--dx` is provided in Angstrom and internally converted to nm for `surface_builder`.
 
 ### Classic orientation (anchors)
 
@@ -193,6 +197,8 @@ This section includes ALL flags from the main pipeline.
   - Chain-based syntax for `--pdb` workflows: `--anchor D 8 10 11`
   - Chain-based groups are converted internally to global residue ids in appearance order (`Anchor_1`, `Anchor_2`, ...).
 - `--dist` (default: `10.0` A): target anchor-to-surface distance.
+- `--balance-low-z` (default: `false`): in two-anchor mode, picks the roll angle that flattens the lowest-Z region.
+- `--balance-low-z-fraction` (default: `0.2`): fraction (0,1] of lowest-Z beads used by `--balance-low-z`.
 
 ### Linker orientation
 
@@ -202,12 +208,14 @@ This section includes ALL flags from the main pipeline.
   - Chain-based syntax for `--pdb` workflows: `--linker-group B 8 10 11`
 - `--linker-prot-dist` (default: auto): linker-to-biomolecule distance (A).
 - `--linker-surf-dist` (default: auto): linker-to-surface distance (A).
+  - Auto rule: estimated from Martini bead-size sigma (`sigma * 1.2`) using linker-tail and surface bead classes.
 - `--invert-linker` (default: false): reverses linker bead order.
 - `--surface-linkers` (default: `0`): number of additional random surface linkers.
 
 Notes:
 - Chain-based syntax is resolved from the cleaned input PDB before martinization.
 - In `--complex-config`, `protein.anchor_groups` can also use chain-based syntax if `protein.reference_pdb` points to the source PDB that matches the pre-CG complex residue order.
+- In `--complex-config`, you can also set `protein.balance_low_z: true` and optionally `protein.balance_low_z_fraction: 0.30`.
 
 ### Optional substrate
 
@@ -255,7 +263,9 @@ These commands are usually called by MartiniSurf internally. Most new users do n
 - `--system`
 - `--out`
 - `--anchor`
+- `--anchor-landmark-mode`
 - `--dist`
+- `--reference-exclude-resname`
 - `--linker-gro`
 - `--linker-group`
 - `--linker-prot-dist`
@@ -264,6 +274,9 @@ These commands are usually called by MartiniSurf internally. Most new users do n
 - `--surface-linkers`
 - `--surface-min-dist`
 - `--dna-mode`
+- `--min-reference-z-dist`
+- `--balance-low-z`
+- `--balance-low-z-fraction`
 
 ### 7.3 `python -m martinisurf.gromacs_inputs`
 
@@ -275,13 +288,18 @@ These commands are usually called by MartiniSurf internally. Most new users do n
 - `--linker-resname`
 - `--linker-size`
 - `--linker-itp-name`
-- `--linker-pull-init-prot` (deprecated; pull coordinates now use `pull-coord*_start = yes`)
-- `--linker-pull-init-surf` (deprecated; pull coordinates now use `pull-coord*_start = yes`)
+- `--linker-pull-init-prot` (optional): explicit initial distance (nm) for linker-head to biomolecule pull coordinates.
+- `--linker-pull-init-surf` (optional): explicit initial distance (nm) for linker-tail to surface pull coordinates.
 - `--go-model`
 - `--cofactor-itp-name`
 - `--cofactor-count`
 - `--substrate-itp-name`
+- `--substrate-moltype`
 - `--substrate-count`
+
+MDP pull note:
+- In generated pull coordinates, MartiniSurf writes either `pull-coordX_start = yes` or `pull-coordX-init = ...`, never both for the same coordinate.
+- `--linker-pull-init-prot` and `--linker-pull-init-surf` in `gromacs_inputs` are in nm (internal module API).
 
 ### 7.4 Legacy wrapper flags in `python -m martinisurf` (`orient` subcommand)
 

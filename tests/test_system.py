@@ -588,7 +588,7 @@ def test_linker_pull_uses_start_from_current_distance(tmp_path, monkeypatch):
     assert "pull-coord2-init" not in production
 
 
-def test_linker_pull_ignores_legacy_init_flags(tmp_path, monkeypatch):
+def test_linker_pull_writes_init_when_flags_are_provided(tmp_path, monkeypatch):
     sim, _ = prepare_simulation_structure(tmp_path)
     monkeypatch.chdir(sim / "2_system")
 
@@ -612,19 +612,51 @@ def test_linker_pull_ignores_legacy_init_flags(tmp_path, monkeypatch):
     ])
 
     production = (sim / "1_mdp" / "production.mdp").read_text()
-    assert "pull-coord1_start        = yes" in production
-    assert "pull-coord2_start        = yes" in production
-    assert "pull-coord1-init" not in production
-    assert "pull-coord2-init" not in production
+    deposition = (sim / "1_mdp" / "deposition.mdp").read_text()
+
+    assert "pull-coord1-init         = 0.600" in production
+    assert "pull-coord2-init         = 0.700" in production
+    assert "pull-coord1-init         = 0.600" in deposition
+    assert "pull-coord2-init         = 0.700" in deposition
+    assert "pull-coord1_start        = yes" not in production
+    assert "pull-coord2_start        = yes" not in production
+    assert "pull-coord1_start        = yes" not in deposition
+    assert "pull-coord2_start        = yes" not in deposition
 
 
-def test_anchor_pull_always_uses_start_from_current_distance():
+def test_anchor_pull_can_include_init_distance():
     block = gms._build_pull_block(anchor_count=2, surface_group="SRF", init_nm=0.8)
 
-    assert "pull-coord1_start        = yes" in block
-    assert "pull-coord2_start        = yes" in block
-    assert "pull-coord1-init" not in block
-    assert "pull-coord2-init" not in block
+    assert "pull-coord1_start        = yes" not in block
+    assert "pull-coord2_start        = yes" not in block
+    assert "pull-coord1-init         = 0.800" in block
+    assert "pull-coord2-init         = 0.800" in block
+
+
+def test_linker_pull_omits_surface_start_when_init_is_enabled():
+    block_with_init = gms._build_linker_pull_block(
+        linker_count=1,
+        surface_group="SRF",
+        init_prot_nm=0.6,
+        init_surf_nm=0.7,
+        include_init=True,
+    )
+    assert "pull-coord1_start        = yes" not in block_with_init
+    assert "pull-coord2_start        = yes" not in block_with_init
+    assert "pull-coord1-init         = 0.600" in block_with_init
+    assert "pull-coord2-init         = 0.700" in block_with_init
+
+    block_no_init = gms._build_linker_pull_block(
+        linker_count=1,
+        surface_group="SRF",
+        init_prot_nm=0.6,
+        init_surf_nm=0.7,
+        include_init=False,
+    )
+    assert "pull-coord1_start        = yes" in block_no_init
+    assert "pull-coord2_start        = yes" in block_no_init
+    assert "pull-coord1-init" not in block_no_init
+    assert "pull-coord2-init" not in block_no_init
 
 
 def test_protein_deposition_and_production_templates_only_differ_in_nsteps():
@@ -686,6 +718,40 @@ pull-coord1-init         = 0.8
     )
 
     assert dst.read_text() == original
+
+
+def test_write_custom_mdp_can_write_init_when_enabled(tmp_path):
+    src = tmp_path / "with_pull.mdp"
+    dst = tmp_path / "with_pull_out.mdp"
+    src.write_text(
+        "integrator = md\n"
+        "pull                     = yes\n"
+        "pull-ngroups             = 2\n"
+        "pull-group1-name         = Anchor_1\n"
+        "pull-group2-name         = SRF\n"
+        "pull-ncoords             = 1\n"
+        "pull-coord1-geometry     = distance\n"
+        "pull-coord1-groups       = 1 2\n"
+        "pull-coord1-type         = umbrella\n"
+        "pull-coord1-k            = 1000.0\n"
+        "pull-coord1-rate         = 0\n"
+        "pull-coord1-dim          = N N Y\n"
+        "pull-coord1_start        = yes\n"
+    )
+
+    gms.write_custom_mdp(
+        src=src,
+        dst=dst,
+        anchor_count=1,
+        is_dna=True,
+        anchor_pull_init_nm=0.8,
+        rewrite_pull=True,
+        include_pull_init=True,
+    )
+
+    out = dst.read_text()
+    assert "pull-coord1_start        = yes" not in out
+    assert "pull-coord1-init         = 0.800" in out
 
 
 def test_dna_topologies_start_with_rubber_bands_define(tmp_path):

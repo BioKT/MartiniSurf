@@ -14,7 +14,7 @@
 
 [atoms]
 ;id 	type 	resnr 	residu 	atom 	cgnr 	charge
- 1 	Qd 	1 	ION 	NA+ 	1 	1.0 
+ 1 	Qd 	1 	ION 	NA 	1 	1.0 
 
 
 ;;;;;; HYDRATED CHLORIDE ION
@@ -25,7 +25,7 @@
 
 [atoms]
 ;id 	type 	resnr 	residu 	atom 	cgnr 	charge
- 1 	Qa 	1 	ION 	CL- 	1 	-1.0 
+ 1 	Qa 	1 	ION 	CL 	1 	-1.0 
 
 
 ;;;;;; CHOLINE ION 
@@ -53,6 +53,5 @@
 [atoms]
 ;id 	type 	resnr 	residu 	atom 	cgnr 	charge
  1 	Qd 	1 	ION 	CA+ 	1 	2.0 
-
 
 

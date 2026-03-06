@@ -6,6 +6,9 @@ protein:
   molname: Active
   reference_pdb: BsADH_reference.pdb
   anchor_groups: ["A 8 10 11", "D 8 10 11"]
+  # Optional two-anchor roll balancing to flatten the low-Z protein face.
+  # balance_low_z: true
+  # balance_low_z_fraction: 0.30
 
 cofactor:
   molname: NAD

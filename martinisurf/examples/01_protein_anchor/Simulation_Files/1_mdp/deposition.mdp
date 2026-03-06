@@ -5,7 +5,7 @@ nstxout                  = 0
 nstvout                  = 0
 nstfout                  = 0
 nstlog                   = 20000
-nstxout-compressed       = 10000
+nstxout-compressed       = 20000
 compressed-x-precision   = 100
 
 
@@ -31,17 +31,18 @@ ref-t                    = 300
 
 continuation = yes
 
-Pcoupl                   = Parrinello-Rahman ;parrinello-rahman
-Pcoupltype               = semiisotropic
-tau-p                    = 12.0
-compressibility          = 0 3e-4 ; 4e-5
-ref-p                    = 1 1
-
 freezegrps               = SRF
 freezedim                = Y Y Y
 cos-acceleration         = 0
 
 refcoord_scaling         = all
+
+Pcoupl                   = Parrinello-Rahman ;parrinello-rahman
+Pcoupltype               = semiisotropic
+tau-p                    = 12.0
+compressibility          = 0 4e-5
+ref-p                    = 1 1
+
 
 
 ; First pulling coordinate (Umbrella 1)

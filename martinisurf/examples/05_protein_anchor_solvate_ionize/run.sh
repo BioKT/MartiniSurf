@@ -8,7 +8,7 @@ martinisurf \
   --moltype Protein \
   --surface-mode 4-1 \
   --surface-bead P4 \
-  --dx 0.47 \
+  --dx 4.7 \
   --lx 15 \
   --ly 15 \
   --anchor A 8 10 11 \
