@@ -288,6 +288,42 @@ def _rewrite_itp_with_posres(src_itp: Path, dst_itp: Path, posres_atom_ids: List
     dst_itp.write_text("".join(out_lines))
 
 
+def _materialize_posres_fc_in_itp(itp_path: Path, default_fc: float = 1000.0) -> bool:
+    """
+    Replace POSRES_FC tokens in non-preprocessor lines with a numeric value.
+    Uses #define POSRES_FC <value> when available; otherwise default_fc.
+    """
+    if not itp_path.exists():
+        return False
+
+    text = itp_path.read_text()
+    if "POSRES_FC" not in text:
+        return False
+
+    define_match = re.search(
+        r"^\s*#\s*define\s+POSRES_FC\s+([0-9eE+\-.]+)\s*$",
+        text,
+        flags=re.MULTILINE,
+    )
+    fc_value = define_match.group(1) if define_match else f"{float(default_fc):.1f}"
+
+    out_lines: list[str] = []
+    changed = False
+    for raw in text.splitlines(keepends=True):
+        stripped = raw.lstrip()
+        if stripped.startswith("#"):
+            out_lines.append(raw)
+            continue
+        new_raw = re.sub(r"\bPOSRES_FC\b", fc_value, raw)
+        if new_raw != raw:
+            changed = True
+        out_lines.append(new_raw)
+
+    if changed:
+        itp_path.write_text("".join(out_lines))
+    return changed
+
+
 def _infer_linker_restrained_atom_ids(
     pull_anchor_atoms: Dict[int, List[int]],
     linker_atom_ids: set[int],
@@ -1123,6 +1159,14 @@ def main(argv: Sequence[str] | None = None) -> None:
             "❌ Substrate mode requested but "
             f"0_topology/system_itp/{args.substrate_itp_name} is missing."
         )
+
+    # Normalize martinize POSRES_FC macros into numeric constants for robust grompp parsing.
+    posres_fc_replaced = 0
+    for itp_file in sorted(dst_itp_dir.glob("*.itp")):
+        if _materialize_posres_fc_in_itp(itp_file):
+            posres_fc_replaced += 1
+    if posres_fc_replaced > 0:
+        print(f"✔ Normalized POSRES_FC macros in {posres_fc_replaced} ITP file(s)")
 
     linker_total = 0
     linker_moltype_name: str | None = None

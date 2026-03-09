@@ -68,12 +68,18 @@ must_find_file() {
   echo "${found}"
 }
 
-TOPOLOGY="$(must_find_file "topology" \
-  "${TOP_DIR}/system_final_res.top" \
+EQUIL_TOPOLOGY="$(must_find_file "equilibration topology" \
   "${TOP_DIR}/system_final.top" \
-  "${TOP_DIR}/system_res.top" \
-  "${TOP_DIR}/system_anchor.top" \
   "${TOP_DIR}/system.top")"
+
+PROD_TOPOLOGY="$(pick_first_existing \
+  "${TOP_DIR}/system_final_res.top" \
+  "${TOP_DIR}/system_res.top" \
+  "${TOP_DIR}/system_anchor.top" || true)"
+if [[ -z "${PROD_TOPOLOGY}" ]]; then
+  PROD_TOPOLOGY="${EQUIL_TOPOLOGY}"
+  echo "WARN: production restricted topology not found; using equilibration topology for production."
+fi
 
 INPUT_STRUCTURE="$(must_find_file "input structure" \
   "${SYS_DIR}/system_final.gro" \
@@ -124,14 +130,15 @@ echo "MartiniSurf Job"
 echo "System   : ${SYSTEM_TAG}"
 echo "Replica  : r${REPLICA_PADDED}"
 echo "Base dir : ${BASE_DIR}"
-echo "Topology : ${TOPOLOGY}"
+echo "Equil top: ${EQUIL_TOPOLOGY}"
+echo "Prod top : ${PROD_TOPOLOGY}"
 echo "Input GRO: ${INPUT_STRUCTURE}"
 echo "GMX      : ${GMX_BIN}"
 echo "PWD      : $(pwd)"
 echo "===================================================="
 
 "${GMX_BIN}" grompp \
-  -p "${TOPOLOGY}" \
+  -p "${EQUIL_TOPOLOGY}" \
   -f "${MIN_MDP}" \
   -c "${INPUT_STRUCTURE}" \
   -o "${MIN_NAME}.tpr" \
@@ -139,7 +146,7 @@ echo "===================================================="
 run_mdrun "${MIN_NAME}"
 
 "${GMX_BIN}" grompp \
-  -p "${TOPOLOGY}" \
+  -p "${EQUIL_TOPOLOGY}" \
   -f "${NVT_MDP}" \
   -c "${MIN_NAME}.gro" \
   -r "${MIN_NAME}.gro" \
@@ -149,7 +156,7 @@ run_mdrun "${MIN_NAME}"
 run_mdrun "${NVT_NAME}"
 
 "${GMX_BIN}" grompp \
-  -p "${TOPOLOGY}" \
+  -p "${EQUIL_TOPOLOGY}" \
   -f "${NPT_MDP}" \
   -c "${NVT_NAME}.gro" \
   -r "${NVT_NAME}.gro" \
@@ -160,7 +167,7 @@ run_mdrun "${NVT_NAME}"
 run_mdrun "${NPT_NAME}"
 
 "${GMX_BIN}" grompp \
-  -p "${TOPOLOGY}" \
+  -p "${EQUIL_TOPOLOGY}" \
   -f "${DEP_MDP}" \
   -c "${NPT_NAME}.gro" \
   -r "${NPT_NAME}.gro" \
@@ -171,7 +178,7 @@ run_mdrun "${NPT_NAME}"
 run_mdrun "${DEP_NAME}"
 
 "${GMX_BIN}" grompp \
-  -p "${TOPOLOGY}" \
+  -p "${PROD_TOPOLOGY}" \
   -f "${PROD_MDP}" \
   -c "${DEP_NAME}.gro" \
   -r "${DEP_NAME}.gro" \

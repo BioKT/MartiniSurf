@@ -832,6 +832,27 @@ def test_write_custom_mdp_can_write_init_when_enabled(tmp_path):
     assert "pull-coord1-init         = 0.800" in out
 
 
+def test_materialize_posres_fc_in_itp_replaces_macro_with_numeric_value(tmp_path):
+    itp = tmp_path / "Protein.itp"
+    itp.write_text(
+        "#ifdef POSRES\n"
+        "#ifndef POSRES_FC\n"
+        "#define POSRES_FC 750.0\n"
+        "#endif\n"
+        "[ position_restraints ]\n"
+        "1 1 POSRES_FC POSRES_FC POSRES_FC\n"
+        "#endif\n"
+    )
+
+    changed = gms._materialize_posres_fc_in_itp(itp)
+    text = itp.read_text()
+
+    assert changed is True
+    assert "POSRES_FC POSRES_FC POSRES_FC" not in text
+    assert "1 1 750.0 750.0 750.0" in text
+    assert "#define POSRES_FC 750.0" in text
+
+
 def test_dna_topologies_start_with_rubber_bands_define(tmp_path):
     topo_dir = tmp_path / "0_topology"
     itp_dir = topo_dir / "system_itp"
