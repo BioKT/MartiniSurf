@@ -257,6 +257,9 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">--linker</span> <span class="pre">...</span> <span class="pre">--linker-group</span> <span class="pre">...</span></code> (linker mode).</p></li>
 </ul>
 </li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ads-mode</span></code> is a specialized anchor workflow (not linker):
+uses anchor-based orientation but skips anchor pull/restraint topology and uses
+<code class="docutils literal notranslate"><span class="pre">minimization</span> <span class="pre">-&gt;</span> <span class="pre">nvt</span> <span class="pre">-&gt;</span> <span class="pre">npt</span> <span class="pre">-&gt;</span> <span class="pre">production</span></code> (no <code class="docutils literal notranslate"><span class="pre">deposition</span></code> stage).</p></li>
 <li><p>In <code class="docutils literal notranslate"><span class="pre">--pdb</span></code> workflows, <code class="docutils literal notranslate"><span class="pre">--anchor</span></code> and <code class="docutils literal notranslate"><span class="pre">--linker-group</span></code> can use either global residue ids or <code class="docutils literal notranslate"><span class="pre">CHAIN</span> <span class="pre">RESID</span> <span class="pre">...</span></code> syntax from the input PDB.</p></li>
 <li><p>In <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>, chain-based <code class="docutils literal notranslate"><span class="pre">protein.anchor_groups</span></code> also work if you provide <code class="docutils literal notranslate"><span class="pre">protein.reference_pdb</span></code>.</p></li>
 <li><p>For two-anchor systems, use <code class="docutils literal notranslate"><span class="pre">--balance-low-z</span></code> (and optional <code class="docutils literal notranslate"><span class="pre">--balance-low-z-fraction</span></code>) to flatten the lowest-Z protein face against the surface.</p></li>
@@ -416,27 +419,31 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <td><p>Not explicit Linker orientation (anchor mode)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">B</span> <span class="pre">8</span> <span class="pre">10</span> <span class="pre">11</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--linker</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--ads-mode</span></code></p></td>
+<td><p>Anchor-like adsorption mode without anchor pull/restraint topology</p></td>
+<td><p>no value</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--linker</span></code></p></td>
 <td><p>Linker GRO file</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">ALK.gro</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">...</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">...</span></code></p></td>
 <td><p>Residue groups for linker attachment</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">A</span> <span class="pre">1</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--merge</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--merge</span></code></p></td>
 <td><p>Chain merge during martinization</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">A,B</span></code> / <code class="docutils literal notranslate"><span class="pre">A,B,C,D</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--solvate</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--solvate</span></code></p></td>
 <td><p>Adds water with GROMACS</p></td>
 <td><p>no value</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--ionize</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--ionize</span></code></p></td>
 <td><p>Adds ions (requires solvation)</p></td>
 <td><p>no value</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--outdir</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--outdir</span></code></p></td>
 <td><p>Output folder</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Simulation_Files</span></code></p></td>
 </tr>
@@ -506,6 +513,12 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 </ul>
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--dist</span></code> (default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code> nm): target anchor-to-surface distance.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ads-mode</span></code> (default: <code class="docutils literal notranslate"><span class="pre">false</span></code>): adsorption mode using anchor orientation without anchor pull/restraint topology.</p>
+<ul>
+<li><p>MDP stages in this mode: <code class="docutils literal notranslate"><span class="pre">minimization</span></code>, <code class="docutils literal notranslate"><span class="pre">nvt</span></code>, <code class="docutils literal notranslate"><span class="pre">npt</span></code>, <code class="docutils literal notranslate"><span class="pre">production</span></code> (no <code class="docutils literal notranslate"><span class="pre">deposition</span></code>).</p></li>
+<li><p>Incompatible with linker mode.</p></li>
+</ul>
+</li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--balance-low-z</span></code> (default: <code class="docutils literal notranslate"><span class="pre">false</span></code>): in two-anchor mode, picks the roll angle that flattens the lowest-Z region.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--balance-low-z-fraction</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.2</span></code>): fraction (0,1] of lowest-Z beads used by <code class="docutils literal notranslate"><span class="pre">--balance-low-z</span></code>.</p></li>
 </ul>
@@ -624,6 +637,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p><code class="docutils literal notranslate"><span class="pre">--linker-pull-init-prot</span></code> (optional): explicit initial distance (nm) for linker-head to biomolecule pull coordinates.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--linker-pull-init-surf</span></code> (optional): explicit initial distance (nm) for linker-tail to surface pull coordinates.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--go-model</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ads-mode</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--cofactor-itp-name</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--cofactor-count</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--substrate-itp-name</span></code></p></li>

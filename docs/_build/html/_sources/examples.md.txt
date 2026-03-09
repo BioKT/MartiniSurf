@@ -38,3 +38,9 @@ bash work_flow_gromacs.sh
 - `martinisurf/examples/02_protein_linker`
 - `martinisurf/examples/03_dna_anchor`
 - `martinisurf/examples/04_dna_linker`
+
+## Adsorption mode note
+
+For adsorption setups, use the main build command with `--ads-mode` and anchor-based orientation
+(`--anchor ...` or `--complex-config` anchor groups). This mode runs:
+`minimization -> nvt -> npt -> production` without deposition pulls/restraints.

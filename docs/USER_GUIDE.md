@@ -12,6 +12,9 @@ Goal:
 - Choose only ONE orientation mode:
   - `--anchor ...` (Not explicit Linker / anchor mode), or
   - `--linker ... --linker-group ...` (linker mode).
+- `--ads-mode` is a specialized anchor workflow (not linker):
+  uses anchor-based orientation but skips anchor pull/restraint topology and uses
+  `minimization -> nvt -> npt -> production` (no `deposition` stage).
 - In `--pdb` workflows, `--anchor` and `--linker-group` can use either global residue ids or `CHAIN RESID ...` syntax from the input PDB.
 - In `--complex-config`, chain-based `protein.anchor_groups` also work if you provide `protein.reference_pdb`.
 - For two-anchor systems, use `--balance-low-z` (and optional `--balance-low-z-fraction`) to flatten the lowest-Z protein face against the surface.
@@ -141,6 +144,7 @@ martinisurf \
 | `--surface-mode` | Builds 2-1 or 4-1 surface | `4-1` |
 | `--lx --ly --dx` | Size and spacing for generated surface | `15 15 0.47` |
 | `--anchor ...` | Not explicit Linker orientation (anchor mode) | `--anchor B 8 10 11` |
+| `--ads-mode` | Anchor-like adsorption mode without anchor pull/restraint topology | no value |
 | `--linker` | Linker GRO file | `ALK.gro` |
 | `--linker-group ...` | Residue groups for linker attachment | `--linker-group A 1` |
 | `--merge` | Chain merge during martinization | `A,B` / `A,B,C,D` |
@@ -197,6 +201,9 @@ Unit note:
   - Chain-based syntax for `--pdb` workflows: `--anchor D 8 10 11`
   - Chain-based groups are converted internally to global residue ids in appearance order (`Anchor_1`, `Anchor_2`, ...).
 - `--dist` (default: `1.0` nm): target anchor-to-surface distance.
+- `--ads-mode` (default: `false`): adsorption mode using anchor orientation without anchor pull/restraint topology.
+  - MDP stages in this mode: `minimization`, `nvt`, `npt`, `production` (no `deposition`).
+  - Incompatible with linker mode.
 - `--balance-low-z` (default: `false`): in two-anchor mode, picks the roll angle that flattens the lowest-Z region.
 - `--balance-low-z-fraction` (default: `0.2`): fraction (0,1] of lowest-Z beads used by `--balance-low-z`.
 
@@ -291,6 +298,7 @@ These commands are usually called by MartiniSurf internally. Most new users do n
 - `--linker-pull-init-prot` (optional): explicit initial distance (nm) for linker-head to biomolecule pull coordinates.
 - `--linker-pull-init-surf` (optional): explicit initial distance (nm) for linker-tail to surface pull coordinates.
 - `--go-model`
+- `--ads-mode`
 - `--cofactor-itp-name`
 - `--cofactor-count`
 - `--substrate-itp-name`

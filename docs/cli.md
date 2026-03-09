@@ -28,6 +28,14 @@ martinisurf --pdb 1RJW --moltype Protein --surface-mode 4-1 --lx 15 --ly 15 --an
 
 For `--pdb` workflows, `--anchor` and `--linker-group` accept either legacy global residue ids or chain-based residue ids from the input PDB.
 
+## Adsorption mode (`--ads-mode`)
+
+`--ads-mode` is an anchor-based adsorption workflow:
+- Keeps classical anchor orientation behavior.
+- Skips anchor pull/restraint topology generation.
+- Generates MDP stages for `minimization`, `nvt`, `npt`, and `production` (no `deposition` stage).
+- Is incompatible with linker mode (`--linker` / `--use-linker`).
+
 ## Module helps
 
 ```bash

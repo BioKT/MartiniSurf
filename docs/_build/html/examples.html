@@ -278,6 +278,12 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/04_dna_linker</span></code></p></li>
 </ul>
 </section>
+<section id="adsorption-mode-note">
+<h2>Adsorption mode note<a class="headerlink" href="#adsorption-mode-note" title="Link to this heading">¶</a></h2>
+<p>For adsorption setups, use the main build command with <code class="docutils literal notranslate"><span class="pre">--ads-mode</span></code> and anchor-based orientation
+(<code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">...</span></code> or <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code> anchor groups). This mode runs:
+<code class="docutils literal notranslate"><span class="pre">minimization</span> <span class="pre">-&gt;</span> <span class="pre">nvt</span> <span class="pre">-&gt;</span> <span class="pre">npt</span> <span class="pre">-&gt;</span> <span class="pre">production</span></code> without deposition pulls/restraints.</p>
+</section>
 </section>
 
         </article>
@@ -340,6 +346,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><a class="reference internal" href="#dna-linker-solvate-ionize-frozen-water">DNA + linker + solvate + ionize + frozen water</a></li>
 <li><a class="reference internal" href="#pre-cg-protein-cofactor-substrate-solvate-ionize">Pre-CG protein+cofactor + substrate + solvate + ionize</a></li>
 <li><a class="reference internal" href="#basic-build-only-examples">Basic build-only examples</a></li>
+<li><a class="reference internal" href="#adsorption-mode-note">Adsorption mode note</a></li>
 </ul>
 </li>
 </ul>

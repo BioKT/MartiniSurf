@@ -10,6 +10,21 @@ MartiniSurf resolves those chain-local residues to the internal global residue i
 
 For `complex_config.yaml`, the equivalent chain-based syntax is available through `protein.anchor_groups` when `protein.reference_pdb` is provided.
 
+## Adsorption Mode (`--ads-mode`)
+
+Use `--ads-mode` when you want the same orientation behavior as classical anchor mode, but without generating anchor pulling/restraint topology.
+
+Behavior:
+- Uses anchor-based orientation (`--anchor ...` or `--complex-config` with `protein.anchor_groups`/`protein.orient_by_residues`).
+- Skips anchor pull definitions in MDP files.
+- Skips anchor restrained topology usage in final top files.
+- Keeps standard simulation stages as:
+  `minimization -> nvt -> npt -> production`
+- Does not generate/use `deposition` stage in this mode.
+
+Constraints:
+- `--ads-mode` is incompatible with linker mode (`--linker` / `--use-linker`).
+
 ## Recommended Complete Examples
 1. Protein anchor + solvate + ionize  
 Path: `martinisurf/examples/05_protein_anchor_solvate_ionize`

@@ -669,6 +669,10 @@ def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
 
     if args.anchor and args.linker:
         print("⚠ Both --anchor and --linker were provided. Linker mode will be used.")
+    if args.ads_mode and args.linker:
+        parser.error("--ads-mode is incompatible with linker mode.")
+    if args.ads_mode and not (args.anchor or args.complex_config):
+        parser.error("--ads-mode requires anchor-based orientation (--anchor or --complex-config).")
 
     if (args.go_eps is not None or args.go_low is not None or args.go_up is not None) and not args.go:
         print("⚠ Go parameters (--go-eps/--go-low/--go-up) were provided without --go. They will be ignored.")
@@ -709,13 +713,16 @@ def _print_config_summary(args: argparse.Namespace) -> None:
         print("\n=== MartiniSurf Configuration ===")
         print("Mode:             Protein (pre-CG complex)")
         print(f"Complex config:   {args.complex_config}")
-        print("Orientation:      anchor (from config)")
+        orientation = "ads (from config)" if args.ads_mode else "anchor (from config)"
+        print(f"Orientation:      {orientation}")
         print(f"Output:           {args.outdir}")
         print("=================================\n")
         return
 
     mode = "DNA" if args.dna else "Protein"
     orient_mode = "linker" if args.linker else "anchor"
+    if args.ads_mode and not args.linker:
+        orient_mode = "ads"
     print("\n=== MartiniSurf Configuration ===")
     print(f"Mode:            {mode}")
     print(f"PDB/Input:       {args.pdb}")
@@ -828,6 +835,13 @@ def build_parser():
         ),
     )
     anchor_group.add_argument("--dist", type=float, default=1.0, help="Anchor-to-surface target distance (nm).")
+    anchor_group.add_argument(
+        "--ads-mode",
+        action="store_true",
+        help=(
+            "Adsorption mode: keeps anchor-based orientation but skips anchor/pull restraints in topology generation."
+        ),
+    )
     anchor_group.add_argument(
         "--balance-low-z",
         action="store_true",
@@ -2310,17 +2324,19 @@ def main(argv=None):
         final_args += ["--cofactor-count", str(complex_cfg["cofactor_count"])]
 
     # If classical anchor mode
-    if args.anchor:
+    if (not args.ads_mode) and args.anchor:
         for group in resolved_anchor_groups:
             final_args += ["--anchor"] + [str(x) for x in group]
 
     # If linker mode → reuse linker groups as anchors
-    elif resolved_linker_groups:
+    elif (not args.ads_mode) and resolved_linker_groups:
         for group in resolved_linker_groups:
             final_args += ["--anchor"] + [str(x) for x in group]
-    elif complex_cfg:
+    elif (not args.ads_mode) and complex_cfg:
         for group in complex_cfg["anchor_groups"]:
             final_args += ["--anchor"] + [str(x) for x in group]
+    if args.ads_mode:
+        final_args += ["--ads-mode"]
 
     gsm.main(final_args)
     _run_optional_solvation_ionization(args, simdir)

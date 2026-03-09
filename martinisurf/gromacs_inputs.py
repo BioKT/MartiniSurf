@@ -846,6 +846,8 @@ def _validate_cli_args(parser: argparse.ArgumentParser, args: argparse.Namespace
         parser.error("--linker-pull-init-prot must be > 0 when provided.")
     if linker_mode and args.linker_pull_init_surf is not None and args.linker_pull_init_surf <= 0:
         parser.error("--linker-pull-init-surf must be > 0 when provided.")
+    if args.ads_mode and linker_mode:
+        parser.error("--ads-mode is incompatible with linker mode.")
 
 
 def _linker_mode_enabled(args: argparse.Namespace) -> bool:
@@ -911,6 +913,14 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="Initial pull distance (nm) for linker-tail to surface coordinates.",
     )
     parser.add_argument("--go-model", action="store_true", help="Add GO_VIRT define to generated protein topologies.")
+    parser.add_argument(
+        "--ads-mode",
+        action="store_true",
+        help=(
+            "Adsorption mode: skip anchor pull/posres generation and emit only "
+            "minimization/NVT/NPT/production MDPs (no deposition)."
+        ),
+    )
     parser.add_argument("--cofactor-itp-name", help="Cofactor topology filename in system_itp.")
     parser.add_argument("--cofactor-count", type=int, default=0, help="Number of cofactor molecules in the system.")
     parser.add_argument("--substrate-itp-name", help="Substrate topology filename in system_itp.")
@@ -920,6 +930,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = parser.parse_args(argv) if argv else parser.parse_args()
     _validate_cli_args(parser, args)
     linker_mode = _normalize_linker_args(args)
+    ads_mode = bool(args.ads_mode)
 
     # ===============================================================
     # Locate immobilized_system.gro
@@ -1086,6 +1097,12 @@ def main(argv: Sequence[str] | None = None) -> None:
             linker_pull_enabled = True
             print(f"  → Anchor_2 (linker head): atom {linker_head}")
             print(f"  → Anchor_3 (linker tail): atom {linker_tail}")
+
+    if ads_mode:
+        if anchor_atoms:
+            print("ℹ Adsorption mode enabled: anchor restraints/pulls will be omitted.")
+        pull_anchor_atoms = {}
+        linker_pull_enabled = False
 
     # ===============================================================
     # Create folder structure
@@ -1263,98 +1280,111 @@ def main(argv: Sequence[str] | None = None) -> None:
                     )
 
     # ===============================================================
-    # Active_anchor.itp (UNCHANGED LOGIC)
+    # Restrained anchor ITP (skip in adsorption mode)
     # ===============================================================
     active_anchor = dst_itp_dir / f"{mol_itp.stem}_anchor.itp"
+    if not ads_mode:
+        new_lines = []
+        inside_posres = False
 
-    new_lines = []
-    inside_posres = False
+        with open(mol_itp) as fin:
+            for line in fin:
+                if "[ position_restraints" in line:
+                    inside_posres = True
+                    continue
+                if inside_posres:
+                    if line.strip().startswith("["):
+                        inside_posres = False
+                        new_lines.append(line)
+                    continue
+                new_lines.append(line)
 
-    with open(mol_itp) as fin:
-        for line in fin:
-            if "[ position_restraints" in line:
-                inside_posres = True
-                continue
-            if inside_posres:
-                if line.strip().startswith("["):
-                    inside_posres = False
-                    new_lines.append(line)
-                continue
-            new_lines.append(line)
+        new_lines.append("\n[ position_restraints ]\n#ifdef POSRES\n")
 
-    new_lines.append("\n[ position_restraints ]\n#ifdef POSRES\n")
+        for _, atoms in anchor_atoms.items():
+            for atom in atoms:
+                new_lines.append(f"{atom} 1 1000 1000 0\n")
 
-    for gid, atoms in anchor_atoms.items():
-        for atom in atoms:
-            new_lines.append(f"{atom} 1 1000 1000 0\n")
+        new_lines.append("#endif\n")
+        active_anchor.write_text("".join(new_lines))
 
-    new_lines.append("#endif\n")
+    # ===============================================================
+    # Copy MDP templates
+    # ===============================================================
+    print("• Copying MDP templates ...")
 
-    with open(active_anchor, "w") as fout:
-        fout.write("".join(new_lines))
+    mdp_pkg = pkg_dir / "mdp_templates"
 
-        # ===============================================================
-        # Copy MDP templates
-        # ===============================================================
-        print("• Copying MDP templates ...")
+    if is_dna:
+        mdp_files = {
+            "minimization_dna.mdp": "minimization_dna.mdp",
+            "nvt_dna.mdp": "nvt_dna.mdp",
+            "npt_dna.mdp": "npt_dna.mdp",
+            "deposition_dna.mdp": "deposition_dna.mdp",
+            "production_dna.mdp": "production_dna.mdp",
+        }
+    else:
+        mdp_files = {
+            "minimization.mdp": "minimization.mdp",
+            "nvt.mdp": "nvt.mdp",
+            "npt.mdp": "npt.mdp",
+            "deposition.mdp": "deposition.mdp",
+            "production.mdp": "production.mdp",
+        }
 
-        mdp_pkg = pkg_dir / "mdp_templates"
+    if ads_mode:
+        allowed_ads = {
+            "minimization.mdp",
+            "nvt.mdp",
+            "npt.mdp",
+            "production.mdp",
+            "minimization_dna.mdp",
+            "nvt_dna.mdp",
+            "npt_dna.mdp",
+            "production_dna.mdp",
+        }
+        mdp_files = {src_name: dst_name for src_name, dst_name in mdp_files.items() if dst_name in allowed_ads}
 
-        if is_dna:
-            mdp_files = {
-                "minimization_dna.mdp": "minimization_dna.mdp",
-                "nvt_dna.mdp": "nvt_dna.mdp",
-                "npt_dna.mdp": "npt_dna.mdp",
-                "deposition_dna.mdp": "deposition_dna.mdp",
-                "production_dna.mdp": "production_dna.mdp",
+    surface_itp_path = dst_itp_dir / "surface.itp"
+    surface_moltype = _read_itp_moleculetype(surface_itp_path) or "SRF"
+
+    # copy MDPs
+    for src_name, dst_name in mdp_files.items():
+        src = mdp_pkg / src_name
+        if src.exists():
+            rewrite_pull = dst_name in {
+                "nvt.mdp",
+                "npt.mdp",
+                "nvt_dna.mdp",
+                "npt_dna.mdp",
+                "deposition.mdp",
+                "production.mdp",
+                "deposition_dna.mdp",
+                "production_dna.mdp",
             }
+            include_pull_init = rewrite_pull
+            write_custom_mdp(
+                src=src,
+                dst=mdp_dir / dst_name,
+                anchor_count=len(pull_anchor_atoms),
+                is_dna=is_dna,
+                surface_moltype=surface_moltype,
+                linker_pull=linker_pull_enabled,
+                linker_count=(len(pull_anchor_atoms) // 3) if linker_pull_enabled else 1,
+                linker_pull_init_prot_nm=args.linker_pull_init_prot,
+                linker_pull_init_surf_nm=args.linker_pull_init_surf,
+                rewrite_pull=rewrite_pull,
+                include_pull_init=include_pull_init,
+                dna_linker_bonded=bool(is_dna and linker_pull_enabled),
+            )
+            print(f"  ✔ {src_name} → {dst_name}")
         else:
-            mdp_files = {
-                "minimization.mdp": "minimization.mdp",
-                "nvt.mdp": "nvt.mdp",
-                "npt.mdp": "npt.mdp",
-                "deposition.mdp": "deposition.mdp",
-                "production.mdp": "production.mdp",
-            }
-
-        surface_itp_path = dst_itp_dir / "surface.itp"
-        surface_moltype = _read_itp_moleculetype(surface_itp_path) or "SRF"
-
-        # copy MDPs
-        for src_name, dst_name in mdp_files.items():
-            src = mdp_pkg / src_name
-            if src.exists():
-                rewrite_pull = dst_name in {
-                    "nvt.mdp",
-                    "npt.mdp",
-                    "nvt_dna.mdp",
-                    "npt_dna.mdp",
-                    "deposition.mdp",
-                    "production.mdp",
-                    "deposition_dna.mdp",
-                    "production_dna.mdp",
-                }
-                include_pull_init = rewrite_pull
-                write_custom_mdp(
-                    src=src,
-                    dst=mdp_dir / dst_name,
-                    anchor_count=len(pull_anchor_atoms),
-                    is_dna=is_dna,
-                    surface_moltype=surface_moltype,
-                    linker_pull=linker_pull_enabled,
-                    linker_count=(len(pull_anchor_atoms) // 3) if linker_pull_enabled else 1,
-                    linker_pull_init_prot_nm=args.linker_pull_init_prot,
-                    linker_pull_init_surf_nm=args.linker_pull_init_surf,
-                    rewrite_pull=rewrite_pull,
-                    include_pull_init=include_pull_init,
-                    dna_linker_bonded=bool(is_dna and linker_pull_enabled),
-                )
-                print(f"  ✔ {src_name} → {dst_name}")
-            else:
-                print(f"⚠ Missing MDP template: {src_name}")
+            print(f"⚠ Missing MDP template: {src_name}")
 
     anchor_moltype = mol_itp.stem if is_dna else moltype
     restrained_mol_itp_name = f"{anchor_moltype}_anchor.itp"
+    if ads_mode:
+        restrained_mol_itp_name = mol_itp.name
     restrained_linker_itp_name: str | None = None
     if linker_mode:
         # In linker mode, do not restrain DNA/Protein by default.
@@ -1463,6 +1493,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     # INDEX
     # ===============================================================
     groups_for_index = pull_anchor_atoms if pull_anchor_atoms else anchor_atoms
+    if ads_mode:
+        groups_for_index = {}
     custom_groups: Dict[str, List[int]] = {}
 
     # Lowercase alias used by current mdp templates (tc-grps = system).
