@@ -730,6 +730,9 @@ def test_dna_linker_mode_uses_bonded_coupling_and_single_surface_pull(tmp_path, 
     text = merged_itp.read_text()
     assert "[ bonds ]" in text
     assert "[ angles ]" in text
+    assert "[ position_restraints ]" in text
+    assert "#ifdef POSRES" in text
+    assert "4 1 1000 1000 0" in text
     assert "0.470 1250.0" in text
     assert "180.0 20.0" in text
 

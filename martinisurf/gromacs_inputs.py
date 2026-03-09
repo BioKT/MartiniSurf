@@ -474,6 +474,7 @@ def _merge_dna_linker_itp(
     pairs_entries: list[str] = []
     dna_linker_bonds = 0
     dna_linker_angles = 0
+    tail_posres_local_ids: set[int] = set()
 
     next_resnr = max_resnr + 1
     next_cgnr = max_cgnr + 1
@@ -494,6 +495,9 @@ def _merge_dna_linker_itp(
             int(template_atoms[i][0]): global_to_local[instance_atoms[i]]
             for i in range(n_tpl)
         }
+        linker_tail_global = int(pair["linker_tail"])  # type: ignore[arg-type]
+        if linker_tail_global in global_to_local:
+            tail_posres_local_ids.add(global_to_local[linker_tail_global])
 
         for i, row in enumerate(template_atoms):
             local_id = tpl_to_local[int(row[0])]
@@ -587,6 +591,12 @@ def _merge_dna_linker_itp(
     merged = _append_itp_entries(merged, "dihedrals", dihedrals_entries)
     merged = _append_itp_entries(merged, "pairs", pairs_entries)
     dst_itp_path.write_text("\n".join(merged).rstrip() + "\n")
+    # Keep linker-tail restraint for the bead pulled against the surface.
+    _rewrite_itp_with_posres(
+        src_itp=dst_itp_path,
+        dst_itp=dst_itp_path,
+        posres_atom_ids=sorted(tail_posres_local_ids),
+    )
     return dna_linker_bonds, dna_linker_angles
 
 

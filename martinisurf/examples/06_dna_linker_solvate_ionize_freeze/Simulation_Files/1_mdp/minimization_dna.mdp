@@ -1,0 +1,27 @@
+integrator               = steep
+nsteps                   = 10000
+nstxout                  = 0
+nstfout                  = 0
+nstlog                   = 100
+emtol=1000
+emstep      = 0.0001          ; Minimization step size
+
+cutoff-scheme            = Verlet
+nstlist                  = 20
+ns_type                  = grid
+pbc                      = xyz
+verlet-buffer-tolerance  = 0.005
+
+coulombtype              = reaction-field
+rcoulomb                 = 1.1
+epsilon_r                = 2.5    ; 2.5 (with polarizable water)
+epsilon_rf               = 0
+
+vdw_type                 = cutoff
+vdw-modifier             = Potential-shift-verlet
+rvdw                     = 1.1
+
+; Freeze groups
+freezegrps = SRF
+freezedim = Y Y Y
+
