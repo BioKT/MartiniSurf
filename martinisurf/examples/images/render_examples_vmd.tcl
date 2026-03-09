@@ -252,7 +252,12 @@ proc render_example {example_dir out_dir} {
     # Top view: keep Z up and Y to the right.
     set top_png [render_view $ex_name $out_dir "top" {rotate z by -90; scale by 1.8}]
     # Side view: Z positive up and X positive to the right.
-    set side_png [render_view $ex_name $out_dir "side" {rotate x by -90; scale by 1.8}]
+    if {$ex_name eq "07_protein_nad"} {
+        # For figure 07, flip in-plane X direction while keeping +Z up.
+        set side_png [render_view $ex_name $out_dir "side" {rotate x by -90; rotate z by 180; scale by 1.8}]
+    } else {
+        set side_png [render_view $ex_name $out_dir "side" {rotate x by -90; scale by 1.8}]
+    }
 
     mol delete $m
 }
