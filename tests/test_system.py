@@ -659,6 +659,81 @@ def test_linker_pull_omits_surface_start_when_init_is_enabled():
     assert "pull-coord2-init" not in block_no_init
 
 
+def test_linker_pull_block_can_skip_head_coordinate_for_dna_bonded_mode():
+    block = gms._build_linker_pull_block(
+        linker_count=1,
+        surface_group="SRF",
+        init_prot_nm=0.6,
+        init_surf_nm=0.7,
+        include_init=True,
+        include_head_pull=False,
+    )
+
+    assert "pull-ncoords             = 1" in block
+    assert "pull-coord1-groups       = 3 4" in block
+    assert "pull-coord1-dim          = N N Y" in block
+    assert "pull-coord1-init         = 0.700" in block
+    assert "pull-coord2-groups" not in block
+
+
+def test_dna_linker_mode_uses_bonded_coupling_and_single_surface_pull(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    gro = """DNA linker bonded test
+  4
+    1DG     BB1    1   1.000   1.000   1.000
+    1DG     BB2    2   1.100   1.000   1.000
+    2LNK     C1    3   1.020   1.000   0.900
+    2LNK     C2    4   1.020   1.000   0.400
+   3.00000   3.00000   3.00000
+"""
+    (sim / "2_system" / "immobilized_system.gro").write_text(gro)
+    itp = sim / "system_itp"
+    (itp / "Active.itp").unlink(missing_ok=True)
+    (itp / "linker.itp").write_text(
+        "[ moleculetype ]\nLNK 1\n\n"
+        "[ atoms ]\n"
+        "1 C1 1 LNK C1 1 0.0\n"
+        "2 C1 1 LNK C2 2 0.0\n"
+    )
+    (itp / "Nucleic_A+Nucleic_B.itp").write_text(
+        "[ moleculetype ]\nNucleic_A+Nucleic_B 1\n\n"
+        "[ atoms ]\n"
+        "1 Q0 1 DG BB1 1 -1.0\n"
+        "2 SN0 1 DG BB2 2 0.0\n"
+    )
+    (itp / "martini_v2.1-dna.itp").write_text("; dummy\n")
+    (itp / "martini_v2.0_ions.itp").write_text("; dummy\n")
+
+    gms.main([
+        "--anchor", "1", "1",
+        "--use-linker",
+        "--linker-resname", "LNK",
+        "--linker-size", "2",
+        "--linker-pull-init-prot", "0.47",
+        "--linker-pull-init-surf", "0.60",
+    ])
+
+    production = (sim / "1_mdp" / "production_dna.mdp").read_text()
+    assert "pull-ncoords             = 1" in production
+    assert "pull-coord1-groups       = 3 4" in production
+    assert "pull-coord1-dim          = N N Y" in production
+    assert "pull-coord2-groups" not in production
+
+    system_top = (sim / "0_topology" / "system.top").read_text()
+    assert '#include "system_itp/Nucleic_A+Nucleic_B_linker.itp"' in system_top
+    assert '#include "system_itp/linker.itp"' not in system_top
+    assert "LNK 1" not in system_top
+
+    merged_itp = sim / "0_topology" / "system_itp" / "Nucleic_A+Nucleic_B_linker.itp"
+    text = merged_itp.read_text()
+    assert "[ bonds ]" in text
+    assert "[ angles ]" in text
+    assert "0.470 1250.0" in text
+    assert "180.0 20.0" in text
+
+
 def test_protein_deposition_and_production_templates_only_differ_in_nsteps():
     mdp_dir = Path(gms.__file__).resolve().parent / "mdp_templates"
     deposition = (mdp_dir / "deposition.mdp").read_text()

@@ -79,6 +79,7 @@ def write_top_files(
     substrate_count: int = 0,
     surface_moltype: str = "SRF",
     surface_count: int = 1,
+    intermolecular_itp_name: str | None = None,
 ) -> None:
     """Create simple master topology files expected by legacy workflows/tests."""
     if is_dna:
@@ -117,6 +118,8 @@ def write_top_files(
             lines.append(f'#include "system_itp/{cofactor_itp_name}"')
         if substrate_itp_name and substrate_count > 0:
             lines.append(f'#include "system_itp/{substrate_itp_name}"')
+        if intermolecular_itp_name:
+            lines.append(f'#include "system_itp/{intermolecular_itp_name}"')
         return "\n".join(lines)
 
     system_top = topo_dir / "system.top"
@@ -320,6 +323,273 @@ def _infer_linker_restrained_atom_ids(
     return sorted(local_ids) if local_ids else [linker_size]
 
 
+def _pick_linker_neighbor(
+    universe: mda.Universe,
+    instance_atom_ids: List[int],
+    linker_head_id: int,
+) -> int | None:
+    """Pick the linker bead immediately adjacent to the head (fallback: nearest bead)."""
+    others = [idx for idx in instance_atom_ids if idx != linker_head_id]
+    if not others:
+        return None
+    if len(others) == 1:
+        return others[0]
+
+    head_pos = universe.atoms[linker_head_id - 1].position
+    return min(
+        others,
+        key=lambda idx: float(((universe.atoms[idx - 1].position - head_pos) ** 2).sum()),
+    )
+
+
+def _pick_preferred_dna_bead(
+    universe: mda.Universe,
+    selected_atom_ids: List[int],
+    linker_head_id: int,
+) -> int | None:
+    """
+    Select DNA bead by priority BB1 -> BB2 -> BB3.
+    If multiple candidates exist, choose the closest to linker_head.
+    """
+    if not selected_atom_ids:
+        return None
+
+    head_pos = universe.atoms[linker_head_id - 1].position
+    selected = [universe.atoms[idx - 1] for idx in selected_atom_ids]
+
+    for bead_name in ("BB1", "BB2", "BB3"):
+        candidates = [a for a in selected if str(a.name).strip().upper() == bead_name]
+        if candidates:
+            best = min(
+                candidates,
+                key=lambda a: float(((a.position - head_pos) ** 2).sum()),
+            )
+            return int(best.index + 1)
+
+    return None
+
+
+def _parse_itp_section_tokens(itp_path: Path, sections: set[str]) -> dict[str, list[list[str]]]:
+    out: dict[str, list[list[str]]] = {name: [] for name in sections}
+    current: str | None = None
+    for raw in itp_path.read_text().splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith(";"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            current_name = line[1:-1].strip().lower()
+            current = current_name if current_name in sections else None
+            continue
+        if current is None:
+            continue
+        data = raw.split(";", 1)[0].strip()
+        if not data:
+            continue
+        tokens = data.split()
+        if tokens:
+            out[current].append(tokens)
+    return out
+
+
+def _append_itp_entries(lines: list[str], section: str, entries: list[str]) -> list[str]:
+    if not entries:
+        return lines
+
+    target = section.lower()
+    start = -1
+    for i, raw in enumerate(lines):
+        stripped = raw.strip().lower()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            if stripped[1:-1].strip() == target:
+                start = i
+                break
+
+    if start < 0:
+        out = list(lines)
+        if out and out[-1].strip():
+            out.append("")
+        out.append(f"[ {section} ]")
+        out.extend(entries)
+        return out
+
+    end = len(lines)
+    for j in range(start + 1, len(lines)):
+        stripped = lines[j].strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            end = j
+            break
+
+    return lines[:end] + entries + lines[end:]
+
+
+def _merge_dna_linker_itp(
+    dst_itp_path: Path,
+    dna_itp_path: Path,
+    linker_itp_path: Path,
+    universe: mda.Universe,
+    linker_pairs: List[dict[str, List[int] | int]],
+    linker_resname: str,
+    bond_length_nm: float,
+    bond_force: float = 1250.0,
+    angle_deg: float = 180.0,
+    angle_force: float = 20.0,
+) -> tuple[int, int]:
+    """
+    Merge linker atoms/interactions into DNA moleculetype and add DNA-linker bond/angle.
+    Returns (n_bonds_added, n_angles_added) for DNA-linker coupling.
+    """
+    base_lines = dna_itp_path.read_text().splitlines()
+    base_atom_count = _count_itp_atoms(dna_itp_path)
+    if base_atom_count <= 0:
+        raise ValueError(f"DNA topology has no [ atoms ] entries: {dna_itp_path}")
+
+    parsed = _parse_itp_section_tokens(
+        linker_itp_path,
+        {"atoms", "bonds", "angles", "constraints", "dihedrals", "pairs"},
+    )
+    linker_atoms_tpl = parsed["atoms"]
+    if not linker_atoms_tpl:
+        raise ValueError(f"Linker topology has no [ atoms ] entries: {linker_itp_path}")
+
+    dna_atoms_section = _parse_itp_section_tokens(dna_itp_path, {"atoms"})["atoms"]
+    max_resnr = max((int(row[2]) for row in dna_atoms_section if len(row) > 2 and row[2].lstrip("+-").isdigit()), default=1)
+    max_cgnr = max((int(row[5]) for row in dna_atoms_section if len(row) > 5 and row[5].lstrip("+-").isdigit()), default=base_atom_count)
+
+    linker_global_ids = sorted(
+        {
+            int(gid)
+            for pair in linker_pairs
+            for gid in pair["instance_atoms"]  # type: ignore[index]
+        }
+    )
+    global_to_local = {gid: base_atom_count + i + 1 for i, gid in enumerate(linker_global_ids)}
+
+    atom_entries: list[str] = []
+    bonds_entries: list[str] = []
+    angles_entries: list[str] = []
+    constraints_entries: list[str] = []
+    dihedrals_entries: list[str] = []
+    pairs_entries: list[str] = []
+    dna_linker_bonds = 0
+    dna_linker_angles = 0
+
+    next_resnr = max_resnr + 1
+    next_cgnr = max_cgnr + 1
+
+    template_atoms = linker_atoms_tpl
+    n_tpl = len(template_atoms)
+    if n_tpl <= 0:
+        raise ValueError("Invalid linker template atom count.")
+
+    for pair in linker_pairs:
+        instance_atoms = [int(v) for v in pair["instance_atoms"]]  # type: ignore[index]
+        if len(instance_atoms) != n_tpl:
+            raise ValueError(
+                f"Linker atom count mismatch: topology has {n_tpl}, instance has {len(instance_atoms)}."
+            )
+
+        tpl_to_local = {
+            int(template_atoms[i][0]): global_to_local[instance_atoms[i]]
+            for i in range(n_tpl)
+        }
+
+        for i, row in enumerate(template_atoms):
+            local_id = tpl_to_local[int(row[0])]
+            atom_type = row[1] if len(row) > 1 else "C1"
+            atom_name = row[4] if len(row) > 4 else f"L{i+1}"
+            charge = row[6] if len(row) > 6 else "0.0"
+            mass = row[7] if len(row) > 7 else None
+            entry = f"{local_id:6d} {atom_type:>6} {next_resnr:6d} {linker_resname:<6} {atom_name:>6} {next_cgnr:6d} {charge:>8}"
+            if mass is not None:
+                entry += f" {mass}"
+            atom_entries.append(entry)
+            next_cgnr += 1
+        next_resnr += 1
+
+        for row in parsed["bonds"]:
+            if len(row) < 2:
+                continue
+            i_local = tpl_to_local[int(row[0])]
+            j_local = tpl_to_local[int(row[1])]
+            rest = " ".join(row[2:]) if len(row) > 2 else "1"
+            bonds_entries.append(f"{i_local:6d} {j_local:6d} {rest}")
+
+        for row in parsed["angles"]:
+            if len(row) < 3:
+                continue
+            i_local = tpl_to_local[int(row[0])]
+            j_local = tpl_to_local[int(row[1])]
+            k_local = tpl_to_local[int(row[2])]
+            rest = " ".join(row[3:]) if len(row) > 3 else "1 180.0 20.0"
+            angles_entries.append(f"{i_local:6d} {j_local:6d} {k_local:6d} {rest}")
+
+        for row in parsed["constraints"]:
+            if len(row) < 2:
+                continue
+            i_local = tpl_to_local[int(row[0])]
+            j_local = tpl_to_local[int(row[1])]
+            rest = " ".join(row[2:]) if len(row) > 2 else "1 0.30"
+            constraints_entries.append(f"{i_local:6d} {j_local:6d} {rest}")
+
+        for row in parsed["dihedrals"]:
+            if len(row) < 4:
+                continue
+            i_local = tpl_to_local[int(row[0])]
+            j_local = tpl_to_local[int(row[1])]
+            k_local = tpl_to_local[int(row[2])]
+            l_local = tpl_to_local[int(row[3])]
+            rest = " ".join(row[4:]) if len(row) > 4 else "1 0.0 0.0"
+            dihedrals_entries.append(f"{i_local:6d} {j_local:6d} {k_local:6d} {l_local:6d} {rest}")
+
+        for row in parsed["pairs"]:
+            if len(row) < 2:
+                continue
+            i_local = tpl_to_local[int(row[0])]
+            j_local = tpl_to_local[int(row[1])]
+            rest = " ".join(row[2:]) if len(row) > 2 else "1"
+            pairs_entries.append(f"{i_local:6d} {j_local:6d} {rest}")
+
+        selected_atoms = [int(v) for v in pair["selected_atoms"]]  # type: ignore[index]
+        linker_head = int(pair["linker_head"])  # type: ignore[arg-type]
+        dna_bead = _pick_preferred_dna_bead(
+            universe=universe,
+            selected_atom_ids=selected_atoms,
+            linker_head_id=linker_head,
+        )
+        if dna_bead is None:
+            continue
+
+        linker_head_local = global_to_local[linker_head]
+        bonds_entries.append(
+            f"{dna_bead:6d} {linker_head_local:6d} 1 {bond_length_nm:.3f} {bond_force:.1f}"
+        )
+        dna_linker_bonds += 1
+
+        linker_neighbor = _pick_linker_neighbor(
+            universe=universe,
+            instance_atom_ids=instance_atoms,
+            linker_head_id=linker_head,
+        )
+        if linker_neighbor is not None:
+            linker_neighbor_local = global_to_local[linker_neighbor]
+            angles_entries.append(
+                f"{linker_neighbor_local:6d} {linker_head_local:6d} {dna_bead:6d} 1 {angle_deg:.1f} {angle_force:.1f}"
+            )
+            dna_linker_angles += 1
+
+    merged = list(base_lines)
+    merged = _append_itp_entries(merged, "atoms", atom_entries)
+    merged = _append_itp_entries(merged, "bonds", bonds_entries)
+    merged = _append_itp_entries(merged, "angles", angles_entries)
+    merged = _append_itp_entries(merged, "constraints", constraints_entries)
+    merged = _append_itp_entries(merged, "dihedrals", dihedrals_entries)
+    merged = _append_itp_entries(merged, "pairs", pairs_entries)
+    dst_itp_path.write_text("\n".join(merged).rstrip() + "\n")
+    return dna_linker_bonds, dna_linker_angles
+
+
 def _infer_surface_pull_group(text: str, is_dna: bool, surface_moltype: str | None = None) -> str:
     if surface_moltype:
         return str(surface_moltype).strip()
@@ -407,6 +677,7 @@ def _build_linker_pull_block(
     init_prot_nm: float | None = None,
     init_surf_nm: float | None = None,
     include_init: bool = True,
+    include_head_pull: bool = True,
 ) -> str:
     if linker_count <= 0:
         return ""
@@ -423,7 +694,8 @@ def _build_linker_pull_block(
         lines.append(f"pull-group{gid}-name         = Anchor_{gid}")
     lines.append(f"pull-group{surface_gid}-name         = {surface_group}")
     lines.append("")
-    lines.append(f"pull-ncoords             = {2 * linker_count}")
+    coord_total = 2 * linker_count if include_head_pull else linker_count
+    lines.append(f"pull-ncoords             = {coord_total}")
 
     coord_id = 1
     for i in range(linker_count):
@@ -431,21 +703,22 @@ def _build_linker_pull_block(
         linker_head_gid = 3 * i + 2
         linker_tail_gid = 3 * i + 3
 
-        # coord: biomolecule anchor <-> linker head (near biomolecule)
-        lines.append(f"pull-coord{coord_id}-geometry     = distance")
-        lines.append(f"pull-coord{coord_id}-groups       = {selected_gid} {linker_head_gid}")
-        lines.append(f"pull-coord{coord_id}-type         = umbrella")
-        lines.append(f"pull-coord{coord_id}-k            = {k:.1f}")
-        lines.append(f"pull-coord{coord_id}-rate         = 0")
-        lines.append(f"pull-coord{coord_id}-dim          = Y Y Y")
-        _append_pull_start_or_init(
-            lines=lines,
-            coord_id=coord_id,
-            include_init=include_init,
-            init_nm=init_prot_nm,
-        )
-        lines.append("")
-        coord_id += 1
+        if include_head_pull:
+            # coord: biomolecule anchor <-> linker head (near biomolecule)
+            lines.append(f"pull-coord{coord_id}-geometry     = distance")
+            lines.append(f"pull-coord{coord_id}-groups       = {selected_gid} {linker_head_gid}")
+            lines.append(f"pull-coord{coord_id}-type         = umbrella")
+            lines.append(f"pull-coord{coord_id}-k            = {k:.1f}")
+            lines.append(f"pull-coord{coord_id}-rate         = 0")
+            lines.append(f"pull-coord{coord_id}-dim          = Y Y Y")
+            _append_pull_start_or_init(
+                lines=lines,
+                coord_id=coord_id,
+                include_init=include_init,
+                init_nm=init_prot_nm,
+            )
+            lines.append("")
+            coord_id += 1
 
         # coord: linker tail (near surface) <-> surface
         lines.append(f"pull-coord{coord_id}-geometry     = distance")
@@ -479,6 +752,7 @@ def write_custom_mdp(
     anchor_pull_init_nm: float | None = None,
     rewrite_pull: bool = True,
     include_pull_init: bool = True,
+    dna_linker_bonded: bool = False,
 ) -> None:
     text = src.read_text()
     if not rewrite_pull:
@@ -496,6 +770,7 @@ def write_custom_mdp(
                 init_prot_nm=linker_pull_init_prot_nm,
                 init_surf_nm=linker_pull_init_surf_nm,
                 include_init=include_pull_init,
+                include_head_pull=not dna_linker_bonded,
             )
         elif anchor_count > 0:
             clean = clean.rstrip() + "\n" + _build_pull_block(
@@ -637,6 +912,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     pull_anchor_atoms: Dict[int, List[int]] = {}
     linker_pull_enabled = False
     linker_atom_ids: set[int] = set()
+    linker_pairs: List[dict[str, List[int] | int]] = []
 
     if linker_mode and args.linker_resname:
         linker_atom_ids = {
@@ -715,6 +991,14 @@ def main(argv: Sequence[str] | None = None) -> None:
                     new_pull_groups[base] = selected_atoms
                     new_pull_groups[base + 1] = [linker_head]
                     new_pull_groups[base + 2] = [linker_tail]
+                    linker_pairs.append(
+                        {
+                            "selected_atoms": selected_atoms,
+                            "instance_atoms": instance,
+                            "linker_head": linker_head,
+                            "linker_tail": linker_tail,
+                        }
+                    )
 
                     print(f"  → Anchor_{base + 1} (linker head): atom {linker_head}")
                     print(f"  → Anchor_{base + 2} (linker tail): atom {linker_tail}")
@@ -745,6 +1029,14 @@ def main(argv: Sequence[str] | None = None) -> None:
                 2: [linker_head],
                 3: [linker_tail],
             }
+            linker_pairs.append(
+                {
+                    "selected_atoms": selected_atoms,
+                    "instance_atoms": linker_ids_sorted,
+                    "linker_head": linker_head,
+                    "linker_tail": linker_tail,
+                }
+            )
             linker_pull_enabled = True
             print(f"  → Anchor_2 (linker head): atom {linker_head}")
             print(f"  → Anchor_3 (linker tail): atom {linker_tail}")
@@ -1001,6 +1293,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                     linker_pull_init_surf_nm=args.linker_pull_init_surf,
                     rewrite_pull=rewrite_pull,
                     include_pull_init=include_pull_init,
+                    dna_linker_bonded=bool(is_dna and linker_pull_enabled),
                 )
                 print(f"  ✔ {src_name} → {dst_name}")
             else:
@@ -1049,19 +1342,58 @@ def main(argv: Sequence[str] | None = None) -> None:
     elif surface_atom_total > 0:
         surface_count = surface_atom_total
 
+    intermolecular_itp_name: str | None = None
+    top_mol_itp_name = mol_itp.name
+    top_anchor_itp_name = restrained_mol_itp_name
+    top_use_linker = linker_mode
+    top_linker_count = linker_total
+    top_restrained_linker_itp_name = restrained_linker_itp_name
+
+    if is_dna and linker_mode and linker_pairs:
+        bond_length_nm = args.linker_pull_init_prot if args.linker_pull_init_prot else 0.47
+        merged_name = f"{mol_itp.stem}_linker.itp"
+        n_bonds, n_angles = _merge_dna_linker_itp(
+            dst_itp_path=dst_itp_dir / merged_name,
+            dna_itp_path=mol_itp,
+            linker_itp_path=dst_itp_dir / args.linker_itp_name,
+            universe=u,
+            linker_pairs=linker_pairs,
+            linker_resname=args.linker_resname or "LNK",
+            bond_length_nm=bond_length_nm,
+            bond_force=1250.0,
+            angle_deg=180.0,
+            angle_force=20.0,
+        )
+        if n_bonds > 0:
+            # DNA+linker becomes one molecule topology; linker no longer appears as separate molecule.
+            top_mol_itp_name = merged_name
+            top_anchor_itp_name = merged_name
+            top_use_linker = False
+            top_linker_count = 0
+            top_restrained_linker_itp_name = None
+            print(
+                "✔ DNA-linker bonded coupling generated in merged topology: "
+                f"{merged_name} ({n_bonds} bond(s), {n_angles} angle(s))"
+            )
+        else:
+            print(
+                "⚠ DNA-linker bonded coupling skipped: no BB1/BB2/BB3 bead found "
+                "in selected anchor residues."
+            )
+
     write_top_files(
         topo_dir=topo_dir,
         dst_itp_dir=dst_itp_dir,
         moltype=moltype,
-        mol_itp_name=mol_itp.name,
-        anchor_itp_name=restrained_mol_itp_name,
+        mol_itp_name=top_mol_itp_name,
+        anchor_itp_name=top_anchor_itp_name,
         is_dna=is_dna,
-        use_linker=linker_mode,
+        use_linker=top_use_linker,
         go_model=args.go_model,
         linker_itp_name=args.linker_itp_name,
-        restrained_linker_itp_name=restrained_linker_itp_name,
+        restrained_linker_itp_name=top_restrained_linker_itp_name,
         linker_moltype=linker_moltype_name,
-        linker_count=linker_total,
+        linker_count=top_linker_count,
         cofactor_itp_name=args.cofactor_itp_name if include_cofactor_itp else None,
         cofactor_moltype=cofactor_moltype_name,
         cofactor_count=args.cofactor_count,
@@ -1070,6 +1402,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         substrate_count=args.substrate_count,
         surface_moltype=surface_moltype,
         surface_count=surface_count,
+        intermolecular_itp_name=intermolecular_itp_name,
     )
 
     # ===============================================================

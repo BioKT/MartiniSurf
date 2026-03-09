@@ -2179,11 +2179,13 @@ def main(argv=None):
             class_b=_bead_size_class(surface_atom or args.surface_bead),
         )
 
-        # Auto distances in nm from sigma*1.2.
+        # Auto distances in nm:
+        # - DNA linker-to-biomolecule uses raw sigma (bonded coupling in topology).
+        # - Protein linker-to-biomolecule keeps legacy sigma*1.2 pull distance.
         linker_prot_dist_nm = (
             args.linker_prot_dist
             if args.linker_prot_dist is not None
-            else prot_sigma_nm * 1.2
+            else (prot_sigma_nm if args.dna else prot_sigma_nm * 1.2)
         )
         linker_surf_dist_nm = (
             args.linker_surf_dist
