@@ -244,8 +244,8 @@
 <p>The recommended complete workflows are:</p>
 <section id="protein-not-explicit-linker-solvate-ionize">
 <h2>Protein + Not explicit Linker + solvate + ionize<a class="headerlink" href="#protein-not-explicit-linker-solvate-ionize" title="Link to this heading">¶</a></h2>
-<p>Path: <code class="docutils literal notranslate"><span class="pre">martinisurf/examples/05_protein_anchor_solvate_ionize</span></code></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>martinisurf/examples/05_protein_anchor_solvate_ionize
+<p>Path: <code class="docutils literal notranslate"><span class="pre">martinisurf/examples/06_protein_anchor_solvate_ionize</span></code></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>martinisurf/examples/06_protein_anchor_solvate_ionize
 bash<span class="w"> </span>run.sh
 bash<span class="w"> </span>work_flow_gromacs.sh
 </pre></div>
@@ -253,29 +253,40 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 </section>
 <section id="dna-linker-solvate-ionize-frozen-water">
 <h2>DNA + linker + solvate + ionize + frozen water<a class="headerlink" href="#dna-linker-solvate-ionize-frozen-water" title="Link to this heading">¶</a></h2>
-<p>Path: <code class="docutils literal notranslate"><span class="pre">martinisurf/examples/06_dna_linker_solvate_ionize_freeze</span></code></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>martinisurf/examples/06_dna_linker_solvate_ionize_freeze
+<p>Path: <code class="docutils literal notranslate"><span class="pre">martinisurf/examples/07_dna_linker_solvate_ionize_freeze</span></code></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>martinisurf/examples/07_dna_linker_solvate_ionize_freeze
 bash<span class="w"> </span>run.sh
 bash<span class="w"> </span>work_flow_gromacs.sh
 </pre></div>
 </div>
+<p>Behavior notes:</p>
+<ul class="simple">
+<li><p>In DNA linker mode, linker-DNA is coupled with bonded terms (bond + angle) in topology (no linker-DNA pull coordinate).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">work_flow_gromacs.sh</span></code> uses non-restrained topology in equilibration stages and restricted topology in production when available.</p></li>
+</ul>
 </section>
 <section id="pre-cg-protein-cofactor-substrate-solvate-ionize">
 <h2>Pre-CG protein+cofactor + substrate + solvate + ionize<a class="headerlink" href="#pre-cg-protein-cofactor-substrate-solvate-ionize" title="Link to this heading">¶</a></h2>
-<p>Path: <code class="docutils literal notranslate"><span class="pre">martinisurf/examples/07_protein_nad</span></code></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>martinisurf/examples/07_protein_nad
+<p>Path: <code class="docutils literal notranslate"><span class="pre">martinisurf/examples/08_protein_nad</span></code></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>martinisurf/examples/08_protein_nad
 bash<span class="w"> </span>run.sh
 bash<span class="w"> </span>work_flow_gromacs.sh
 </pre></div>
 </div>
+<p>Behavior notes:</p>
+<ul class="simple">
+<li><p>In <code class="docutils literal notranslate"><span class="pre">pre_cg_complex</span></code>, low-Z balancing is enabled by default.</p></li>
+<li><p>Default low-Z fraction is <code class="docutils literal notranslate"><span class="pre">0.2</span></code> unless <code class="docutils literal notranslate"><span class="pre">protein.balance_low_z_fraction</span></code> is provided in <code class="docutils literal notranslate"><span class="pre">complex_config.yaml</span></code>.</p></li>
+</ul>
 </section>
 <section id="basic-build-only-examples">
 <h2>Basic build-only examples<a class="headerlink" href="#basic-build-only-examples" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/01_protein_anchor</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/02_protein_linker</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/03_dna_anchor</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/04_dna_linker</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/02_protein_ads</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/03_protein_linker</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/04_dna_anchor</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/05_dna_linker</span></code></p></li>
 </ul>
 </section>
 <section id="adsorption-mode-note">

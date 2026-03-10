@@ -57,22 +57,22 @@ use `--dna` + Not explicit Linker (`--anchor`) or explicit linker (`--linker`).
 use `--complex-config`.
 
 Recommended complete examples (solvated/ionized and ready for MD workflow):
-- `martinisurf/examples/05_protein_anchor_solvate_ionize`
-- `martinisurf/examples/06_dna_linker_solvate_ionize_freeze`
-- `martinisurf/examples/07_protein_nad`
+- `martinisurf/examples/06_protein_anchor_solvate_ionize`
+- `martinisurf/examples/07_dna_linker_solvate_ionize_freeze`
+- `martinisurf/examples/08_protein_nad`
 
 Run pattern:
 ```bash
-cd martinisurf/examples/05_protein_anchor_solvate_ionize
+cd martinisurf/examples/06_protein_anchor_solvate_ionize
 bash run.sh
 bash work_flow_gromacs.sh
 ```
 
 ## 4) Copy-and-run commands
 
-If you want the most complete and production-oriented setups, use examples `05`, `06`, and `07` above.
+If you want the most complete and production-oriented setups, use examples `06`, `07`, and `08` above.
 
-### A) Example 05: Protein + Not explicit Linker (`--anchor`) + solvate + ionize
+### A) Example 06: Protein + Not explicit Linker (`--anchor`) + solvate + ionize
 
 ```bash
 martinisurf \
@@ -93,7 +93,7 @@ martinisurf \
   --merge A,B,C,D
 ```
 
-### B) Example 06: DNA + linker + solvate + ionize + frozen water
+### B) Example 07: DNA + linker + solvate + ionize + frozen water
 
 ```bash
 martinisurf \
@@ -115,7 +115,7 @@ martinisurf \
   --merge A,B
 ```
 
-### C) Example 07: pre-CG protein+cofactor + substrate + solvate + ionize
+### C) Example 08: pre-CG protein+cofactor + substrate + solvate + ionize
 
 ```bash
 martinisurf \

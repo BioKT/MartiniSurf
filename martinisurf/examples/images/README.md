@@ -16,5 +16,5 @@ Render rules:
 - View: ZX-style
 - Ray tracing: `TachyonInternal` with AO/shadows enabled
 - Protein: only `name BB`
-- Protein anchors (example 05 chain-based selections `A 8 10 11` and `D 8 10 11`): highlighted in red
+- Protein anchors (example 06 chain-based selections `A 8 10 11` and `D 8 10 11`): highlighted in red
 - Solvated systems: water hidden (`resname W WF SOL`)

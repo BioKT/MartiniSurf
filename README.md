@@ -57,13 +57,13 @@ MartiniSurf expects the following tools in your environment:
 ## Quick Start (Recommended Complete Examples)
 These are the most complete examples (system build + solvation/ionization + simulation workflow):
 
-- `martinisurf/examples/05_protein_anchor_solvate_ionize`
-- `martinisurf/examples/06_dna_linker_solvate_ionize_freeze`
-- `martinisurf/examples/07_protein_nad`
+- `martinisurf/examples/06_protein_anchor_solvate_ionize`
+- `martinisurf/examples/07_dna_linker_solvate_ionize_freeze`
+- `martinisurf/examples/08_protein_nad`
 
 Run any of them with:
 ```bash
-cd martinisurf/examples/05_protein_anchor_solvate_ionize
+cd martinisurf/examples/06_protein_anchor_solvate_ionize
 bash run.sh
 bash work_flow_gromacs.sh
 ```

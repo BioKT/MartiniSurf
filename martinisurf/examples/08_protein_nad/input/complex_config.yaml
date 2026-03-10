@@ -1,0 +1,19 @@
+mode: pre_cg_complex
+
+complex_gro: BsADH_NAD.gro
+
+protein:
+  molname: Active
+  anchor_groups: ["1 8 10 11", "2 1025 1027 1028"]
+  # Optional override (default is 0.2):
+  # balance_low_z_fraction: 0.22
+
+cofactor:
+  molname: NAD
+  itp: NAD.itp
+  count: 4
+
+topology:
+  protein_itp: BsADH_NAD.itp
+  include_go: true
+  go_files_glob: "go_*"

@@ -1,6 +1,6 @@
 # Examples
 
-Curated set of 7 examples. Recommended production-oriented workflows are `05`, `06`, and `07`.
+Curated set of 8 examples. Recommended production-oriented workflows are `06`, `07`, and `08`.
 
 For examples driven from `--pdb`, the recommended syntax is now chain-based:
 - `--anchor A 8 10 11`
@@ -28,13 +28,13 @@ Constraints:
 
 ## Recommended Complete Examples
 1. Protein anchor + solvate + ionize  
-Path: `martinisurf/examples/05_protein_anchor_solvate_ionize`
+Path: `martinisurf/examples/06_protein_anchor_solvate_ionize`
 
 2. DNA linker + solvate + ionize + frozen water  
-Path: `martinisurf/examples/06_dna_linker_solvate_ionize_freeze`
+Path: `martinisurf/examples/07_dna_linker_solvate_ionize_freeze`
 
 3. Pre-CG protein+cofactor + substrate + solvate + ionize  
-Path: `martinisurf/examples/07_protein_nad`
+Path: `martinisurf/examples/08_protein_nad`
 
 Run pattern:
 - `bash run.sh`
@@ -48,14 +48,17 @@ Workflow scripts note:
 1. Protein anchor mode  
 Path: `martinisurf/examples/01_protein_anchor`
 
-2. Protein linker mode + surface decoration  
-Path: `martinisurf/examples/02_protein_linker`
+2. Protein adsorption mode (`--ads-mode`)  
+Path: `martinisurf/examples/02_protein_ads`
 
-3. DNA anchor mode  
-Path: `martinisurf/examples/03_dna_anchor`
+3. Protein linker mode + surface decoration  
+Path: `martinisurf/examples/03_protein_linker`
 
-4. DNA linker mode  
-Path: `martinisurf/examples/04_dna_linker`
+4. DNA anchor mode  
+Path: `martinisurf/examples/04_dna_anchor`
+
+5. DNA linker mode  
+Path: `martinisurf/examples/05_dna_linker`
 
 ## Per-Example Layout
 - `inputs/`: required input files

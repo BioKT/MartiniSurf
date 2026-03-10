@@ -263,6 +263,7 @@ uses anchor-based orientation but skips anchor pull/restraint topology and uses
 <li><p>In <code class="docutils literal notranslate"><span class="pre">--pdb</span></code> workflows, <code class="docutils literal notranslate"><span class="pre">--anchor</span></code> and <code class="docutils literal notranslate"><span class="pre">--linker-group</span></code> can use either global residue ids or <code class="docutils literal notranslate"><span class="pre">CHAIN</span> <span class="pre">RESID</span> <span class="pre">...</span></code> syntax from the input PDB.</p></li>
 <li><p>In <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>, chain-based <code class="docutils literal notranslate"><span class="pre">protein.anchor_groups</span></code> also work if you provide <code class="docutils literal notranslate"><span class="pre">protein.reference_pdb</span></code>.</p></li>
 <li><p>For two-anchor systems, use <code class="docutils literal notranslate"><span class="pre">--balance-low-z</span></code> (and optional <code class="docutils literal notranslate"><span class="pre">--balance-low-z-fraction</span></code>) to flatten the lowest-Z protein face against the surface.</p></li>
+<li><p>In <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>, low-Z balancing is enabled by default (<code class="docutils literal notranslate"><span class="pre">protein.balance_low_z=true</span></code>), with default <code class="docutils literal notranslate"><span class="pre">protein.balance_low_z_fraction=0.2</span></code>.</p></li>
 <li><p>If you do NOT pass <code class="docutils literal notranslate"><span class="pre">--surface</span></code>, you must pass <code class="docutils literal notranslate"><span class="pre">--lx</span></code> and <code class="docutils literal notranslate"><span class="pre">--ly</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--ionize</span></code> always requires <code class="docutils literal notranslate"><span class="pre">--solvate</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--freeze-water-fraction</span></code> works only with <code class="docutils literal notranslate"><span class="pre">--dna</span></code> and <code class="docutils literal notranslate"><span class="pre">--solvate</span></code>.</p></li>
@@ -303,12 +304,12 @@ use <code class="docutils literal notranslate"><span class="pre">--complex-confi
 </ul>
 <p>Recommended complete examples (solvated/ionized and ready for MD workflow):</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/05_protein_anchor_solvate_ionize</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/06_dna_linker_solvate_ionize_freeze</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/07_protein_nad</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/06_protein_anchor_solvate_ionize</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/07_dna_linker_solvate_ionize_freeze</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/08_protein_nad</span></code></p></li>
 </ul>
 <p>Run pattern:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>martinisurf/examples/05_protein_anchor_solvate_ionize
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>martinisurf/examples/06_protein_anchor_solvate_ionize
 bash<span class="w"> </span>run.sh
 bash<span class="w"> </span>work_flow_gromacs.sh
 </pre></div>
@@ -316,9 +317,9 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 </section>
 <section id="copy-and-run-commands">
 <h2>4) Copy-and-run commands<a class="headerlink" href="#copy-and-run-commands" title="Link to this heading">¶</a></h2>
-<p>If you want the most complete and production-oriented setups, use examples <code class="docutils literal notranslate"><span class="pre">05</span></code>, <code class="docutils literal notranslate"><span class="pre">06</span></code>, and <code class="docutils literal notranslate"><span class="pre">07</span></code> above.</p>
-<section id="a-example-05-protein-not-explicit-linker-anchor-solvate-ionize">
-<h3>A) Example 05: Protein + Not explicit Linker (<code class="docutils literal notranslate"><span class="pre">--anchor</span></code>) + solvate + ionize<a class="headerlink" href="#a-example-05-protein-not-explicit-linker-anchor-solvate-ionize" title="Link to this heading">¶</a></h3>
+<p>If you want the most complete and production-oriented setups, use examples <code class="docutils literal notranslate"><span class="pre">06</span></code>, <code class="docutils literal notranslate"><span class="pre">07</span></code>, and <code class="docutils literal notranslate"><span class="pre">08</span></code> above.</p>
+<section id="a-example-06-protein-not-explicit-linker-anchor-solvate-ionize">
+<h3>A) Example 06: Protein + Not explicit Linker (<code class="docutils literal notranslate"><span class="pre">--anchor</span></code>) + solvate + ionize<a class="headerlink" href="#a-example-06-protein-not-explicit-linker-anchor-solvate-ionize" title="Link to this heading">¶</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>martinisurf<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--pdb<span class="w"> </span>inputs/1RJW.pdb<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--dssp<span class="w"> </span><span class="se">\</span>
@@ -338,8 +339,8 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 </pre></div>
 </div>
 </section>
-<section id="b-example-06-dna-linker-solvate-ionize-frozen-water">
-<h3>B) Example 06: DNA + linker + solvate + ionize + frozen water<a class="headerlink" href="#b-example-06-dna-linker-solvate-ionize-frozen-water" title="Link to this heading">¶</a></h3>
+<section id="b-example-07-dna-linker-solvate-ionize-frozen-water">
+<h3>B) Example 07: DNA + linker + solvate + ionize + frozen water<a class="headerlink" href="#b-example-07-dna-linker-solvate-ionize-frozen-water" title="Link to this heading">¶</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>martinisurf<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--dna<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--dnatype<span class="w"> </span>ds-stiff<span class="w"> </span><span class="se">\</span>
@@ -360,8 +361,8 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 </pre></div>
 </div>
 </section>
-<section id="c-example-07-pre-cg-protein-cofactor-substrate-solvate-ionize">
-<h3>C) Example 07: pre-CG protein+cofactor + substrate + solvate + ionize<a class="headerlink" href="#c-example-07-pre-cg-protein-cofactor-substrate-solvate-ionize" title="Link to this heading">¶</a></h3>
+<section id="c-example-08-pre-cg-protein-cofactor-substrate-solvate-ionize">
+<h3>C) Example 08: pre-CG protein+cofactor + substrate + solvate + ionize<a class="headerlink" href="#c-example-08-pre-cg-protein-cofactor-substrate-solvate-ionize" title="Link to this heading">¶</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>martinisurf<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--complex-config<span class="w"> </span>input/complex_config.yaml<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--surface-mode<span class="w"> </span><span class="m">4</span>-1<span class="w"> </span><span class="se">\</span>
@@ -533,7 +534,11 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p>Chain-based syntax for <code class="docutils literal notranslate"><span class="pre">--pdb</span></code> workflows: <code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">B</span> <span class="pre">8</span> <span class="pre">10</span> <span class="pre">11</span></code></p></li>
 </ul>
 </li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--linker-prot-dist</span></code> (default: auto): linker-to-biomolecule distance (nm).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--linker-prot-dist</span></code> (default: auto): linker-to-biomolecule distance (nm).</p>
+<ul>
+<li><p>Auto rule: <code class="docutils literal notranslate"><span class="pre">sigma</span></code> in DNA linker mode, <code class="docutils literal notranslate"><span class="pre">sigma</span> <span class="pre">*</span> <span class="pre">1.2</span></code> in protein linker mode.</p></li>
+</ul>
+</li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--linker-surf-dist</span></code> (default: auto): linker-to-surface distance (nm).</p>
 <ul>
 <li><p>Auto rule: estimated from Martini bead-size sigma (<code class="docutils literal notranslate"><span class="pre">sigma</span> <span class="pre">*</span> <span class="pre">1.2</span></code>) using linker-tail and surface bead classes.</p></li>
@@ -541,12 +546,26 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--invert-linker</span></code> (default: false): reverses linker bead order.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--surface-linkers</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0</span></code>): number of additional random surface linkers.</p></li>
+<li><p>DNA linker coupling behavior:</p>
+<ul>
+<li><p>Uses bonded linker-DNA coupling in topology (no linker-DNA pull).</p></li>
+<li><p>Bond target bead in DNA residue: <code class="docutils literal notranslate"><span class="pre">BB1</span></code>, else <code class="docutils literal notranslate"><span class="pre">BB2</span></code>, else <code class="docutils literal notranslate"><span class="pre">BB3</span></code>.</p></li>
+<li><p>Adds linker-linker-DNA angle (<code class="docutils literal notranslate"><span class="pre">180</span></code>, force <code class="docutils literal notranslate"><span class="pre">20</span></code>).</p></li>
+<li><p>Keeps linker-surface pull behavior unchanged.</p></li>
+<li><p>Generated linker ITP includes linker-tail <code class="docutils literal notranslate"><span class="pre">position_restraints</span></code> under <code class="docutils literal notranslate"><span class="pre">#ifdef</span> <span class="pre">POSRES</span></code> for surface coupling control.</p></li>
+</ul>
+</li>
 </ul>
 <p>Notes:</p>
 <ul class="simple">
 <li><p>Chain-based syntax is resolved from the cleaned input PDB before martinization.</p></li>
 <li><p>In <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>, <code class="docutils literal notranslate"><span class="pre">protein.anchor_groups</span></code> can also use chain-based syntax if <code class="docutils literal notranslate"><span class="pre">protein.reference_pdb</span></code> points to the source PDB that matches the pre-CG complex residue order.</p></li>
-<li><p>In <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>, you can also set <code class="docutils literal notranslate"><span class="pre">protein.balance_low_z:</span> <span class="pre">true</span></code> and optionally <code class="docutils literal notranslate"><span class="pre">protein.balance_low_z_fraction:</span> <span class="pre">0.30</span></code>.</p></li>
+<li><p>In <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>, <code class="docutils literal notranslate"><span class="pre">protein.balance_low_z</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">true</span></code>; optionally override with:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">protein.balance_low_z:</span> <span class="pre">false</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">protein.balance_low_z_fraction:</span> <span class="pre">0.30</span></code></p></li>
+</ul>
+</li>
 </ul>
 </section>
 <section id="optional-substrate">
@@ -648,6 +667,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <ul class="simple">
 <li><p>In generated pull coordinates, MartiniSurf writes either <code class="docutils literal notranslate"><span class="pre">pull-coordX_start</span> <span class="pre">=</span> <span class="pre">yes</span></code> or <code class="docutils literal notranslate"><span class="pre">pull-coordX-init</span> <span class="pre">=</span> <span class="pre">...</span></code>, never both for the same coordinate.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--linker-pull-init-prot</span></code> and <code class="docutils literal notranslate"><span class="pre">--linker-pull-init-surf</span></code> in <code class="docutils literal notranslate"><span class="pre">gromacs_inputs</span></code> are in nm (internal module API).</p></li>
+<li><p>In DNA linker mode, linker-DNA is handled with bonded terms in topology instead of pull coordinates.</p></li>
 </ul>
 </section>
 <section id="legacy-wrapper-flags-in-python-m-martinisurf-orient-subcommand">
@@ -683,8 +703,14 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <p>If you use <code class="docutils literal notranslate"><span class="pre">--solvate</span></code> and <code class="docutils literal notranslate"><span class="pre">--ionize</span></code>, check especially:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">0_topology/system_final.top</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">0_topology/system_final_res.top</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">2_system/final_system.gro</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">2_system/system_final.gro</span></code></p></li>
+</ul>
+<p>Workflow note for example <code class="docutils literal notranslate"><span class="pre">work_flow_gromacs.sh</span></code> scripts:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">minimization</span></code>, <code class="docutils literal notranslate"><span class="pre">nvt</span></code>, <code class="docutils literal notranslate"><span class="pre">npt</span></code>, and <code class="docutils literal notranslate"><span class="pre">deposition</span></code> use <code class="docutils literal notranslate"><span class="pre">system_final.top</span></code> (or base non-restrained topology).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">production</span></code> uses <code class="docutils literal notranslate"><span class="pre">system_final_res.top</span></code> when present (anchor/linker focused restraints).</p></li>
 </ul>
 </section>
 <section id="common-errors-and-direct-fixes">
@@ -752,6 +778,13 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p><code class="docutils literal notranslate"><span class="pre">--freeze-water-seed</span></code> exists as a parameter, but current freeze-water selection is deterministic in the implementation.</p></li>
 </ul>
 </section>
+<section id="colab-behavior-notes">
+<h2>12) Colab behavior notes<a class="headerlink" href="#colab-behavior-notes" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>In <code class="docutils literal notranslate"><span class="pre">MartiniSurf_Protein.ipynb</span></code> and <code class="docutils literal notranslate"><span class="pre">MartiniSurf_DNA.ipynb</span></code>, Step <code class="docutils literal notranslate"><span class="pre">6B</span></code> runs <code class="docutils literal notranslate"><span class="pre">grompp</span></code> with <code class="docutils literal notranslate"><span class="pre">-maxwarn</span> <span class="pre">3</span></code>.</p></li>
+<li><p>Step <code class="docutils literal notranslate"><span class="pre">6C</span> <span class="pre">-</span> <span class="pre">View</span> <span class="pre">MD</span> <span class="pre">Result</span></code> uses a stage toggle selector (<code class="docutils literal notranslate"><span class="pre">nvt</span></code>, <code class="docutils literal notranslate"><span class="pre">npt</span></code>, <code class="docutils literal notranslate"><span class="pre">deposition</span></code>, <code class="docutils literal notranslate"><span class="pre">production</span></code>) and renders the selected stage when available.</p></li>
+</ul>
+</section>
 </section>
 
         </article>
@@ -806,9 +839,9 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><a class="reference internal" href="#minimum-installation">2) Minimum installation</a></li>
 <li><a class="reference internal" href="#pick-your-workflow">3) Pick your workflow</a></li>
 <li><a class="reference internal" href="#copy-and-run-commands">4) Copy-and-run commands</a><ul>
-<li><a class="reference internal" href="#a-example-05-protein-not-explicit-linker-anchor-solvate-ionize">A) Example 05: Protein + Not explicit Linker (<code class="docutils literal notranslate"><span class="pre">--anchor</span></code>) + solvate + ionize</a></li>
-<li><a class="reference internal" href="#b-example-06-dna-linker-solvate-ionize-frozen-water">B) Example 06: DNA + linker + solvate + ionize + frozen water</a></li>
-<li><a class="reference internal" href="#c-example-07-pre-cg-protein-cofactor-substrate-solvate-ionize">C) Example 07: pre-CG protein+cofactor + substrate + solvate + ionize</a></li>
+<li><a class="reference internal" href="#a-example-06-protein-not-explicit-linker-anchor-solvate-ionize">A) Example 06: Protein + Not explicit Linker (<code class="docutils literal notranslate"><span class="pre">--anchor</span></code>) + solvate + ionize</a></li>
+<li><a class="reference internal" href="#b-example-07-dna-linker-solvate-ionize-frozen-water">B) Example 07: DNA + linker + solvate + ionize + frozen water</a></li>
+<li><a class="reference internal" href="#c-example-08-pre-cg-protein-cofactor-substrate-solvate-ionize">C) Example 08: pre-CG protein+cofactor + substrate + solvate + ionize</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#flags-you-will-use-most-often">5) Flags you will use most often</a></li>
@@ -834,6 +867,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><a class="reference internal" href="#common-errors-and-direct-fixes">9) Common errors and direct fixes</a></li>
 <li><a class="reference internal" href="#practical-checklist-before-long-runs">10) Practical checklist before long runs</a></li>
 <li><a class="reference internal" href="#short-software-evaluation">11) Short software evaluation</a></li>
+<li><a class="reference internal" href="#colab-behavior-notes">12) Colab behavior notes</a></li>
 </ul>
 </li>
 </ul>

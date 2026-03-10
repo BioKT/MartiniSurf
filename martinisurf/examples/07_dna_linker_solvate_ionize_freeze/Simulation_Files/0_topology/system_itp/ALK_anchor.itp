@@ -1,0 +1,20 @@
+; GENERATED WITH auto_Martini v0.2.1 for ALK
+; Developed by: Kiran Kanekal, Tristan Bereau, and Andrew Abi-Mansour
+
+[moleculetype]
+; molname       nrexcl
+  ALK           2
+
+[atoms]
+; id    type    resnr   residue  atom    cgnr    charge  smiles
+    1     C3      1     ALK       C01     1         0   ; CCC
+    2     C3      1     ALK       C02     2         0   ; CCC
+
+[bonds]
+; i j     funct     length    force.c.
+  1 2       1         0.31     1250
+
+[ position_restraints ]
+#ifdef POSRES
+2 1 1000 1000 0
+#endif
