@@ -5,7 +5,7 @@
 <h1 align="center">MartiniSurf</h1>
 
 <p align="center">
-Toolkit for automated Martini protein/DNA surface-system setup, including linker-aware orientation and dynamic pull generation.
+Toolkit for automated Martini protein/DNA surface-system setup, including linker-aware orientation and pull/bonded coupling generation.
 </p>
 
 <p align="center">
@@ -37,7 +37,7 @@ Main capabilities:
 - Coarse-graining via `martinize2` (protein) or `martinize-dna.py` (DNA)
 - Surface generation or reuse of provided surfaces
 - Not explicit linker (anchor) or linker-based orientation
-- Automatic topology assembly (`system.top`, `system_res.top`, index groups, templates)
+- Automatic topology assembly
 
 ## Installation
 ```bash
@@ -83,17 +83,12 @@ bash work_flow_gromacs.sh
   - Chain-based groups are converted internally to global residue ids in input order, so the first group still becomes `Anchor_1`, the second `Anchor_2`, and so on.
 - Chain-based syntax is available for `--pdb` workflows.
 - In `--complex-config`, chain-based `protein.anchor_groups` are also supported when `protein.reference_pdb` points to the source PDB used to build the pre-CG complex.
-- For two-anchor systems, you can flatten the lowest-Z protein face against the surface with:
-  - CLI: `--balance-low-z --balance-low-z-fraction 0.30`
-  - Pre-CG config: `protein.balance_low_z: true` and `protein.balance_low_z_fraction: 0.30`
 - The linker topology file must exist next to linker GRO with matching basename:
   - Example: `linker.gro` -> `linker.itp`
 - You can reverse linker orientation with:
   - `--invert-linker`
 - For multiple linker instances, pull/index groups are generated per linker automatically.
 - If not provided manually, linker distances are estimated from Martini bead-size sigma rules.
-  - `--linker-surf-dist` (nm) auto uses linker-tail vs surface bead classes (`sigma * 1.2`).
-- In generated MDP pull blocks, each coordinate uses either `_start` or `-init` (never both simultaneously).
 
 ## CLI Help
 Use:

@@ -27,6 +27,7 @@ martinisurf --pdb 1RJW --moltype Protein --surface-mode 4-1 --lx 15 --ly 15 --an
 ```
 
 For `--pdb` workflows, `--anchor` and `--linker-group` accept either legacy global residue ids or chain-based residue ids from the input PDB.
+In `--complex-config` workflows, low-Z balancing is enabled by default (`protein.balance_low_z=true`, default fraction `0.2`).
 
 ## Adsorption mode (`--ads-mode`)
 

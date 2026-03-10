@@ -67,7 +67,7 @@ def test_load_pre_cg_complex_config_reads_required_fields(tmp_path):
     assert cfg["cofactor_count"] == 2
     assert cfg["anchor_groups"] == [[1, 45, 67, 120]]
     assert cfg["anchor_landmark_mode"] == "residue"
-    assert cfg["balance_low_z"] is False
+    assert cfg["balance_low_z"] is True
     assert abs(cfg["balance_low_z_fraction"] - 0.2) < 1e-12
     assert len(cfg["go_files"]) == 2
 
@@ -261,6 +261,7 @@ def test_load_pre_cg_complex_config_allows_missing_anchor_groups(tmp_path):
     cfg = pipeline._load_pre_cg_complex_config(input_dir / "complex_config.yaml")
     assert cfg["anchor_groups"] == []
     assert cfg["anchor_landmark_mode"] == "residue"
+    assert cfg["balance_low_z"] is True
 
 
 def test_normalize_cli_residue_groups_resolves_chain_based_anchor_groups(tmp_path):

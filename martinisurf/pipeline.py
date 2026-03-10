@@ -463,7 +463,8 @@ def _load_pre_cg_complex_config(config_path: Path) -> dict[str, Any]:
         anchor_groups = [[1] + orient_residues]
     else:
         anchor_groups = []
-    balance_low_z_raw = protein.get("balance_low_z", False)
+    # pre_cg_complex defaults: use low-Z balancing unless explicitly disabled by the user.
+    balance_low_z_raw = protein.get("balance_low_z", True)
     if not isinstance(balance_low_z_raw, bool):
         raise ValueError("protein.balance_low_z must be true or false")
     balance_low_z = bool(balance_low_z_raw)

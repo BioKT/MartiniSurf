@@ -4,12 +4,9 @@ complex_gro: BsADH_NAD.gro
 
 protein:
   molname: Active
-  anchor_landmark_mode: residue
   anchor_groups: ["1 8 10 11", "2 1025 1027 1028"]
-  # Optional two-anchor roll balancing to flatten the low-Z protein face.
-  anchor_landmark_mode: residue 
-  balance_low_z: true
-  balance_low_z_fraction: 0.22
+  # Optional override (default is 0.2):
+  # balance_low_z_fraction: 0.22
 
 cofactor:
   molname: NAD

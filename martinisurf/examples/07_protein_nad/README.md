@@ -20,9 +20,10 @@ Input folder:
 
 Notes:
 - `cofactor.count` is fixed to `4` in `complex_config.yaml`.
-- `complex_config.yaml` in this example uses chain-based anchor groups plus `protein.reference_pdb`.
-- Anchors are set in `complex_config.yaml` as:
-  - `A 8 10 11`
-  - `D 8 10 11`
+- Anchors are set in `complex_config.yaml` as numeric groups:
+  - `1 8 10 11`
+  - `2 1025 1027 1028`
+- `pre_cg_complex` low-Z balancing is enabled by default in MartiniSurf.
+- Default `balance_low_z_fraction` is `0.2` (optional override via `protein.balance_low_z_fraction`).
 - Uses generated surface (`--lx 15 --ly 15`), so no external `surface.gro` is required.
 - Requires GROMACS (`gmx`) available in `PATH` for `--solvate --ionize`.

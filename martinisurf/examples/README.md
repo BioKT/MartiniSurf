@@ -9,6 +9,7 @@ For examples driven from `--pdb`, the recommended syntax is now chain-based:
 MartiniSurf resolves those chain-local residues to the internal global residue ids automatically.
 
 For `complex_config.yaml`, the equivalent chain-based syntax is available through `protein.anchor_groups` when `protein.reference_pdb` is provided.
+In `pre_cg_complex`, low-Z balancing is enabled by default with `balance_low_z_fraction=0.2` unless overridden.
 
 ## Adsorption Mode (`--ads-mode`)
 
@@ -38,6 +39,10 @@ Path: `martinisurf/examples/07_protein_nad`
 Run pattern:
 - `bash run.sh`
 - `bash work_flow_gromacs.sh`
+
+Workflow scripts note:
+- `minimization/nvt/npt/deposition` run with non-restrained topology (`system_final.top` when available).
+- `production` runs with restrained topology (`system_final_res.top`) when available.
 
 ## Basic Build Examples
 1. Protein anchor mode  

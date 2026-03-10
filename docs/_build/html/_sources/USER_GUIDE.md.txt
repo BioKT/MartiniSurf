@@ -18,6 +18,7 @@ Goal:
 - In `--pdb` workflows, `--anchor` and `--linker-group` can use either global residue ids or `CHAIN RESID ...` syntax from the input PDB.
 - In `--complex-config`, chain-based `protein.anchor_groups` also work if you provide `protein.reference_pdb`.
 - For two-anchor systems, use `--balance-low-z` (and optional `--balance-low-z-fraction`) to flatten the lowest-Z protein face against the surface.
+- In `--complex-config`, low-Z balancing is enabled by default (`protein.balance_low_z=true`), with default `protein.balance_low_z_fraction=0.2`.
 - If you do NOT pass `--surface`, you must pass `--lx` and `--ly`.
 - `--ionize` always requires `--solvate`.
 - `--freeze-water-fraction` works only with `--dna` and `--solvate`.
@@ -214,15 +215,24 @@ Unit note:
   - Legacy syntax: `--linker-group 1 8 10 11`
   - Chain-based syntax for `--pdb` workflows: `--linker-group B 8 10 11`
 - `--linker-prot-dist` (default: auto): linker-to-biomolecule distance (nm).
+  - Auto rule: `sigma` in DNA linker mode, `sigma * 1.2` in protein linker mode.
 - `--linker-surf-dist` (default: auto): linker-to-surface distance (nm).
   - Auto rule: estimated from Martini bead-size sigma (`sigma * 1.2`) using linker-tail and surface bead classes.
 - `--invert-linker` (default: false): reverses linker bead order.
 - `--surface-linkers` (default: `0`): number of additional random surface linkers.
+- DNA linker coupling behavior:
+  - Uses bonded linker-DNA coupling in topology (no linker-DNA pull).
+  - Bond target bead in DNA residue: `BB1`, else `BB2`, else `BB3`.
+  - Adds linker-linker-DNA angle (`180`, force `20`).
+  - Keeps linker-surface pull behavior unchanged.
+  - Generated linker ITP includes linker-tail `position_restraints` under `#ifdef POSRES` for surface coupling control.
 
 Notes:
 - Chain-based syntax is resolved from the cleaned input PDB before martinization.
 - In `--complex-config`, `protein.anchor_groups` can also use chain-based syntax if `protein.reference_pdb` points to the source PDB that matches the pre-CG complex residue order.
-- In `--complex-config`, you can also set `protein.balance_low_z: true` and optionally `protein.balance_low_z_fraction: 0.30`.
+- In `--complex-config`, `protein.balance_low_z` defaults to `true`; optionally override with:
+  - `protein.balance_low_z: false`
+  - `protein.balance_low_z_fraction: 0.30`
 
 ### Optional substrate
 
@@ -308,6 +318,7 @@ These commands are usually called by MartiniSurf internally. Most new users do n
 MDP pull note:
 - In generated pull coordinates, MartiniSurf writes either `pull-coordX_start = yes` or `pull-coordX-init = ...`, never both for the same coordinate.
 - `--linker-pull-init-prot` and `--linker-pull-init-surf` in `gromacs_inputs` are in nm (internal module API).
+- In DNA linker mode, linker-DNA is handled with bonded terms in topology instead of pull coordinates.
 
 ### 7.4 Legacy wrapper flags in `python -m martinisurf` (`orient` subcommand)
 
@@ -341,8 +352,13 @@ Simulation_Files/
 
 If you use `--solvate` and `--ionize`, check especially:
 - `0_topology/system_final.top`
+- `0_topology/system_final_res.top`
 - `2_system/final_system.gro`
 - `2_system/system_final.gro`
+
+Workflow note for example `work_flow_gromacs.sh` scripts:
+- `minimization`, `nvt`, `npt`, and `deposition` use `system_final.top` (or base non-restrained topology).
+- `production` uses `system_final_res.top` when present (anchor/linker focused restraints).
 
 ## 9) Common errors and direct fixes
 
@@ -386,3 +402,8 @@ What to keep in mind:
 - Depends on external tools (`martinize2`, Python2, `gmx`).
 - DNA path still depends on `martinize-dna.py` (Python2 ecosystem).
 - `--freeze-water-seed` exists as a parameter, but current freeze-water selection is deterministic in the implementation.
+
+## 12) Colab behavior notes
+
+- In `MartiniSurf_Protein.ipynb` and `MartiniSurf_DNA.ipynb`, Step `6B` runs `grompp` with `-maxwarn 3`.
+- Step `6C - View MD Result` uses a stage toggle selector (`nvt`, `npt`, `deposition`, `production`) and renders the selected stage when available.
