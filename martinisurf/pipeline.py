@@ -1850,6 +1850,23 @@ def _run_final_topology_structure_validation(simdir: Path) -> None:
     _validate_named_molecule_atomnames(top_dir=top_dir, top_path=top_path, gro_path=gro_path)
 
 
+def _cleanup_legacy_system_gro_outputs(simdir: Path) -> None:
+    """
+    Keep 2_system clean by removing legacy/intermediate GRO filenames.
+    Canonical final coordinate output is system_final.gro.
+    """
+    system_dir = simdir / "2_system"
+    canonical = system_dir / "system_final.gro"
+    legacy_final = system_dir / "final_system.gro"
+
+    # Preserve a canonical final file if only the legacy name exists.
+    if not canonical.exists() and legacy_final.exists():
+        shutil.copy(legacy_final, canonical)
+
+    for fname in ("system.gro", "solvated_system.gro", "final_system.gro"):
+        (system_dir / fname).unlink(missing_ok=True)
+
+
 def _parse_version_triplet(text: str) -> tuple[int, int, int] | None:
     match = re.search(r"(\d+)\.(\d+)\.(\d+)", text or "")
     if not match:
@@ -2343,6 +2360,7 @@ def main(argv=None):
     _run_optional_solvation_ionization(args, simdir)
     _run_optional_dna_water_freezing(args, simdir)
     _run_final_topology_structure_validation(simdir)
+    _cleanup_legacy_system_gro_outputs(simdir)
 
     if tmpdir and tmpdir.exists():
         shutil.rmtree(tmpdir)
