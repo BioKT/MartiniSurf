@@ -822,7 +822,7 @@ def build_parser():
     surface_group.add_argument("--ly", type=float, help="Surface size in Y (nm) for generated surface.")
     surface_group.add_argument("--dx", type=float, default=0.47, help="Surface bead spacing (nm).")
     surface_group.add_argument("--surface-bead", default="C1", help="Surface bead type for generated surface.")
-    surface_group.add_argument("--charge", type=int, default=0, help="Surface bead charge for generated surface.")
+    surface_group.add_argument("--charge", type=float, default=0.0, help="Surface bead charge for generated surface.")
 
     anchor_group = parser.add_argument_group("Orientation: Classical Anchor Mode")
     anchor_group.add_argument(
