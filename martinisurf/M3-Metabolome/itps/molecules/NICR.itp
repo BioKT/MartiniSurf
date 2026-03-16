@@ -1,0 +1,68 @@
+; Martini 3 topology for Nicotinate D-ribonucleotide
+; please cite all relevant publications.
+
+[ moleculetype ]
+NICR 1
+
+[ atoms ]
+1 SQ5n  1 NICR CAC1 1 -1.0     
+2 TQ2   1 NICR ARO1 2  1.0     
+3 TC5   1 NICR ARO2 3  0.0     
+4 TC5   1 NICR ARO3 4  0.0     
+5 SN6   1 NICR RIB1 5  0.0 54.0
+6 TP1   1 NICR RIB2 6  0.0 36.0
+7 SN4ar 1 NICR RIB3 7  0.0 54.0
+8 D     1 NICR P1   8 -2.0     
+9 TC4   1 NICR RIB4 9  0.0  0.0
+
+[ bonds ]
+2 5 1 0.258 50000
+
+#ifdef FLEXIBLE
+1 4 1 0.226 10000
+2 3 1 0.204 10000
+2 4 1 0.183 10000
+3 4 1 0.200 10000
+5 6 1 0.232 10000
+5 7 1 0.337 10000
+6 7 1 0.275 10000
+7 8 1 0.331 10000
+#endif
+
+[ constraints ]
+#ifndef FLEXIBLE
+1 4 1 0.226
+2 3 1 0.204
+2 4 1 0.183
+3 4 1 0.200
+5 6 1 0.232
+5 7 1 0.337
+6 7 1 0.275
+7 8 1 0.331
+#endif
+
+[ angles ]
+3 2 5 2 132 225
+4 2 5 2 137 268
+1 4 2 2 146 500
+1 4 3 2 149 500
+2 5 6 2 139 737
+2 5 7 2 88 1000
+5 7 8 2 95 750
+6 7 8 2 110 246
+
+[ dihedrals ]
+2 5 7 8 1 75 40 1
+
+[ virtual_sitesn ]
+9 1 5 6 7
+
+[ exclusions ]
+1 2 3 4 
+2 3 4 5 6 
+9 5 6 7 8 2 
+3 4 
+5 6 7 
+6 7 
+7 8 
+

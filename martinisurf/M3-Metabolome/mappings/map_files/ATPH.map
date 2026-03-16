@@ -1,0 +1,51 @@
+[ molecule ]
+LIG ATPH
+
+[ martini ]
+ADE1 ADE2 ADE3 ADE4 ADE5 ADE6 RIB1 RIB2 RIB3 RIB4 P1 P2 P3
+
+[ atoms ]
+  1   N1  ADE4
+  2   C1  ADE4
+  3   N2  ADE3
+  4   C2  !ADE2
+  5   N3  ADE2
+  6   C3  !ADE6
+  7   C4  ADE6
+  8   N4  ADE5
+  9   C5  ADE1
+ 10   N5  ADE1
+ 11    C6  RIB1 RIB4
+ 12    O1  RIB3 RIB4
+ 13    C7  RIB3 RIB4
+ 14    C8  RIB3 RIB4
+ 15    O2  P1
+ 16    P1  P1 
+ 17    O3  P1 
+ 18    O4  P1 
+ 19    O5  P1 P2 
+ 20    P2  P2
+ 21    O6  P2 
+ 22    O7  P2 
+ 23    O8  P2 P3 
+ 24    P3  P3
+ 25    O9  P3 
+ 26   O10  P3   
+ 27   O11  P3 
+ 28    C9  RIB2 RIB4
+ 29   O12  RIB2 RIB4
+ 30   C10  RIB1 RIB4
+ 31   O13  RIB1 RIB4
+ 32    H1  !ADE4
+ 33    H2  !ADE4
+ 34    H3  !ADE2   
+ 35    H4  !ADE1
+ 36    H5  RIB1   
+ 37    H6  RIB3 RIB4
+ 38    H7  RIB3 RIB4
+ 39    H8  RIB3 RIB4
+ 40    H9  P3
+ 41   H10  RIB2 RIB4
+ 42   H11  RIB2 RIB4
+ 43   H12  RIB1 RIB4
+ 44   H13  RIB1 RIB4

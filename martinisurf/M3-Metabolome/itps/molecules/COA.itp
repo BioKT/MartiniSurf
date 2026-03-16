@@ -1,0 +1,107 @@
+; Martini 3 topology for CoA
+; please cite all relevant publications.
+
+[ moleculetype ]
+COA 1
+
+[ atoms ]
+ 1 SN1   1 COA ADE1  1  0.0 45.0
+ 2 TN3a  1 COA ADE2  2  0.0 45.0
+ 3 TN5a  1 COA ADE3  3  0.0  0.0
+ 4 TP1d  1 COA ADE4  4  0.0 45.0
+ 5 TN3a  1 COA ADE5  5  0.0 45.0
+ 6 TC6   1 COA ADE6  6  0.0  0.0
+ 7 TC3   1 COA RIB1  7  0.0 60.0
+ 8 TP1   1 COA RIB2  8  0.0 60.0
+ 9 SN4ar 1 COA RIB3  9  0.0 78.0
+10 TC4   1 COA RIB4 10  0.0  0.0
+11 Q5n   1 COA P1   11 -1.0 72.0
+12 Q5n   1 COA P2   12 -1.0 72.0
+13 D     1 COA P4   13 -2.0  0.0
+14 C2    1 COA C1   14  0.0     
+15 P4    1 COA ALC1 15  0.0     
+16 SN2   1 COA AMN1 16  0.0     
+17 P2    1 COA AMD1 17  0.0     
+18 TC6   1 COA SUL1 18  0.0     
+
+[ bonds ]
+ 1  7 b_ADE1_RIB1
+15 16 1 0.349 5513.261
+16 17 1 0.364 7339.193
+17 18 1 0.265 5244.192
+
+#ifdef FLEXIBLE
+ 7  8 b_RIB1_RIB2
+ 7  9 b_RIB1_RIB3
+ 8  9 b_RIB2_RIB3
+ 9 11 b_RIB3_P1
+11 12 b_P1_P2
+12 14 1 0.397 10000
+14 15 1 0.267 10000
+#endif
+
+[ constraints ]
+ 1  2 1 0.268
+ 1  5 1 0.287
+ 2  4 1 0.417
+ 2  5 1 0.353
+ 4  5 1 0.316
+
+#ifndef FLEXIBLE
+ 7  8 c_RIB1_RIB2
+ 7  9 c_RIB1_RIB3
+ 8  9 c_RIB2_RIB3
+ 9 11 c_RIB3_P1
+11 12 c_P1_P2
+12 14 1 0.397
+14 15 1 0.267
+#endif
+
+[ angles ]
+ 2  1  7 a_ADE2_ADE1_RIB1
+ 1  7  8 a_ADE1_RIB1_RIB2
+ 1  7  9 a_ADE1_RIB1_RIB3
+ 7  9 11 a_RIB1_RIB3_P1
+ 9 11 12 a_RIB3_P1_P2
+11 12 14 10 122.898 50
+12 14 15 10 83.186 50
+14 15 16 10 114.286 13.575
+15 16 17 10 136.5 16.296
+16 17 18 10 129.666 50
+
+[ virtual_sitesn ]
+ 6 2  2  5
+10 1  7  8  9
+
+[ dihedrals ]
+ 1  2  5  4 d_ADE1_ADE2_ADE5_ADE4
+ 1  7  8  9 d_ADE1_RIB1_RIB2_RIB3
+ 1  7  9 11 d_ADE1_RIB1_RIB3_P1
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_1
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_2
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_3
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_4
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_5
+ 7  9 11 12 d_RIB1_RIB3_P1_P2
+ 9 11 12 14 2 -8.365 4.064
+11 12 14 15 2 -66.177 8
+12 14 15 16 1 123.393 -2.306 1
+14 15 16 17 1 -58.25 -2.129 1
+15 16 17 18 1 0 -1 3
+
+[ virtual_sites3 ]
+ 3  5  2  4 2 0.52 0.373
+13  7  8  9 1 2.039 -0.722
+
+[ exclusions ]
+ 1  2  3  4  5  6 
+ 2  3  4  5  6 
+ 3  4  5  6 
+ 4  5  6 
+ 5  6 
+10  7  8  9 
+13  7  8  9 
+11 12 14 15 
+12 14 15 
+14 15 
+

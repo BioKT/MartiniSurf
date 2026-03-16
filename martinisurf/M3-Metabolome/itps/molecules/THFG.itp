@@ -1,0 +1,76 @@
+; Martini 3 topology for tetrahydrofolate tri-L-glutamate
+; please cite all relevant publications.
+
+[ moleculetype ]
+THFG 1
+
+[ atoms ]
+ 1 SN4a 1 THFG IMI1  1  0.0 54.0
+ 2 SP3  1 THFG AMD1  2  0.0 54.0
+ 3 TC5e 1 THFG ARO1  3  0.0  0.0
+ 4 TN4  1 THFG AMN1  4  0.0 36.0
+ 5 TN4  1 THFG AMN2  5  0.0 36.0
+ 6 TN4  1 THFG AMN3  6  0.0 36.0
+ 7 TC5  1 THFG ARO2  7  0.0 36.0
+ 8 TC5  1 THFG ARO3  8  0.0 36.0
+ 9 TC5  1 THFG ARO4  9  0.0 36.0
+10 SP3  1 THFG AMD2 10  0.0 54.0
+11 SC2  1 THFG C1   11  0.0 54.0
+12 SQ5n 1 THFG CAC1 12 -1.0 54.0
+13 SQ5n 1 THFG CAC2 13 -1.0 54.0
+
+[ bonds ]
+ 1  4 1 0.493 50000
+ 2  4 1 0.493 25000
+ 2  5 1 0.565 25000
+ 5  6 1 0.246 15000
+ 6  7 1 0.257 3183
+ 9 10 1 0.243 7500
+10 11 1 0.275 5671
+11 12 1 0.281 4629
+11 13 1 0.276 15000
+
+#ifdef FLEXIBLE
+ 1  2 1 0.286 10000
+ 4  5 1 0.277 10000
+ 7  8 1 0.301 10000
+ 7  9 1 0.222 10000
+ 8  9 1 0.302 10000
+#endif
+
+[ constraints ]
+#ifndef FLEXIBLE
+ 1  2 1 0.286
+ 4  5 1 0.277
+ 7  8 1 0.301
+ 7  9 1 0.222
+ 8  9 1 0.302
+#endif
+
+[ angles ]
+ 5  6  7 2 160 75
+ 6  7  8 10 84 75
+ 8  9 10 10 77 100
+ 9 10 11 2 140 77
+10 11 12 2 85 100
+10 11 13 2 140 75
+
+[ dihedrals ]
+ 2  1  5  4 2 5 30
+ 5  8  9 11 1 0 10 1
+
+[ exclusions ]
+ 1  2  3  4  5 
+ 2  3  4  5 
+ 3  4  5 
+ 4  5 
+ 5  6 
+ 6  7 
+ 7  8  9 
+ 8  9 
+10 11 12 
+11 12 13 
+
+[ virtual_sitesn ]
+ 3 1  1  2  4  5
+

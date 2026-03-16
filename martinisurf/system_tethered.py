@@ -126,7 +126,45 @@ def _parse_group_residues(raw_groups, option_name):
     return parsed
 
 
-def _anchor_landmarks_for_groups(group_defs, atom_records, coords, mode):
+def _candidate_pairs_or_all(centroids: np.ndarray) -> list[np.ndarray]:
+    n = len(centroids)
+    if n <= 2:
+        return [np.array(centroids, float, copy=True)]
+    out = []
+    for i in range(n - 1):
+        for j in range(i + 1, n):
+            out.append(np.array([centroids[i], centroids[j]], float))
+    return out
+
+
+def _select_best_two_group_z_subsets(group_a: np.ndarray, group_b: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Pick one subset per anchor group that is globally most consistent in Z.
+    This is used only in pre-config mode to ignore outlier residues during
+    orientation while keeping all original residues for pull groups/topology.
+    """
+    cand_a = _candidate_pairs_or_all(group_a)
+    cand_b = _candidate_pairs_or_all(group_b)
+    best = None
+    best_score = None
+    for a in cand_a:
+        for b in cand_b:
+            all_z = np.concatenate([a[:, 2], b[:, 2]])
+            score = (
+                float(np.std(all_z)),
+                float(abs(float(np.mean(a[:, 2])) - float(np.mean(b[:, 2])))),
+                float(np.std(a[:, 2])) if len(a) > 1 else 0.0,
+                float(np.std(b[:, 2])) if len(b) > 1 else 0.0,
+            )
+            if best_score is None or score < best_score:
+                best_score = score
+                best = (a, b)
+    if best is None:
+        return group_a, group_b
+    return best
+
+
+def _anchor_landmarks_for_groups(group_defs, atom_records, coords, mode, prefilter_z_consistency=False):
     residue_centroids = []
     for group_id, residues in group_defs:
         residue_centroids.append(
@@ -137,6 +175,10 @@ def _anchor_landmarks_for_groups(group_defs, atom_records, coords, mode):
                 f"anchor group {group_id}",
             )
         )
+
+    if prefilter_z_consistency and mode == "residue" and len(residue_centroids) == 2:
+        a, b = _select_best_two_group_z_subsets(residue_centroids[0], residue_centroids[1])
+        residue_centroids = [a, b]
 
     if mode == "group":
         return np.array([centroids.mean(axis=0) for centroids in residue_centroids], float)
@@ -508,6 +550,11 @@ def main(argv=None):
         choices=["residue", "group"],
         default="residue",
     )
+    parser.add_argument(
+        "--prefilter-anchor-z-consistency",
+        action="store_true",
+        help="Pre-config mode helper: pick the most Z-consistent anchor residues for orientation only.",
+    )
     parser.add_argument("--dist", type=float, default=10.0)
     parser.add_argument("--reference-exclude-resname", action="append")
 
@@ -561,6 +608,7 @@ def main(argv=None):
             sys_atoms,
             sys_coords,
             args.anchor_landmark_mode,
+            prefilter_z_consistency=args.prefilter_anchor_z_consistency,
         )
 
         oriented = auto_orient_from_anchor_residues(

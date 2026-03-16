@@ -1,0 +1,35 @@
+; Martini 3 topology for Nicotinate
+; please cite all relevant publications.
+
+[ moleculetype ]
+NIC 1
+
+[ atoms ]
+1 SQ5n 1 NIC CAC1 1 -1.0 66.0
+2 TC5  1 NIC ARO1 2  0.0  0.0
+3 TC5  1 NIC ARO2 3  0.0 48.0
+4 TN6a 1 NIC ARO3 4  0.0 48.0
+
+[ bonds ]
+#ifdef FLEXIBLE
+1 3 1 0.41 10000
+1 4 1 0.392 10000
+3 4 1 0.204 10000
+#endif
+
+[ constraints ]
+#ifndef FLEXIBLE
+1 3 1 0.41
+1 4 1 0.392
+3 4 1 0.204
+#endif
+
+[ exclusions ]
+1 2 3 4 
+2 1 3 4 
+3 1 2 4 
+4 1 2 3 
+
+[ virtual_sites3 ]
+2 1 3 4 1 0.29 0.294
+

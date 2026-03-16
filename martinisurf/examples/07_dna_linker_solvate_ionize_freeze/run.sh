@@ -8,7 +8,7 @@ export PYTHONPATH="${REPO_ROOT}:${PYTHONPATH:-}"
 
 python -m martinisurf \
   --dna \
-  --dnatype ds-stiff \
+  --dnatype ds-soft \
   --pdb inputs/4C64.pdb \
   --surface-mode 4-1 \
   --lx 10 \

@@ -1,0 +1,76 @@
+; Martini 3 topology for AMP
+; please cite all relevant publications.
+
+[ moleculetype ]
+AMP 1
+
+[ atoms ]
+ 1 SN1   1 AMP ADE1  1  0.0 45.0
+ 2 TN3a  1 AMP ADE2  2  0.0 45.0
+ 3 TN5a  1 AMP ADE3  3  0.0  0.0
+ 4 TP1d  1 AMP ADE4  4  0.0 45.0
+ 5 TN3a  1 AMP ADE5  5  0.0 45.0
+ 6 TC6   1 AMP ADE6  6  0.0  0.0
+ 7 SN6   1 AMP RIB1  7  0.0 54.0
+ 8 TP1   1 AMP RIB2  8  0.0 54.0
+ 9 SN4ar 1 AMP RIB3  9  0.0 54.0
+10 TC4   1 AMP RIB4 10  0.0  0.0
+11 D     1 AMP P1   11 -2.0 72.0
+
+[ bonds ]
+ 1  7 b_ADE1_RIB1
+
+#ifdef FLEXIBLE
+ 7  8 b_RIB1_RIB2
+ 7  9 b_RIB1_RIB3
+ 8  9 b_RIB2_RIB3
+ 9 11 b_RIB3_P1
+#endif
+
+[ constraints ]
+ 1  2 1 0.268
+ 1  5 1 0.287
+ 2  4 1 0.417
+ 2  5 1 0.353
+ 4  5 1 0.316
+
+#ifndef FLEXIBLE
+ 7  8 c_RIB1_RIB2
+ 7  9 c_RIB1_RIB3
+ 8  9 c_RIB2_RIB3
+ 9 11 c_RIB3_P1
+#endif
+
+[ angles ]
+ 2  1  7 a_ADE2_ADE1_RIB1
+ 1  7  8 a_ADE1_RIB1_RIB2
+ 1  7  9 a_ADE1_RIB1_RIB3
+ 7  9 11 a_RIB1_RIB3_P1
+
+[ virtual_sitesn ]
+ 6 2  2  5
+10 1  7  8  9
+
+[ dihedrals ]
+ 1  2  5  4 d_ADE1_ADE2_ADE5_ADE4
+ 1  7  8  9 d_ADE1_RIB1_RIB2_RIB3
+ 1  7  9 11 d_ADE1_RIB1_RIB3_P1
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_1
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_2
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_3
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_4
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_5
+
+[ virtual_sites3 ]
+ 3  5  2  4 2 0.52 0.373
+
+[ exclusions ]
+ 1  2  3  4  5  6 
+ 1  7  8  9 
+ 2  1  7  8  9 
+ 2  3  4  5  6 
+ 3  4  5  6 
+ 4  5  6 
+ 5  6 
+10  7  8  9 
+

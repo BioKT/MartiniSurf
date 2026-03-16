@@ -1,0 +1,54 @@
+; Martini 3 topology for thiamin diphosphate
+; please cite all relevant publications.
+
+[ moleculetype ]
+TPP 1
+
+[ atoms ]
+1 SN2  1 TPP PYR1 1      
+2 SN4  1 TPP PYR2 2      
+3 SC2  1 TPP PYR3 3      
+4 SQ3p 1 TPP THA1 4  1.0 
+5 SC2  1 TPP THA2 5      
+6 TC2  1 TPP C1   6      
+7 Q5n  1 TPP P1   7 -1.0 
+8 D    1 TPP P2   8 -2.0 
+
+[ bonds ]
+3 4 1 0.31 2639.929
+
+#ifdef FLEXIBLE
+1 2 1 0.382 10000
+1 3 1 0.452 10000
+2 3 1 0.296 10000
+4 5 1 0.321 10000
+5 6 1 0.337 10000
+6 7 1 0.323 10000
+7 8 1 0.265 10000
+#endif
+
+[ constraints ]
+#ifndef FLEXIBLE
+1 2 1 0.382
+1 3 1 0.452
+2 3 1 0.296
+4 5 1 0.321
+5 6 1 0.337
+6 7 1 0.323
+7 8 1 0.265
+#endif
+
+[ angles ]
+1 3 4 10 115.339 61.387
+2 3 4 10 78.152 52.35
+3 4 5 10 61.372 200
+4 5 6 10 79.815 200
+5 6 7 10 89.634 25
+6 7 8 10 118.989 65.536
+
+[ dihedrals ]
+2 3 4 5 2 178.419 9.3
+3 4 5 6 2 -179.393 17.076
+4 5 6 7 9 -174.92 -2.49 1
+5 6 7 8 9 178.077 -2.239 1
+

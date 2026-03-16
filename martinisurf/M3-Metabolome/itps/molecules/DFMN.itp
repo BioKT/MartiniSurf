@@ -1,0 +1,67 @@
+; Martini 3 topology for FMN
+; Note: Deprotonated FMN
+; please cite all relevant publications.
+
+[ moleculetype ]
+DFMN 1
+
+[ atoms ]
+ 1 SC4  1 DFMN FLV1  1  0.0    
+ 2 SC4  1 DFMN FLV2  2  0.0    
+ 3 TC5e 1 DFMN FLV3  3  0.0 0.0
+ 4 SN6a 1 DFMN FLV4  4  0.0    
+ 5 SN3a 1 DFMN FLV5  5  0.0    
+ 6 TC5e 1 DFMN FLV6  6  0.0 0.0
+ 7 SQ3  1 DFMN FLV7  7 -1.0    
+ 8 SP3  1 DFMN FLV8  8  0.0    
+ 9 TC5e 1 DFMN FLV9  9  0.0 0.0
+10 SP1  1 DFMN ALC1 10  0.0    
+11 TP1  1 DFMN ALC2 11  0.0    
+12 SP1  1 DFMN ALC3 12  0.0    
+13 D    1 DFMN P1   13 -2.0    
+
+[ bonds ]
+ 1  2 1 0.317 50000
+ 1  4 1 0.415 50000
+ 1  5 1 0.488 50000
+ 2  5 1 0.425 50000
+ 4  7 1 0.293 50000
+ 4  8 1 0.398 50000
+ 5  8 1 0.338 50000
+ 5 10 1 0.235 15000
+ 7  8 1 0.272 50000
+10 11 1 0.254 13006
+11 12 1 0.249 11570
+12 13 1 0.356 7500
+
+[ angles ]
+ 1  4  7 2 157 6326
+ 2  5  8 2 168 6592
+ 5 10 11 2 141 79
+10 11 12 2 97 500
+11 12 13 2 80 100
+
+[ virtual_sitesn ]
+ 6 1  4  5
+ 9 1  4  8
+
+[ dihedrals ]
+ 1  2  4  5 1 -0.441 228 1
+ 4  5  7  8 1 -0.665 71 1
+10 11 12 13 1 20 50 1
+
+[ virtual_sites3 ]
+ 3  1  2  4 2 0.500 0.230
+
+[ exclusions ]
+ 1  2  3  4  5  6  7  8  9 
+ 2  3  4  5  6  7  8  9 
+ 3  4  5  6  7  8  9 
+ 4  5  6  7  8  9 
+ 5  6  7  8  9 
+ 6  7  8  9 
+ 7  8  9 
+ 8  9 
+10 11 12 
+11 12 13 
+

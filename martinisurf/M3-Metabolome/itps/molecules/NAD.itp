@@ -1,0 +1,115 @@
+; Martini 3 topology for NAD+
+; please cite all relevant publications.
+
+[ moleculetype ]
+NAD 1
+
+[ atoms ]
+ 1 SN1   1 NAD ADE1  1  0.0 45.0
+ 2 TN3a  1 NAD ADE2  2  0.0 45.0
+ 3 TN5a  1 NAD ADE3  3  0.0  0.0
+ 4 TP1d  1 NAD ADE4  4  0.0 45.0
+ 5 TN3a  1 NAD ADE5  5  0.0 45.0
+ 6 TC6   1 NAD ADE6  6  0.0  0.0
+ 7 TC3   1 NAD RIB1  7  0.0 54.0
+ 8 TP1   1 NAD RIB2  8  0.0 54.0
+ 9 SN4ar 1 NAD RIB3  9  0.0 54.0
+10 TC4   1 NAD RIB4 10  0.0  0.0
+11 Q5n   1 NAD P1   11 -1.0 72.0
+12 Q5n   1 NAD P2   12 -1.0 72.0
+13 SN4ar 1 NAD RIB5 13  0.0 54.0
+14 TP1   1 NAD RIB6 14  0.0 54.0
+15 SN6   1 NAD RIB7 15  0.0 54.0
+16 TC4   1 NAD RIB8 16  0.0  0.0
+17 TQ2   1 NAD ARO1 17  1.0 48.0
+18 TC5   1 NAD ARO2 18  0.0 48.0
+19 TC5   1 NAD ARO3 19  0.0  0.0
+20 SP2   1 NAD AMD1 20  0.0 66.0
+
+[ bonds ]
+ 1  7 b_ADE1_RIB1
+
+#ifdef FLEXIBLE
+ 7  8 b_RIB1_RIB2
+ 7  9 b_RIB1_RIB3
+ 8  9 b_RIB2_RIB3
+ 9 11 b_RIB3_P1
+11 12 b_P1_P2
+12 13 b_RIB3_P1
+13 14 b_RIB2_RIB3
+13 15 b_RIB1_RIB3
+14 15 b_RIB1_RIB2
+15 17 b_RIB7_ARO1
+17 18 b_ARO1_ARO2
+17 20 b_ARO1_AMD1
+18 20 b_ARO2_AMD1
+#endif
+
+[ constraints ]
+ 1  2 1 0.268
+ 1  5 1 0.287
+ 2  4 1 0.417
+ 2  5 1 0.353
+ 4  5 1 0.316
+
+#ifndef FLEXIBLE
+ 7  8 c_RIB1_RIB2
+ 7  9 c_RIB1_RIB3
+ 8  9 c_RIB2_RIB3
+ 9 11 c_RIB3_P1
+11 12 c_P1_P2
+12 13 c_RIB3_P1
+13 14 c_RIB2_RIB3
+13 15 c_RIB1_RIB3
+14 15 c_RIB1_RIB2
+15 17 c_RIB7_ARO1
+17 18 c_ARO1_ARO2
+17 20 c_ARO1_AMD1
+18 20 c_ARO2_AMD1
+#endif
+
+[ angles ]
+ 2  1  7 a_ADE2_ADE1_RIB1
+ 1  7  8 a_ADE1_RIB1_RIB2
+ 1  7  9 a_ADE1_RIB1_RIB3
+ 7  9 11 a_RIB1_RIB3_P1
+ 9 11 12 a_RIB3_P1_P2
+11 12 13 a_RIB3_P1_P2
+12 13 15 a_RIB1_RIB3_P1
+13 15 17 a_RIB5_RIB7_ARO1
+15 17 20 a_RIB7_ARO1_AMD1
+
+[ virtual_sitesn ]
+ 6 2  2  5
+10 1  7  8  9
+16 1 13 14 15
+
+[ dihedrals ]
+ 1  2  5  4 d_ADE1_ADE2_ADE5_ADE4
+ 1  7  8  9 d_ADE1_RIB1_RIB2_RIB3
+ 1  7  9 11 d_ADE1_RIB1_RIB3_P1
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_1
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_2
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_3
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_4
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_5
+ 7  9 11 12 d_RIB1_RIB3_P1_P2
+ 9 11 12 13 d_RIB3_P1_P2_RIB5
+11 12 13 15 d_P1_P2_RIB5_RIB7
+12 13 15 17 d_P2_RIB5_RIB7_ARO1
+13 15 17 20 d_RIB5_RIB7_ARO1_AMD1
+
+[ virtual_sites3 ]
+ 3  5  2  4 2 0.52 0.373
+19 17 18 20 2 0.658 0.182
+
+[ exclusions ]
+ 1  2  3  4  5  6 
+ 2  3  4  5  6 
+ 3  4  5  6 
+ 4  5  6 
+ 5  6 
+10  7  8  9 
+16 13 14 15 
+19 17 18 20 
+

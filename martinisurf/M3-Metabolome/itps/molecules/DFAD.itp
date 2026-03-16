@@ -1,0 +1,127 @@
+; Martini 3 topology for FAD
+; Note: Deprotonated FAD
+; please cite all relevant publications.
+
+[ moleculetype ]
+DFAD 1
+
+[ atoms ]
+ 1 SN1   1 DFAD ADE1  1  0.0 45.0
+ 2 TN3a  1 DFAD ADE2  2  0.0 45.0
+ 3 TN5a  1 DFAD ADE3  3  0.0  0.0
+ 4 TP1d  1 DFAD ADE4  4  0.0 45.0
+ 5 TN3a  1 DFAD ADE5  5  0.0 45.0
+ 6 TC6   1 DFAD ADE6  6  0.0  0.0
+ 7 SN6   1 DFAD RIB1  7  0.0 54.0
+ 8 TP1   1 DFAD RIB2  8  0.0 54.0
+ 9 SN4ar 1 DFAD RIB3  9  0.0 54.0
+10 TC4   1 DFAD RIB4 10  0.0  0.0
+11 Q5n   1 DFAD P1   11 -1.0 72.0
+12 Q5n   1 DFAD P2   12 -1.0 72.0
+13 SP1   1 DFAD ALC3 13  0.0     
+14 TP1   1 DFAD ALC2 14  0.0     
+15 SP1   1 DFAD ALC1 15  0.0     
+16 SC4   1 DFAD FLV1 16  0.0     
+17 SC4   1 DFAD FLV2 17  0.0     
+18 TC5e  1 DFAD FLV3 18  0.0  0.0
+19 SN6a  1 DFAD FLV4 19  0.0     
+20 SN3a  1 DFAD FLV5 20  0.0     
+21 TC5e  1 DFAD FLV6 21  0.0  0.0
+22 TQ1   1 DFAD FLV7 22 -1.0     
+23 SP3   1 DFAD FLV8 23  0.0     
+24 TC5e  1 DFAD FLV9 24  0.0  0.0
+
+[ bonds ]
+ 1  7 b_ADE1_RIB1
+ 7  8 b_RIB1_RIB2
+12 13 1 0.346 7250
+13 14 1 0.257 25000
+14 15 1 0.247 25000
+15 20 1 0.245 7500
+16 17 1 0.317 50000
+16 19 1 0.415 50000
+16 20 1 0.488 50000
+17 20 1 0.425 50000
+19 22 1 0.294 50000
+19 23 1 0.401 50000
+20 23 1 0.341 50000
+22 23 1 0.278 50000
+
+#ifdef FLEXIBLE
+ 7  9 b_RIB1_RIB3
+ 8  9 b_RIB2_RIB3
+ 9 11 b_RIB3_P1
+11 12 b_P1_P2
+#endif
+
+[ constraints ]
+ 1  2 1 0.268
+ 1  5 1 0.287
+ 2  4 1 0.417
+ 2  5 1 0.353
+ 4  5 1 0.316
+
+#ifndef FLEXIBLE
+ 7  9 c_RIB1_RIB3
+ 8  9 c_RIB2_RIB3
+ 9 11 c_RIB3_P1
+11 12 c_P1_P2
+#endif
+
+[ angles ]
+ 2  1  7 a_ADE2_ADE1_RIB1
+ 1  7  8 a_ADE1_RIB1_RIB2
+ 1  7  9 a_ADE1_RIB1_RIB3
+ 7  9 11 a_RIB1_RIB3_P1
+ 9 11 12 a_RIB3_P1_P2
+11 12 13 10 110 50
+12 13 14 10 90 50
+13 14 15 10 90 250
+14 15 20 10 145 90
+16 19 22 1 160 150
+17 20 23 1 170 150
+
+[ virtual_sitesn ]
+ 6 2  2  5
+10 1  7  8  9
+21 1 19 20
+24 1 19 23
+
+[ dihedrals ]
+ 1  2  5  4 d_ADE1_ADE2_ADE5_ADE4
+ 1  7  8  9 d_ADE1_RIB1_RIB2_RIB3
+ 1  7  9 11 d_ADE1_RIB1_RIB3_P1
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_1
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_2
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_3
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_4
+ 2  1  7  9 d_ADE2_ADE1_RIB1_RIB3_5
+ 7  9 11 12 d_RIB1_RIB3_P1_P2
+12 13 14 15 2 135 60
+16 17 19 20 2 180 225
+19 20 22 23 2 180 90
+
+[ virtual_sites3 ]
+ 3  5  2  4 2 0.52 0.373
+18 16 17 19 2 0.50 0.230
+
+[ exclusions ]
+ 1  2  3  4  5  6  7  8  9 
+ 2  3  4  5  6  7  8  9 
+ 3  4  5  6 
+ 4  5  6 
+ 5  6 
+10  7  8  9 
+11 12 13 14 15 
+12 13 14 15 
+13 14 15 
+14 15 
+20 21 22 23 15 24 
+16 17 18 19 20 21 22 23 24 
+17 18 19 20 21 22 23 24 
+18 19 20 21 22 23 24 
+19 20 21 22 23 24 
+21 22 23 24 
+22 23 24 
+23 24 
+
