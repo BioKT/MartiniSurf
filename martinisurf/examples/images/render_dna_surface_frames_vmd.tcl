@@ -71,6 +71,26 @@ mol delrep 0 $m
 
 set exclude_solvent_ions "resname W WF SOL NA CL K CA MG ZN LI RB CS BA SR F BR I"
 
+# Positive ions in blue
+set ion_pos_sel "(resname NA or (resname ION and name NA+))"
+if {[has_atoms $m $ion_pos_sel] > 0} {
+    mol representation VDW 1.0 18.0
+    mol color ColorID 0
+    mol selection $ion_pos_sel
+    mol material AOEdgy
+    mol addrep $m
+}
+
+# Negative ions in red
+set ion_neg_sel "(resname CL or (resname ION and name CL-))"
+if {[has_atoms $m $ion_neg_sel] > 0} {
+    mol representation VDW 1.0 18.0
+    mol color ColorID 1
+    mol selection $ion_neg_sel
+    mol material AOEdgy
+    mol addrep $m
+}
+
 # Surface C/C1 in gray
 set surf_c_sel "(resname SRF GRA) and name C C1 and not ($exclude_solvent_ions)"
 if {[has_atoms $m $surf_c_sel] > 0} {

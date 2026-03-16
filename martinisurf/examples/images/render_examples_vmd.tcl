@@ -114,7 +114,7 @@ proc render_example {example_dir out_dir} {
 
     # Global display/ray settings.
     display projection Orthographic
-    display shadows on
+    display shadows off
     display ambientocclusion on
     display aoambient 0.30
     display aodirect 0.45
@@ -158,10 +158,10 @@ proc render_example {example_dir out_dir} {
     }
 
     # Rep 1b: highlight anchor protein residues in red, BB bead only.
-    set protein_anchor_sel "($anchor_core_sel) and resname $protein_res and name BB and not ($exclude_solvent_ions)"
+    set protein_anchor_sel "($anchor_core_sel) and resname $protein_res and name BB SC1 SC2 SC3 SC4 SC5 and not ($exclude_solvent_ions)"
     if {[has_atoms $m $protein_anchor_sel] > 0} {
         mol representation VDW 1.4 24.0
-        mol color ColorID 1
+        mol color ColorID 12
         mol selection $protein_anchor_sel
         mol material Glossy
         mol addrep $m

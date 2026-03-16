@@ -13,7 +13,7 @@ python -m martinisurf \
   --dx 0.47 \
   --lx 15 \
   --ly 15 \
-  --dist 1.0 \
+  --dist 0.8 \
   --substrate input/ETO.gro \
   --substrate-count 10 \
   --solvate \
