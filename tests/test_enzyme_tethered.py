@@ -40,6 +40,20 @@ System GRO
     path.write_text(gro)
 
 
+def write_ten_residue_protein_gro(path: Path):
+    lines = [
+        "Ten residue protein",
+        "   10",
+    ]
+    for resid in range(1, 11):
+        x = 0.5
+        y = 0.5
+        z = 0.1 * resid
+        lines.append(f"{resid:5d}{'PROT':<5}{'BB':>5}{resid:5d}{x:8.3f}{y:8.3f}{z:8.3f}")
+    lines.append("   2.00000   2.00000   2.00000")
+    path.write_text("\n".join(lines) + "\n")
+
+
 def write_linker_gro(path: Path):
     gro = """\
 Linker GRO
@@ -65,6 +79,16 @@ def linker_atom_sequence(gro_path: Path) -> list[str]:
         if line[5:10].strip() == "LNK":
             names.append(line[10:15].strip())
     return names
+
+
+def gro_residue_z(gro_path: Path, resid: int) -> float:
+    values = []
+    for line in gro_path.read_text().splitlines()[2:-1]:
+        if int(line[0:5]) == resid:
+            values.append(float(line[36:44]))
+    if not values:
+        raise ValueError(f"Residue {resid} not found")
+    return float(sum(values) / len(values))
 
 
 # --------------------------------------------------------------
@@ -171,6 +195,28 @@ def test_auto_orient_from_anchor_residues():
 
     assert result.shape == (2, 3)
     assert result[:, 2].min() >= 5.0   # enzyme must be above surface
+
+
+def test_classical_anchor_orientation_keeps_residue_1_near_surface_for_10_residue_protein(tmp_path):
+    surface = tmp_path / "surface.gro"
+    system = tmp_path / "protein10.gro"
+    out = tmp_path / "oriented.gro"
+
+    write_minimal_gro(surface)
+    write_ten_residue_protein_gro(system)
+
+    enz.main([
+        "--surface", str(surface),
+        "--system", str(system),
+        "--out", str(out),
+        "--anchor", "1", "1",
+        "--dist", "1.0",
+    ])
+
+    residue_z = {resid: gro_residue_z(out, resid) for resid in range(1, 11)}
+
+    assert residue_z[1] == min(residue_z.values())
+    assert abs(residue_z[1] - 1.0) < 1e-6
 
 
 def test_auto_orient_prevents_surface_penetration_when_anchors_are_high():

@@ -754,6 +754,15 @@ def _use_preconfig_balance_low_z(args: argparse.Namespace, complex_cfg: dict[str
     return bool(complex_cfg.get("balance_low_z"))
 
 
+def _anchor_landmark_mode_for_pipeline(args: argparse.Namespace, complex_cfg: dict[str, Any] | None) -> str | None:
+    if args.anchor:
+        return "group"
+    if complex_cfg:
+        mode = str(complex_cfg.get("anchor_landmark_mode", "residue")).strip()
+        return mode or "residue"
+    return None
+
+
 # ======================================================================
 # PARSER
 # ======================================================================
@@ -2257,6 +2266,9 @@ def main(argv=None):
                 orient_args += ["--linker-group"] + [str(x) for x in group]
 
     elif args.anchor:
+        anchor_landmark_mode = _anchor_landmark_mode_for_pipeline(args, complex_cfg)
+        if anchor_landmark_mode and anchor_landmark_mode != "residue":
+            orient_args += ["--anchor-landmark-mode", anchor_landmark_mode]
         orient_args += ["--dist", str(args.dist * 10.0)]
         for group in resolved_anchor_groups:
             orient_args += ["--anchor"] + [str(x) for x in group]
@@ -2266,8 +2278,9 @@ def main(argv=None):
                 "complex_config.yaml must define protein.anchor_groups or protein.orient_by_residues "
                 "when not using --linker mode."
             )
-        if complex_cfg.get("anchor_landmark_mode") != "residue":
-            orient_args += ["--anchor-landmark-mode", str(complex_cfg["anchor_landmark_mode"])]
+        anchor_landmark_mode = _anchor_landmark_mode_for_pipeline(args, complex_cfg)
+        if anchor_landmark_mode and anchor_landmark_mode != "residue":
+            orient_args += ["--anchor-landmark-mode", anchor_landmark_mode]
         if complex_cfg.get("cofactor_molname"):
             orient_args += ["--reference-exclude-resname", str(complex_cfg["cofactor_molname"])]
         orient_args += ["--min-reference-z-dist", str(args.dist * 10.0)]
