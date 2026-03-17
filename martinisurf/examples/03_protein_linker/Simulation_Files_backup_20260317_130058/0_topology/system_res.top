@@ -1,0 +1,14 @@
+#include "system_itp/martini_v3.0.0.itp"
+#include "system_itp/martini_v3.0.0_solvents_v1.itp"
+#include "system_itp/martini_v3.0.0_ions_v1.itp"
+#include "system_itp/Protein.itp"
+#include "system_itp/surface.itp"
+#include "system_itp/EPOXY_anchor.itp"
+
+[ system ]
+MartiniSurf restrained system
+
+[ molecules ]
+Protein 1
+EPOXY 14
+SRF 792
