@@ -1,0 +1,8 @@
+;;;;;; Minimal surface topology
+
+[ moleculetype ]
+; molname nrexcl
+  SRF        1
+
+[ atoms ]
+  1   P4       1   SRF    P4    1     0.000

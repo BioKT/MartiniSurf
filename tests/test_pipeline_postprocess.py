@@ -69,9 +69,9 @@ def test_preconfig_balance_low_z_only_applies_in_pure_preconfig_orientation():
     assert pipeline._use_preconfig_balance_low_z(args, complex_cfg) is False
 
 
-def test_anchor_landmark_mode_uses_group_mode_for_cli_anchor_and_config_for_preconfig():
+def test_anchor_landmark_mode_uses_config_only_for_preconfig():
     args = Namespace(linker=None, anchor=[["A", "8", "10", "11"]], ads_mode=False)
-    assert pipeline._anchor_landmark_mode_for_pipeline(args, None) == "group"
+    assert pipeline._anchor_landmark_mode_for_pipeline(args, None) is None
 
     args = Namespace(linker=None, anchor=None, ads_mode=False)
     assert pipeline._anchor_landmark_mode_for_pipeline(args, {"anchor_landmark_mode": "group"}) == "group"

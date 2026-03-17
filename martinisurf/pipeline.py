@@ -755,8 +755,6 @@ def _use_preconfig_balance_low_z(args: argparse.Namespace, complex_cfg: dict[str
 
 
 def _anchor_landmark_mode_for_pipeline(args: argparse.Namespace, complex_cfg: dict[str, Any] | None) -> str | None:
-    if args.anchor:
-        return "group"
     if complex_cfg:
         mode = str(complex_cfg.get("anchor_landmark_mode", "residue")).strip()
         return mode or "residue"

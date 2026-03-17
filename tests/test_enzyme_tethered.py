@@ -210,7 +210,7 @@ def test_classical_anchor_orientation_keeps_residue_1_near_surface_for_10_residu
         "--system", str(system),
         "--out", str(out),
         "--anchor", "1", "1",
-        "--dist", "1.0",
+        "--dist", "10.0",
     ])
 
     residue_z = {resid: gro_residue_z(out, resid) for resid in range(1, 11)}
