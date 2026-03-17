@@ -626,6 +626,7 @@ def main(argv=None):
             min_reference_dist=args.min_reference_z_dist,
             balance_low_z=args.balance_low_z,
             balance_low_z_fraction=args.balance_low_z_fraction,
+            orient_single_anchor_up=(len(centroids) == 1),
         )
 
         final_atoms = sys_atoms

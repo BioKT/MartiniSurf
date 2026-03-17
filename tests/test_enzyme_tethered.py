@@ -219,6 +219,37 @@ def test_classical_anchor_orientation_keeps_residue_1_near_surface_for_10_residu
     assert abs(residue_z[1] - 1.0) < 1e-6
 
 
+def test_single_anchor_without_upward_reorientation_can_leave_anchor_far_from_surface():
+    # 2A3D-like geometry: selected anchor sits at the top end of the protein.
+    system = np.array([
+        [56.15, 9.18, 15.95],   # residue 1 BB
+        [59.29, 8.55, 18.12],   # residue 1 SC1
+        [57.92, 10.98, 13.75],  # residue 2
+        [55.38, 10.03, 9.73],   # deeper body point
+        [55.86, 7.44, 11.40],   # deeper body point
+        [53.28, 5.93, 11.46],   # deeper body point
+        [51.77, 9.16, -18.50],  # lowest body point
+    ])
+    anchors = np.array([[57.72, 8.865, 17.035]])
+    surface = np.array([
+        [0.0, 0.0, 30.0],
+        [20.0, 20.0, 30.0],
+    ])
+
+    result = enz.auto_orient_from_anchor_residues(
+        system,
+        anchors,
+        surface,
+        target_z=10.0,
+        reference_coords=system,
+        min_reference_dist=1.0,
+        orient_single_anchor_up=False,
+    )
+
+    anchor_mean_z = float(result[:2, 2].mean()) / 10.0
+    assert anchor_mean_z > 6.0
+
+
 def test_auto_orient_prevents_surface_penetration_when_anchors_are_high():
     enzyme = np.array([
         [0.0, 0.0, 0.0],
