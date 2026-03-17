@@ -329,6 +329,55 @@ def test_auto_orient_balance_low_z_flattens_lowest_region():
     assert low_z_std(balanced_pose, 0.3) < low_z_std(default_pose, 0.3)
 
 
+def test_auto_orient_balance_low_z_does_not_force_worse_mirror_solution():
+    surface = np.array([
+        [0.0, 0.0, 0.0],
+        [20.0, 20.0, 0.0],
+    ])
+    anchors = np.array([
+        [0.0, 0.0, 0.0],
+        [12.17933597, 2.64491494, 7.97217066],
+    ])
+    system = np.array([
+        [0.0, 0.0, 0.0],
+        [12.17933597, 2.64491494, 7.97217066],
+        [7.04183976, 35.05662067, 28.7541409],
+        [3.63469609, 30.71709298, 8.49050021],
+        [6.42377135, 9.28068544, 9.56892901],
+        [6.31941422, -8.97283271, -47.54088246],
+        [5.89108527, -20.09329621, 27.00408531],
+        [5.71123349, 2.0868839, -21.24014889],
+        [5.48937753, -0.28832654, -37.13437961],
+        [6.30068511, -2.65180634, -29.64299513],
+        [3.60176713, 12.82630335, -7.43960097],
+        [5.46999159, -5.90386575, 45.41189852],
+    ])
+
+    default_pose = enz.auto_orient_from_anchor_residues(
+        system,
+        anchors,
+        surface,
+        target_z=10.0,
+        reference_coords=system,
+    )
+    balanced_pose = enz.auto_orient_from_anchor_residues(
+        system,
+        anchors,
+        surface,
+        target_z=10.0,
+        reference_coords=system,
+        balance_low_z=True,
+        balance_low_z_fraction=0.3,
+    )
+
+    def low_z_std(coords, fraction):
+        count = max(1, int(np.ceil(len(coords) * fraction)))
+        idx = np.argsort(coords[:, 2])[:count]
+        return float(np.std(coords[idx, 2]))
+
+    assert low_z_std(balanced_pose, 0.3) < low_z_std(default_pose, 0.3)
+
+
 def test_auto_orient_balance_low_z_fraction_is_validated():
     system = np.array([
         [0.0, 0.0, 0.0],

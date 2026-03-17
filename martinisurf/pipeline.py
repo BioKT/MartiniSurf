@@ -746,6 +746,14 @@ def _print_config_summary(args: argparse.Namespace) -> None:
     print("=================================\n")
 
 
+def _use_preconfig_balance_low_z(args: argparse.Namespace, complex_cfg: dict[str, Any] | None) -> bool:
+    if not complex_cfg:
+        return False
+    if args.linker or args.anchor or args.ads_mode:
+        return False
+    return bool(complex_cfg.get("balance_low_z"))
+
+
 # ======================================================================
 # PARSER
 # ======================================================================
@@ -2173,9 +2181,10 @@ def main(argv=None):
     ]
     if args.dna:
         orient_args += ["--dna-mode"]
-    balance_low_z = bool(args.balance_low_z or (complex_cfg and complex_cfg.get("balance_low_z")))
+    preconfig_balance_low_z = _use_preconfig_balance_low_z(args, complex_cfg)
+    balance_low_z = bool(args.balance_low_z or preconfig_balance_low_z)
     balance_low_z_fraction = args.balance_low_z_fraction
-    if balance_low_z_fraction is None and complex_cfg:
+    if balance_low_z_fraction is None and preconfig_balance_low_z:
         balance_low_z_fraction = complex_cfg.get("balance_low_z_fraction")
     if balance_low_z:
         orient_args += ["--balance-low-z"]

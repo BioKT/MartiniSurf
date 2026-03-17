@@ -398,7 +398,7 @@ def auto_orient_from_anchor_residues(system_coords,
             flip_system = _apply_rotation(best_pose, Rflip, flip_center)
             flip_anchors = _apply_rotation(best_anchors, Rflip, flip_center)
             flip_ref = _apply_rotation(best_ref, Rflip, flip_center)
-            fixed_system, _, _ = _finalize_anchor_pose(
+            fixed_system, fixed_anchors, fixed_ref = _finalize_anchor_pose(
                 flip_system,
                 flip_anchors,
                 surface_coords,
@@ -406,7 +406,13 @@ def auto_orient_from_anchor_residues(system_coords,
                 flip_ref,
                 min_reference_dist=min_reference_dist,
             )
-            return fixed_system
+            flip_score = _score_two_anchor_pose(
+                fixed_ref,
+                balance_low_z=balance_low_z,
+                low_z_fraction=balance_low_z_fraction,
+            )
+            if flip_score < best_score:
+                return fixed_system
 
         return best_pose
 

@@ -53,6 +53,22 @@ def test_parser_accepts_complex_config_with_linker_mode(tmp_path):
     pipeline._validate_args(parser, args)
 
 
+def test_preconfig_balance_low_z_only_applies_in_pure_preconfig_orientation():
+    complex_cfg = {"balance_low_z": True}
+
+    args = Namespace(linker=None, anchor=None, ads_mode=False)
+    assert pipeline._use_preconfig_balance_low_z(args, complex_cfg) is True
+
+    args = Namespace(linker="input/linker.gro", anchor=None, ads_mode=False)
+    assert pipeline._use_preconfig_balance_low_z(args, complex_cfg) is False
+
+    args = Namespace(linker=None, anchor=[["1", "8", "10"]], ads_mode=False)
+    assert pipeline._use_preconfig_balance_low_z(args, complex_cfg) is False
+
+    args = Namespace(linker=None, anchor=None, ads_mode=True)
+    assert pipeline._use_preconfig_balance_low_z(args, complex_cfg) is False
+
+
 def test_parser_accepts_chain_based_anchor_and_linker_groups():
     parser = pipeline.build_parser()
     args = parser.parse_args([
