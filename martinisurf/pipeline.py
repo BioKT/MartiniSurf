@@ -96,6 +96,19 @@ def _write_minimal_surface_itp(itp_path: Path, resname: str, bead: str, charge: 
     )
 
 
+def _primary_surface_bead(bead_values: str | list[str] | tuple[str, ...] | None) -> str:
+    if bead_values is None:
+        return "C1"
+    if isinstance(bead_values, str):
+        clean = bead_values.strip()
+        return clean or "C1"
+    for value in bead_values:
+        clean = str(value).strip()
+        if clean:
+            return clean
+    return "C1"
+
+
 def _read_gro_records(gro_path: str) -> tuple[str, list[dict], list[float]]:
     with open(gro_path, "r") as fh:
         lines = fh.readlines()
@@ -656,11 +669,56 @@ def _normalize_cli_residue_groups(
 
 def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     complex_mode = bool(args.complex_config)
+    martini3_surface_modes = {"graphene", "graphene-periodic", "graphene-finite", "graphite"}
+    cnt_surface_modes = {"cnt", "cnt-m2", "cnt-martini2", "cnt-m3", "cnt-martini3"}
     if not complex_mode and not args.pdb:
         parser.error("--pdb is required unless --complex-config is provided.")
 
     if not args.surface and (args.lx is None or args.ly is None):
         parser.error("When --surface is not provided, both --lx and --ly are required.")
+    if args.surface_layers is not None and args.surface_layers <= 0:
+        parser.error("--surface-layers must be > 0.")
+    if args.surface_dist_z is not None and args.surface_dist_z <= 0:
+        parser.error("--surface-dist-z must be > 0.")
+    if args.graphite_layers is not None and args.graphite_layers <= 0:
+        parser.error("--graphite-layers must be > 0.")
+    if args.graphite_spacing is not None and args.graphite_spacing <= 0:
+        parser.error("--graphite-spacing must be > 0.")
+    if args.dna and args.surface_mode in martini3_surface_modes:
+        parser.error(
+            f"--surface-mode {args.surface_mode} is currently available only for Martini 3/protein workflows."
+        )
+    if args.cnt_numrings is not None and args.cnt_numrings <= 0:
+        parser.error("--cnt-numrings must be positive.")
+    if args.cnt_ringsize is not None and args.cnt_ringsize <= 0:
+        parser.error("--cnt-ringsize must be positive.")
+    if args.cnt_bondlength is not None and args.cnt_bondlength <= 0:
+        parser.error("--cnt-bondlength must be positive.")
+    if args.cnt_bondforce is not None and args.cnt_bondforce <= 0:
+        parser.error("--cnt-bondforce must be positive.")
+    if args.cnt_angleforce is not None and args.cnt_angleforce <= 0:
+        parser.error("--cnt-angleforce must be positive.")
+    if args.cnt_func_begin is not None and args.cnt_func_begin < 0:
+        parser.error("--cnt-func-begin must be >= 0.")
+    if args.cnt_func_end is not None and args.cnt_func_end < 0:
+        parser.error("--cnt-func-end must be >= 0.")
+    if (
+        not args.surface
+        and args.surface_mode not in cnt_surface_modes
+        and (
+            args.cnt_numrings is not None
+            or args.cnt_ringsize is not None
+            or args.cnt_bondlength is not None
+            or args.cnt_bondforce is not None
+            or args.cnt_angleforce is not None
+            or args.cnt_beadtype is not None
+            or args.cnt_functype is not None
+            or args.cnt_func_begin is not None
+            or args.cnt_func_end is not None
+            or args.cnt_base36
+        )
+    ):
+        parser.error("CNT flags (--cnt-*) require --surface-mode cnt, cnt-m2, or cnt-m3.")
 
     if args.linker and not args.linker_group:
         parser.error("Linker mode requires at least one --linker-group.")
@@ -761,6 +819,63 @@ def _anchor_landmark_mode_for_pipeline(args: argparse.Namespace, complex_cfg: di
     return None
 
 
+def _resolve_generated_surface_mode(args: argparse.Namespace) -> str:
+    mode = str(args.surface_mode).strip().lower()
+    if mode != "cnt":
+        return mode
+    return "cnt-m2" if args.dna else "cnt-m3"
+
+
+def _effective_surface_geometry(args: argparse.Namespace) -> str:
+    geometry = str(args.surface_geometry).strip().lower()
+    if args.surface:
+        return "3d"
+    if _resolve_generated_surface_mode(args) in {"cnt-m2", "cnt-m3"} and geometry == "planar":
+        return "3d"
+    return geometry
+
+
+def _build_generated_surface_args(args: argparse.Namespace, output_path: Path) -> list[str]:
+    builder_args = [
+        "--mode", _resolve_generated_surface_mode(args),
+        "--lx", str(args.lx),
+        "--ly", str(args.ly),
+        "--dx", str(args.dx),
+        "--bead", *args.surface_bead,
+        "--charge", str(args.charge),
+        "--output", str(output_path),
+    ]
+    if args.surface_layers is not None:
+        builder_args += ["--layers", str(args.surface_layers)]
+    if args.surface_dist_z is not None:
+        builder_args += ["--dist-z", str(args.surface_dist_z)]
+    if args.graphite_layers is not None:
+        builder_args += ["--graphite-layers", str(args.graphite_layers)]
+    if args.graphite_spacing is not None:
+        builder_args += ["--graphite-spacing", str(args.graphite_spacing)]
+    if args.cnt_numrings is not None:
+        builder_args += ["--cnt-numrings", str(args.cnt_numrings)]
+    if args.cnt_ringsize is not None:
+        builder_args += ["--cnt-ringsize", str(args.cnt_ringsize)]
+    if args.cnt_bondlength is not None:
+        builder_args += ["--cnt-bondlength", str(args.cnt_bondlength)]
+    if args.cnt_bondforce is not None:
+        builder_args += ["--cnt-bondforce", str(args.cnt_bondforce)]
+    if args.cnt_angleforce is not None:
+        builder_args += ["--cnt-angleforce", str(args.cnt_angleforce)]
+    if args.cnt_beadtype is not None:
+        builder_args += ["--cnt-beadtype", str(args.cnt_beadtype)]
+    if args.cnt_functype is not None:
+        builder_args += ["--cnt-functype", str(args.cnt_functype)]
+    if args.cnt_func_begin is not None:
+        builder_args += ["--cnt-func-begin", str(args.cnt_func_begin)]
+    if args.cnt_func_end is not None:
+        builder_args += ["--cnt-func-end", str(args.cnt_func_end)]
+    if args.cnt_base36:
+        builder_args += ["--cnt-base36"]
+    return builder_args
+
+
 # ======================================================================
 # PARSER
 # ======================================================================
@@ -829,14 +944,67 @@ def build_parser():
     surface_group.add_argument("--surface", help="Existing surface .gro file. If omitted, a surface is generated.")
     surface_group.add_argument(
         "--surface-mode",
-        choices=["2-1", "4-1"],
+        choices=[
+            "2-1",
+            "4-1",
+            "graphene",
+            "graphene-periodic",
+            "graphene-finite",
+            "graphite",
+            "cnt",
+            "cnt-m2",
+            "cnt-martini2",
+            "cnt-m3",
+            "cnt-martini3",
+        ],
         default="2-1",
-        help="Surface lattice mode for generated surfaces.",
+        help="Surface lattice mode for generated surfaces. Use 'cnt' to auto-pick cnt-m3 for protein and cnt-m2 for DNA.",
+    )
+    surface_group.add_argument(
+        "--surface-geometry",
+        choices=["planar", "3d"],
+        default="planar",
+        help="Surface interpretation during orientation. External --surface files are auto-oriented in 3d; generated CNT surfaces also switch to 3d automatically.",
     )
     surface_group.add_argument("--lx", type=float, help="Surface size in X (nm) for generated surface.")
     surface_group.add_argument("--ly", type=float, help="Surface size in Y (nm) for generated surface.")
     surface_group.add_argument("--dx", type=float, default=0.47, help="Surface bead spacing (nm).")
-    surface_group.add_argument("--surface-bead", default="C1", help="Surface bead type for generated surface.")
+    surface_group.add_argument(
+        "--surface-layers",
+        type=int,
+        help="Number of layers for 4-1 surfaces. If omitted, graphite mode uses its own default.",
+    )
+    surface_group.add_argument(
+        "--surface-dist-z",
+        type=float,
+        help="Interlayer spacing in nm for 4-1 surfaces.",
+    )
+    surface_group.add_argument(
+        "--graphite-layers",
+        type=int,
+        help="Number of stacked graphene layers when --surface-mode graphite is used.",
+    )
+    surface_group.add_argument(
+        "--graphite-spacing",
+        type=float,
+        help="Interlayer spacing in nm when --surface-mode graphite is used.",
+    )
+    surface_group.add_argument("--cnt-numrings", type=int, help="Number of CNT rings.")
+    surface_group.add_argument("--cnt-ringsize", type=int, help="Number of beads per CNT ring.")
+    surface_group.add_argument("--cnt-bondlength", type=float, help="CNT bond length in nm.")
+    surface_group.add_argument("--cnt-bondforce", type=float, help="CNT bond force constant.")
+    surface_group.add_argument("--cnt-angleforce", type=float, help="CNT angle force constant.")
+    surface_group.add_argument("--cnt-beadtype", help="CNT regular bead type.")
+    surface_group.add_argument("--cnt-functype", help="CNT functionalized-end bead type.")
+    surface_group.add_argument("--cnt-func-begin", type=int, help="Number of functionalized CNT rings at the beginning.")
+    surface_group.add_argument("--cnt-func-end", type=int, help="Number of functionalized CNT rings at the end.")
+    surface_group.add_argument("--cnt-base36", action="store_true", help="Use base36 atom naming for CNT mode.")
+    surface_group.add_argument(
+        "--surface-bead",
+        nargs="+",
+        default=["C1"],
+        help="Surface bead type(s) for generated surfaces. Provide multiple values to cycle bead types by layer, e.g. --surface-bead P4 C1.",
+    )
     surface_group.add_argument("--charge", type=float, default=0.0, help="Surface bead charge for generated surface.")
 
     anchor_group = parser.add_argument_group("Orientation: Classical Anchor Mode")
@@ -2133,7 +2301,7 @@ def main(argv=None):
         else:
             fallback_itp = active_itp_dir / "surface.itp"
             fallback_resname = _read_gro_first_resname(str(surface_gro)) or "SRF"
-            fallback_bead = _read_gro_first_atomname(str(surface_gro)) or args.surface_bead
+            fallback_bead = _read_gro_first_atomname(str(surface_gro)) or _primary_surface_bead(args.surface_bead)
             _write_minimal_surface_itp(
                 itp_path=fallback_itp,
                 resname=fallback_resname,
@@ -2148,15 +2316,11 @@ def main(argv=None):
     else:
         import martinisurf.surface_builder as sb
 
-        sb.main([
-            "--mode", args.surface_mode,
-            "--lx", str(args.lx),
-            "--ly", str(args.ly),
-            "--dx", str(args.dx),
-            "--bead", args.surface_bead,
-            "--charge", str(args.charge),
-            "--output", str(system_dir / "surface"),
-        ])
+        resolved_surface_mode = _resolve_generated_surface_mode(args)
+        if str(args.surface_mode).strip().lower() == "cnt":
+            print(f"ℹ --surface-mode cnt resolved to {resolved_surface_mode}")
+        surface_builder_args = _build_generated_surface_args(args, system_dir / "surface")
+        sb.main(surface_builder_args)
 
         # 🔹 Move generated surface.itp into topology
         generated_itp = system_dir / "surface.itp"
@@ -2165,6 +2329,7 @@ def main(argv=None):
             print("✔ Moved generated surface.itp into topology")
         else:
             print("⚠ surface.itp not generated by surface_builder")
+
 
     # Keep topology includes centralized only in 0_topology/system_itp.
     accidental_itp_dir = system_dir / "system_itp"
@@ -2186,6 +2351,13 @@ def main(argv=None):
         "--system", str(system_gro),
         "--out", str(system_dir / "immobilized_system.gro"),
     ]
+    effective_surface_geometry = _effective_surface_geometry(args)
+    if args.surface and effective_surface_geometry != args.surface_geometry:
+        print("ℹ External surface files use 3d orientation automatically")
+    elif not args.surface and effective_surface_geometry != args.surface_geometry:
+        print(f"ℹ Surface mode {_resolve_generated_surface_mode(args)} uses 3d orientation automatically")
+    if effective_surface_geometry != "planar":
+        orient_args += ["--surface-geometry", effective_surface_geometry]
     if args.dna:
         orient_args += ["--dna-mode"]
     preconfig_balance_low_z = _use_preconfig_balance_low_z(args, complex_cfg)
@@ -2224,7 +2396,7 @@ def main(argv=None):
             is_dna=args.dna,
             ff_name=args.ff,
             class_a=_bead_size_class(linker_tail),
-            class_b=_bead_size_class(surface_atom or args.surface_bead),
+            class_b=_bead_size_class(surface_atom or _primary_surface_bead(args.surface_bead)),
         )
 
         # Auto distances in nm:

@@ -1,6 +1,6 @@
 # Examples
 
-Curated set of 8 examples. Recommended production-oriented workflows are `06`, `07`, and `08`.
+Curated set of 11 examples. Recommended production-oriented workflows are `06`, `07`, and `08`.
 
 For examples driven from `--pdb`, the recommended syntax is now chain-based:
 - `--anchor A 8 10 11`
@@ -59,6 +59,15 @@ Path: `martinisurf/examples/04_dna_anchor`
 
 5. DNA linker mode  
 Path: `martinisurf/examples/05_dna_linker`
+
+6. Protein immobilization on a nanotube (`--surface-geometry 3d`)  
+Path: `martinisurf/examples/09_protein_cnt_3d`
+
+7. Protein immobilization on resizable graphene  
+Path: `martinisurf/examples/10_protein_graphene_resizable`
+
+8. Protein immobilization on a two-layer hexagonal surface  
+Path: `martinisurf/examples/11_protein_bilayer_hexagonal`
 
 ## Per-Example Layout
 - `inputs/`: required input files

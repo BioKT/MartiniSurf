@@ -757,14 +757,24 @@ def test_dna_deposition_and_production_templates_only_differ_in_nsteps():
     deposition = (mdp_dir / "deposition_dna.mdp").read_text()
     production = (mdp_dir / "production_dna.mdp").read_text()
 
-    assert "compressibility          = 0 4e-5" in deposition
-    assert "compressibility          = 0 4e-5" in production
+    assert "tau-p                    = 12.0" in deposition
+    assert "tau-p                    = 12.0" in production
+    assert "compressibility          = 3e-4" in deposition
+    assert "compressibility          = 3e-4" in production
     assert "define                   = -DPOSRES" not in deposition
     assert "define                   = -DPOSRES" in production
 
     normalized_deposition = _normalize_mdp_nsteps(deposition)
     normalized_production = _normalize_mdp_nsteps(production).replace("define                   = -DPOSRES\n\n", "", 1)
     assert normalized_deposition == normalized_production
+
+
+def test_dna_npt_template_uses_requested_pressure_parameters():
+    mdp_dir = Path(gms.__file__).resolve().parent / "mdp_templates"
+    npt = (mdp_dir / "npt_dna.mdp").read_text()
+
+    assert "tau-p                    = 3.0" in npt
+    assert "compressibility          = 3e-4" in npt
 
 
 def test_write_custom_mdp_skips_pull_rewrite_when_disabled(tmp_path):

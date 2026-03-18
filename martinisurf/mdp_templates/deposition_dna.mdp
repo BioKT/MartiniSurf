@@ -40,7 +40,7 @@ refcoord_scaling         = all
 Pcoupl                   = Parrinello-Rahman ;parrinello-rahman
 Pcoupltype               = semiisotropic
 tau-p                    = 12.0
-compressibility          = 0 4e-5
+compressibility          = 3e-4
 ref-p                    = 1 1
 
 pull                     = yes

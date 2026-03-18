@@ -66,6 +66,21 @@ Linker GRO
     path.write_text(gro)
 
 
+def write_vertical_cnt_like_gro(path: Path):
+    lines = [
+        "Vertical CNT-like surface",
+        "    6",
+        "    1CNT    C1    1   0.000   0.200   0.000",
+        "    1CNT    C1    2   0.173  -0.100   0.000",
+        "    1CNT    C1    3  -0.173  -0.100   0.000",
+        "    1CNT    C1    4   0.000   0.200   2.000",
+        "    1CNT    C1    5   0.173  -0.100   2.000",
+        "    1CNT    C1    6  -0.173  -0.100   2.000",
+        "   4.00000   4.00000   4.00000",
+    ]
+    path.write_text("\n".join(lines) + "\n")
+
+
 def atom_z_by_name(gro_path: Path, atom_name: str) -> float:
     for line in gro_path.read_text().splitlines()[2:-1]:
         if line[10:15].strip() == atom_name:
@@ -89,6 +104,18 @@ def gro_residue_z(gro_path: Path, resid: int) -> float:
     if not values:
         raise ValueError(f"Residue {resid} not found")
     return float(sum(values) / len(values))
+
+
+def gro_coords_by_resname(gro_path: Path, resname: str) -> np.ndarray:
+    coords = []
+    for line in gro_path.read_text().splitlines()[2:-1]:
+        if line[5:10].strip() == resname:
+            coords.append([
+                float(line[20:28]),
+                float(line[28:36]),
+                float(line[36:44]),
+            ])
+    return np.array(coords, float)
 
 
 # --------------------------------------------------------------
@@ -520,6 +547,48 @@ def test_auto_orient_single_anchor_can_orient_reference_upward():
     # Anchor atom is index 0.
     assert default_pose[1:, 2].mean() < default_pose[0, 2]
     assert upward_pose[1:, 2].mean() > upward_pose[0, 2]
+
+
+def test_orient_surface_top_geometry_lays_3d_surface_on_xy():
+    vertical_surface = np.array([
+        [0.0, 2.0, 0.0],
+        [1.7, -1.0, 0.0],
+        [-1.7, -1.0, 0.0],
+        [0.0, 2.0, 20.0],
+        [1.7, -1.0, 20.0],
+        [-1.7, -1.0, 20.0],
+    ])
+
+    oriented, _ = enz.orient_surface_top_geometry(vertical_surface, mode="3d")
+    spans = np.ptp(oriented, axis=0)
+
+    assert spans[0] > spans[2]
+    assert spans[0] > spans[1]
+
+
+def test_main_can_place_system_above_laid_down_3d_surface(tmp_path):
+    surface = tmp_path / "surface_3d.gro"
+    system = tmp_path / "system.gro"
+    out = tmp_path / "oriented_3d.gro"
+
+    write_vertical_cnt_like_gro(surface)
+    write_system_gro(system)
+
+    enz.main([
+        "--surface", str(surface),
+        "--system", str(system),
+        "--out", str(out),
+        "--anchor", "1", "1",
+        "--dist", "10.0",
+        "--surface-geometry", "3d",
+    ])
+
+    surf_coords = gro_coords_by_resname(out, "CNT")
+    mol_coords = gro_coords_by_resname(out, "MOL")
+
+    surf_spans = np.ptp(surf_coords, axis=0)
+    assert surf_spans[0] > surf_spans[2]
+    assert np.min(mol_coords[:, 2]) > np.max(surf_coords[:, 2])
 
 
 # --------------------------------------------------------------

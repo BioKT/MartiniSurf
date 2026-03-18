@@ -142,7 +142,7 @@ martinisurf \
 | `--moltype` | Molecule name for protein topology | `Protein` |
 | `--dna` | Enables DNA workflow | no value |
 | `--surface` | Reuses an existing surface file | `surface.gro` |
-| `--surface-mode` | Builds 2-1 or 4-1 surface | `4-1` |
+| `--surface-mode` | Builds `2-1`, `4-1`, `graphene`, `graphene-finite`, or `graphite` surfaces | `4-1` |
 | `--lx --ly --dx` | Size and spacing for generated surface | `15 15 0.47` |
 | `--anchor ...` | Not explicit Linker orientation (anchor mode) | `--anchor B 8 10 11` |
 | `--ads-mode` | Anchor-like adsorption mode without anchor pull/restraint topology | no value |
@@ -185,12 +185,25 @@ This section includes ALL flags from the main pipeline.
 ### Surface
 
 - `--surface` (default: none): existing surface `.gro` file.
-- `--surface-mode {2-1,4-1}` (default: `2-1`): grid mode for generated surfaces.
+- `--surface-mode {2-1,4-1,graphene,graphene-periodic,graphene-finite,graphite}` (default: `2-1`): mode for generated surfaces.
+- `--surface-geometry {planar,3d}` (default: `planar`): orientation handling for the surface. Use `3d` for nanotubes and other non-planar surfaces.
 - `--lx` (default: none): generated surface X size (nm).
 - `--ly` (default: none): generated surface Y size (nm).
 - `--dx` (default: `0.47`): bead spacing (2-1) or C-C parameter (4-1).
+- `--surface-layers` (default: none): number of layers for `4-1` mode.
+- `--surface-dist-z` (default: none): interlayer spacing in nm for `4-1` mode.
+- `--graphite-layers` (default: none): number of stacked graphene layers for `graphite`.
+- `--graphite-spacing` (default: none): interlayer spacing in nm for `graphite`.
 - `--surface-bead` (default: `C1`): bead type for generated surface.
 - `--charge` (default: `0`): bead charge for generated surface topology.
+
+Notes:
+- `graphene` and `graphene-periodic` use the vendored Martini 3 periodic graphene generator.
+- `graphene-finite` builds a finite graphene sheet.
+- `graphite` builds a stacked graphitic slab and carries over the generated `posre_GRA.itp`.
+- `graphene` and `graphite` are intended for Martini 3 / protein workflows.
+- `planar` keeps the current surface orientation workflow unchanged.
+- `3d` first lays the surface onto the `XY` plane using its principal axes and then places the biomolecule above the top external side.
 
 Unit note:
 - In the main `martinisurf` CLI, `--lx`, `--ly`, and `--dx` are provided in nm.
@@ -262,7 +275,7 @@ These commands are usually called by MartiniSurf internally. Most new users do n
 
 ### 7.1 `python -m martinisurf.surface_builder`
 
-- `--mode {2-1,4-1}`
+- `--mode {2-1,4-1,graphene,graphene-periodic,graphene-finite,graphite,cnt-m2,cnt-m3}`
 - `--bead`
 - `--dx`
 - `--lx`
@@ -273,6 +286,22 @@ These commands are usually called by MartiniSurf internally. Most new users do n
 - `--charge`
 - `--layers` (4-1)
 - `--dist-z` (4-1)
+- `--graphite-layers`
+- `--graphite-spacing`
+- `--cnt-numrings`
+- `--cnt-ringsize`
+- `--cnt-bondlength`
+- `--cnt-bondforce`
+- `--cnt-angleforce`
+- `--cnt-beadtype`
+- `--cnt-functype`
+- `--cnt-func-begin`
+- `--cnt-func-end`
+- `--cnt-base36`
+
+Notes:
+- `cnt-m2` wraps the vendored `cnt-martini` default Martini 2 preset.
+- `cnt-m3` uses the same CNT generator with Martini 3-style defaults: `0.41 nm` bond length, `9` beads per ring, and `SC5` carbon beads.
 
 ### 7.2 `python -m martinisurf.system_tethered`
 

@@ -1,0 +1,67 @@
+define                   = -DPOSRES
+
+integrator               = md
+dt                       = 0.005
+nsteps                   = 200000000
+nstxout                  = 0 
+nstvout                  = 0
+nstfout                  = 0
+nstlog                   = 20000
+nstxout-compressed       = 20000
+compressed-x-precision   = 100
+
+
+cutoff-scheme            = Verlet
+nstlist                  = 20
+ns_type                  = grid
+pbc                      = xyz
+verlet-buffer-tolerance  = 0.005
+
+coulombtype              = reaction-field 
+rcoulomb                 = 1.1
+epsilon_r                = 15   ; 2.5 (with polarizable water)
+epsilon_rf               = 0
+
+vdw_type                 = cutoff  
+vdw-modifier             = Potential-shift-verlet
+rvdw                     = 1.1
+
+tcoupl                   = v-rescale
+tc-grps                  = system
+tau-t                    = 1.0
+ref-t                    = 300
+
+continuation = yes
+
+freezegrps               = SRF
+freezedim                = Y Y Y
+cos-acceleration         = 0
+
+refcoord_scaling         = all
+
+Pcoupl                   = Parrinello-Rahman ;parrinello-rahman
+Pcoupltype               = semiisotropic
+tau-p                    = 12.0
+compressibility          = 0 4e-5
+ref-p                    = 1 1
+
+
+
+; First pulling coordinate (Umbrella 1)
+
+
+; Second pulling coordinate (Umbrella 2)
+
+pull                     = yes
+pull-ngroups             = 2
+pull-group1-name         = Anchor_1
+pull-group2-name         = cnt-24-9-f11-SNda
+
+pull-ncoords             = 1
+pull-coord1-geometry     = distance
+pull-coord1-groups       = 1 2
+pull-coord1-type         = umbrella
+pull-coord1-k            = 500.0
+pull-coord1-rate         = 0
+pull-coord1-dim          = N N Y
+pull-coord1_start        = yes

@@ -232,6 +232,39 @@ def _apply_rotation(coords, rotation, center):
     return (rotation @ (coords - center).T).T + center
 
 
+def _standardize_principal_frame(rotated: np.ndarray, rotation: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    out_coords = np.array(rotated, float, copy=True)
+    out_rotation = np.array(rotation, float, copy=True)
+    for axis in range(3):
+        max_val = float(np.max(out_coords[:, axis]))
+        min_val = float(np.min(out_coords[:, axis]))
+        if abs(min_val) > abs(max_val):
+            out_coords[:, axis] *= -1.0
+            out_rotation[axis, :] *= -1.0
+    if np.linalg.det(out_rotation) < 0:
+        out_coords[:, 2] *= -1.0
+        out_rotation[2, :] *= -1.0
+    return out_coords, out_rotation
+
+
+def orient_surface_top_geometry(surface_coords: np.ndarray, mode: str = "planar") -> tuple[np.ndarray, np.ndarray]:
+    coords = np.array(surface_coords, float, copy=True)
+    if mode == "planar":
+        return coords, np.eye(3)
+    if mode != "3d":
+        raise ValueError(f"Unsupported surface geometry mode: {mode}")
+    if len(coords) < 3:
+        return coords, np.eye(3)
+
+    center = coords.mean(axis=0)
+    centered = coords - center
+    _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    rotation = vh.copy()
+    rotated = centered @ rotation.T
+    rotated, rotation = _standardize_principal_frame(rotated, rotation)
+    return rotated + center, rotation
+
+
 def _finalize_anchor_pose(
     system_coords,
     anchor_coords,
@@ -549,6 +582,12 @@ def main(argv=None):
     parser.add_argument("--surface", required=True)
     parser.add_argument("--system", required=True)
     parser.add_argument("--out", default="system_Surface.gro")
+    parser.add_argument(
+        "--surface-geometry",
+        choices=["planar", "3d"],
+        default="planar",
+        help="How to interpret the surface during orientation. 'planar' keeps current behavior; '3d' first lays the surface onto XY and then places the biomolecule above it.",
+    )
 
     parser.add_argument("--anchor", nargs="+", action="append")
     parser.add_argument(
@@ -591,6 +630,7 @@ def main(argv=None):
         raise ValueError("--balance-low-z-fraction must be in the interval (0, 1].")
 
     surf_coords, surf_atoms = load_gro_coords(args.surface)
+    surf_coords, _ = orient_surface_top_geometry(surf_coords, mode=args.surface_geometry)
     sys_coords, sys_atoms   = load_gro_coords(args.system)
     box_line = open(args.surface).readlines()[-1].strip()
     reference_coords = sys_coords
