@@ -58,4 +58,4 @@ pull-coord1-dim          = N N Y                 ; Pulling dimensions for the fi
 pull-coord1_start        = yes                   ; Start from the current distance
 
 gen_vel                  = yes
-gen_temp                 = 320
+gen_temp                 = 310
