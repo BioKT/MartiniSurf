@@ -351,7 +351,7 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     # Local hexagonal surface parameters
     parser.add_argument("--layers", type=int, default=1, help="Number of layers for local 2-1 / 4-1 surfaces.")
-    parser.add_argument("--dist-z", type=float, default=0.382, help="Interlayer spacing in nm for local multilayer surfaces.")
+    parser.add_argument("--dist-z", type=float, default=0.5, help="Interlayer spacing in nm for local multilayer surfaces.")
     parser.add_argument("--graphite-layers", type=int, default=5, help="Number of layers in graphite mode")
     parser.add_argument("--graphite-spacing", type=float, default=0.382, help="Interlayer spacing in graphite mode (nm)")
     parser.add_argument("--cnt-numrings", type=int, help="Number of CNT rings.")

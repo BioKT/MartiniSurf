@@ -11,6 +11,7 @@ python -m martinisurf \
   --dnatype ds-soft \
   --pdb inputs/4C64.pdb \
   --surface-mode 4-1 \
+  --surface-layers 2 \
   --lx 10 \
   --ly 10 \
   --dx 0.27 \
