@@ -56,6 +56,3 @@ pull-coord1-k            = 500.0                ; Force constant for the first c
 pull-coord1-rate         = 0                     ; Pulling rate (0 for umbrella)
 pull-coord1-dim          = N N Y                 ; Pulling dimensions for the first coordinate
 pull-coord1_start        = yes                   ; Start from the current distance
-
-gen_vel                  = yes
-gen_temp                 = 310
