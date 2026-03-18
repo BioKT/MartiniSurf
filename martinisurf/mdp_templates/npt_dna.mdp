@@ -30,8 +30,8 @@ ref-t                    = 300
 
 Pcoupl                   = berendsen
 Pcoupltype               = semiisotropic
-tau-p                    = 3.0
-compressibility          = 3e-4
+tau-p                    = 12 ; 12
+compressibility          = 0 4e-5
 ref-p                    = 1 1
 
 ; Freeze groups
@@ -56,4 +56,3 @@ pull-coord1-k            = 500.0                ; Force constant for the first c
 pull-coord1-rate         = 0                     ; Pulling rate (0 for umbrella)
 pull-coord1-dim          = N N Y                 ; Pulling dimensions for the first coordinate
 pull-coord1_start        = yes                   ; Start from the current distance
-
