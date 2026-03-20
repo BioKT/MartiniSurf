@@ -140,10 +140,11 @@ def test_polarizable_water_mode_uses_pw_templates_for_dna(tmp_path, monkeypatch)
     assert '#include "system_itp/martini_v2.1-dna.itp"' not in system_top
 
     production = (sim / "1_mdp" / "production_dna.mdp").read_text()
-    assert "coulombtype              = shift" in production
-    assert "vdw_type                 = Shift" in production
+    assert "coulombtype              = reaction-field" in production
+    assert "vdw_type                 = cutoff" in production
+    assert "vdw-modifier             = Force-switch" in production
     assert "constraints              = none" in production
-    assert "epsilon_rf" not in production
+    assert "epsilon_rf               = 0" in production
 
 
 def test_gomartini_inside_Simulation(tmp_path, monkeypatch):
