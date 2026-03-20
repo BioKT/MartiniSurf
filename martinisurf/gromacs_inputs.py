@@ -79,8 +79,6 @@ def _polarizable_water_bond_block() -> list[str]:
         "constraints              = none",
         "; Type of constraint algorithm =",
         "constraint_algorithm     = Lincs",
-        "; Do not constrain the start configuration =",
-        "unconstrained_start      = no",
         "; Relative tolerance of shake =",
         "shake_tol                = 0.0001",
         "; Highest order in the expansion of the constraint coupling matrix =",
@@ -108,7 +106,6 @@ def _rewrite_mdp_for_polarizable_water(mdp_path: Path) -> None:
     bond_keys = {
         "constraints",
         "constraint_algorithm",
-        "unconstrained_start",
         "shake_tol",
         "lincs_order",
         "lincs_warnangle",
