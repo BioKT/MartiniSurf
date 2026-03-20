@@ -54,18 +54,25 @@ MartiniSurf expects the following tools in your environment:
 - GROMACS for running the generated workflows
 
 
-## Quick Start (Recommended Complete Examples)
-These are the most complete examples (system build + solvation/ionization + simulation workflow):
+## Quick Start (Recommended Examples)
+These are the main ready-to-use examples. The first three are full build + solvation/ionization + workflow examples; `12` is the polarizable-water build + solvation reference:
 
 - `martinisurf/examples/06_protein_anchor_solvate_ionize`
 - `martinisurf/examples/07_dna_linker_solvate_ionize_freeze`
 - `martinisurf/examples/08_protein_nad`
+- `martinisurf/examples/12_dna_linker_solvate_polarizable_water`
 
-Run any of them with:
+Typical run pattern for the full workflow examples (`06`, `07`, `08`):
 ```bash
 cd martinisurf/examples/06_protein_anchor_solvate_ionize
 bash run.sh
 bash work_flow_gromacs.sh
+```
+
+Run pattern for the polarizable-water reference (`12`):
+```bash
+cd martinisurf/examples/12_dna_linker_solvate_polarizable_water
+bash run.sh
 ```
 
 ## Google Colab Notebooks

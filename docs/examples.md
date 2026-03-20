@@ -26,6 +26,19 @@ Behavior notes:
 - In DNA linker mode, linker-DNA is coupled with bonded terms (bond + angle) in topology (no linker-DNA pull coordinate).
 - `work_flow_gromacs.sh` uses non-restrained topology in equilibration stages and restricted topology in production when available.
 
+## DNA + linker + solvate + polarizable water
+
+Path: `martinisurf/examples/12_dna_linker_solvate_polarizable_water`
+
+```bash
+cd martinisurf/examples/12_dna_linker_solvate_polarizable_water
+bash run.sh
+```
+
+Behavior notes:
+- Uses `--polarizable-water`, so the final topology includes `martini_v2.1P-dna.itp` and solvent `PW`.
+- This bundled example is generated up to build + solvation. Legacy Martini 2 polarizable-water `.mdp` files may require a compatible GROMACS/MDP stack before ionization or production MD.
+
 ## Pre-CG protein+cofactor + substrate + solvate + ionize
 
 Path: `martinisurf/examples/08_protein_nad`

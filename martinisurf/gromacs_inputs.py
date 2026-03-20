@@ -18,6 +18,12 @@ import MDAnalysis as mda
 import martinisurf
 
 
+DNA_STANDARD_FF = "martini_v2.1-dna.itp"
+DNA_POLARIZABLE_FF = "martini_v2.1P-dna.itp"
+STANDARD_WATER_TEMPLATE = "water.gro"
+POLARIZABLE_WATER_TEMPLATE = "polarize-water.gro"
+
+
 # ======================================================================
 # UTILITIES
 # ======================================================================
@@ -29,6 +35,146 @@ def ensure_dir(path: str | Path) -> None:
 def write_list(values: List[int], fh, chunk: int = 15) -> None:
     for i in range(0, len(values), chunk):
         fh.write(" ".join(str(v) for v in values[i: i + chunk]) + "\n")
+
+
+def _select_dna_forcefield_name(itp_dir: Path, polarizable_water: bool = False) -> str | None:
+    preferred = DNA_POLARIZABLE_FF if polarizable_water else DNA_STANDARD_FF
+    fallback = DNA_STANDARD_FF if polarizable_water else DNA_POLARIZABLE_FF
+
+    if (itp_dir / preferred).exists():
+        return preferred
+    if polarizable_water:
+        raise FileNotFoundError(
+            f"Polarizable-water mode requires {preferred} in {itp_dir}."
+        )
+    if (itp_dir / fallback).exists():
+        return fallback
+    return None
+
+
+def _polarizable_water_electrostatics_block() -> list[str]:
+    return [
+        "; OPTIONS FOR ELECTROSTATICS AND VDW =",
+        "; Method for doing electrostatics =",
+        ";coulombtype              = PME",
+        "coulombtype              = shift",
+        "rcoulomb                 = 1.2",
+        ";",
+        "; Polarizable water may be used with standard Martini shift, but also with PME",
+        ";",
+        "rcoulomb_switch          = 0.0",
+        "; Dielectric constant (DC) for cut-off or DC of reaction field =",
+        "epsilon_r                = 2.5",
+        "; Method for doing Van der Waals =",
+        "vdw_type                 = Shift",
+        "; cut-off lengths        =",
+        "rvdw_switch              = 0.9",
+        "rvdw                     = 1.2",
+        "; Apply long range dispersion corrections for Energy and Pressure =",
+        "DispCorr                 = No",
+        "; Spacing for the PME/PPPM FFT grid =",
+        "fourierspacing           = 0.12",
+        "; FFT grid size, when a value is 0 fourierspacing will be used =",
+        "fourier_nx               = 10",
+        "fourier_ny               = 10",
+        "fourier_nz               = 10",
+        "; EWALD/PME/PPPM parameters =",
+        "pme_order                = 4",
+        "ewald_rtol               = 1e-05",
+        "epsilon_surface          = 0",
+        "optimize_fft             = no",
+    ]
+
+
+def _polarizable_water_bond_block() -> list[str]:
+    return [
+        "; OPTIONS FOR BONDS     =",
+        "constraints              = none",
+        "; Type of constraint algorithm =",
+        "constraint_algorithm     = Lincs",
+        "; Do not constrain the start configuration =",
+        "unconstrained_start      = no",
+        "; Relative tolerance of shake =",
+        "shake_tol                = 0.0001",
+        "; Highest order in the expansion of the constraint coupling matrix =",
+        "lincs_order              = 4",
+        "; Lincs will write a warning to the stderr if in one step a bond =",
+        "; rotates over more degrees than =",
+        "lincs_warnangle          = 90",
+    ]
+
+
+def _rewrite_mdp_for_polarizable_water(mdp_path: Path) -> None:
+    lines = mdp_path.read_text().splitlines()
+
+    electrostatic_keys = {
+        "coulombtype",
+        "rcoulomb",
+        "rcoulomb_switch",
+        "epsilon_r",
+        "epsilon_rf",
+        "vdw_type",
+        "vdw-modifier",
+        "rvdw_switch",
+        "rvdw",
+        "dispcorr",
+        "fourierspacing",
+        "fourier_nx",
+        "fourier_ny",
+        "fourier_nz",
+        "pme_order",
+        "ewald_rtol",
+        "epsilon_surface",
+        "optimize_fft",
+    }
+    bond_keys = {
+        "constraints",
+        "constraint_algorithm",
+        "unconstrained_start",
+        "shake_tol",
+        "lincs_order",
+        "lincs_warnangle",
+    }
+
+    kept: list[str] = []
+    insert_after = -1
+    for raw in lines:
+        stripped = raw.strip()
+        if stripped:
+            key = stripped.split("=", 1)[0].strip().lower() if "=" in stripped else ""
+            if key in electrostatic_keys or key in bond_keys:
+                continue
+            if (
+                key == "verlet-buffer-tolerance"
+                or key == "rlist"
+                or stripped.lower().startswith("; nblist cut-off")
+            ):
+                insert_after = len(kept)
+        kept.append(raw)
+
+    electro_block = _polarizable_water_electrostatics_block()
+    if insert_after < 0:
+        insert_at = len(kept)
+    else:
+        insert_at = insert_after + 1
+        while insert_at < len(kept) and not kept[insert_at].strip():
+            insert_at += 1
+
+    out = kept[:insert_at]
+    if out and out[-1].strip():
+        out.append("")
+    out.extend(electro_block)
+
+    tail = kept[insert_at:]
+    if tail and tail[0].strip():
+        out.append("")
+    out.extend(tail)
+
+    while out and not out[-1].strip():
+        out.pop()
+    out.append("")
+    out.extend(_polarizable_water_bond_block())
+    mdp_path.write_text("\n".join(out).rstrip() + "\n")
 
 
 def parse_anchor_groups(anchor_args: List[List[str]] | None) -> Dict[int, List[int]]:
@@ -67,6 +213,7 @@ def write_top_files(
     is_dna: bool,
     use_linker: bool,
     go_model: bool = False,
+    polarizable_water: bool = False,
     linker_itp_name: str = "linker.itp",
     restrained_linker_itp_name: str | None = None,
     linker_moltype: str | None = None,
@@ -84,12 +231,10 @@ def write_top_files(
     """Create simple master topology files expected by legacy workflows/tests."""
     if is_dna:
         # DNA FF files are mutually exclusive (both define [ defaults ]).
-        # Include exactly one base FF, preferring v2.1 non-polarizable.
-        dna_ff = None
-        for candidate in ("martini_v2.1-dna.itp", "martini_v2.1P-dna.itp"):
-            if (dst_itp_dir / candidate).exists():
-                dna_ff = candidate
-                break
+        dna_ff = _select_dna_forcefield_name(
+            dst_itp_dir,
+            polarizable_water=polarizable_water,
+        )
         forcefield_itps = [dna_ff, "martini_v2.0_ions.itp"] if dna_ff else ["martini_v2.0_ions.itp"]
     else:
         forcefield_itps = [
@@ -926,6 +1071,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--substrate-itp-name", help="Substrate topology filename in system_itp.")
     parser.add_argument("--substrate-moltype", help="Substrate moleculetype/resname when defined by the Martini force field.")
     parser.add_argument("--substrate-count", type=int, default=0, help="Number of substrate molecules in the system.")
+    parser.add_argument(
+        "--polarizable-water",
+        action="store_true",
+        help="DNA-only: use polarizable water templates, PW solvent, and martini_v2.1P-dna.itp.",
+    )
 
     args = parser.parse_args(argv) if argv else parser.parse_args()
     _validate_cli_args(parser, args)
@@ -960,6 +1110,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     is_dna = any(res in dna_resnames for res in u.residues.resnames)
 
     print("🔍 Molecule type detected:", "DNA" if is_dna else "PROTEIN/MARTINI3")
+    if args.polarizable_water and not is_dna:
+        raise ValueError("❌ --polarizable-water is currently supported only for DNA systems.")
 
     # ===============================================================
     # BUILD ANCHOR GROUPS
@@ -1121,12 +1273,19 @@ def main(argv: Sequence[str] | None = None) -> None:
     # Copy Martini files (UNCHANGED)
     # ===============================================================
     pkg_dir = Path(martinisurf.__file__).parent
-    water_template = pkg_dir / "system_templates" / "water.gro"
+    water_template_name = (
+        POLARIZABLE_WATER_TEMPLATE if args.polarizable_water else STANDARD_WATER_TEMPLATE
+    )
+    water_template = pkg_dir / "system_templates" / water_template_name
     if water_template.exists():
-        shutil.copy(water_template, sys_dir / "water.gro")
-        print("✔ Copied water.gro template into 2_system")
+        shutil.copy(water_template, sys_dir / water_template_name)
+        print(f"✔ Copied {water_template_name} template into 2_system")
+    elif args.polarizable_water:
+        raise FileNotFoundError(
+            f"❌ Polarizable-water template not found at {water_template}."
+        )
     else:
-        print(f"ℹ water.gro template not found at {water_template}. Skipping water.gro copy.")
+        print(f"ℹ {water_template_name} template not found at {water_template}. Skipping solvent template copy.")
 
     src_itp_dir = pkg_dir / "system_itp"
     dst_itp_dir = topo_dir / "system_itp"
@@ -1140,12 +1299,13 @@ def main(argv: Sequence[str] | None = None) -> None:
                 shutil.copy(p, dst)
 
     if is_dna:
+        dna_ff = _select_dna_forcefield_name(
+            src_itp_dir,
+            polarizable_water=args.polarizable_water,
+        )
         required = ["martini_v2.0_ions.itp"]
-        # Copy only one mutually-exclusive DNA FF file.
-        for candidate in ("martini_v2.1-dna.itp", "martini_v2.1P-dna.itp"):
-            if (src_itp_dir / candidate).exists():
-                required.insert(0, candidate)
-                break
+        if dna_ff:
+            required.insert(0, dna_ff)
     else:
         required = [
             "martini_v3.0.0.itp",
@@ -1363,9 +1523,10 @@ def main(argv: Sequence[str] | None = None) -> None:
                 "production_dna.mdp",
             }
             include_pull_init = rewrite_pull
+            dst_path = mdp_dir / dst_name
             write_custom_mdp(
                 src=src,
-                dst=mdp_dir / dst_name,
+                dst=dst_path,
                 anchor_count=len(pull_anchor_atoms),
                 is_dna=is_dna,
                 surface_moltype=surface_moltype,
@@ -1377,6 +1538,8 @@ def main(argv: Sequence[str] | None = None) -> None:
                 include_pull_init=include_pull_init,
                 dna_linker_bonded=bool(is_dna and linker_pull_enabled),
             )
+            if is_dna and args.polarizable_water:
+                _rewrite_mdp_for_polarizable_water(dst_path)
             print(f"  ✔ {src_name} → {dst_name}")
         else:
             print(f"⚠ Missing MDP template: {src_name}")
@@ -1474,6 +1637,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         is_dna=is_dna,
         use_linker=top_use_linker,
         go_model=args.go_model,
+        polarizable_water=args.polarizable_water,
         linker_itp_name=args.linker_itp_name,
         restrained_linker_itp_name=top_restrained_linker_itp_name,
         linker_moltype=linker_moltype_name,

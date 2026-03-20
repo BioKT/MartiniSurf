@@ -25,6 +25,10 @@ from martinisurf.utils.pdb_generation import load_clean_pdb
 from martinisurf.utils.pdb_to_gro import pdb_to_gro
 
 
+STANDARD_WATER_TEMPLATE = "water.gro"
+POLARIZABLE_WATER_TEMPLATE = "polarize-water.gro"
+
+
 def _read_gro_first_resname(gro_path: str) -> str | None:
     with open(gro_path, "r") as fh:
         lines = fh.readlines()
@@ -80,6 +84,10 @@ def _read_gro_atom_count(gro_path: str) -> int | None:
         return int(lines[1].strip())
     except ValueError:
         return None
+
+
+def _default_water_template_name(polarizable_water: bool) -> str:
+    return POLARIZABLE_WATER_TEMPLATE if polarizable_water else STANDARD_WATER_TEMPLATE
 
 
 def _write_minimal_surface_itp(itp_path: Path, resname: str, bead: str, charge: float = 0.0) -> None:
@@ -754,12 +762,16 @@ def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
         parser.error("--balance-low-z-fraction must be in the interval (0, 1].")
     if args.water_gro and not Path(args.water_gro).exists():
         parser.error(f"--water-gro not found: {args.water_gro}")
+    if args.polarizable_water and not args.dna:
+        parser.error("--polarizable-water is currently supported only with --dna.")
     if args.freeze_water_fraction < 0 or args.freeze_water_fraction > 1:
         parser.error("--freeze-water-fraction must be in [0, 1].")
     if args.freeze_water_fraction > 0 and not args.dna:
         parser.error("--freeze-water-fraction is currently supported only with --dna.")
     if args.freeze_water_fraction > 0 and not args.solvate:
         parser.error("--freeze-water-fraction requires --solvate.")
+    if args.freeze_water_fraction > 0 and args.polarizable_water:
+        parser.error("--freeze-water-fraction is incompatible with --polarizable-water.")
     if complex_mode:
         if args.dna:
             parser.error("--complex-config currently supports protein systems only (no --dna).")
@@ -1066,6 +1078,11 @@ def build_parser():
     post_group.add_argument("--ionize", action="store_true", help="Run gmx genion after solvation and produce final ionized files.")
     post_group.add_argument("--salt-conc", type=float, default=0.15, help="Target salt concentration (M) for --ionize.")
     post_group.add_argument("--water-gro", help="Optional custom water coordinate file (.gro) for gmx solvate.")
+    post_group.add_argument(
+        "--polarizable-water",
+        action="store_true",
+        help="DNA-only: use polarizable Martini 2 water (PW), polarize-water.gro, and martini_v2.1P-dna.itp.",
+    )
     post_group.add_argument("--solvate-radius", type=float, default=0.21, help="Exclusion radius (nm) for gmx solvate (Martini recommended: 0.21).")
     post_group.add_argument("--solvate-surface-clearance", type=float, default=0.4, help="Remove water in a symmetric slab around the surface plane: |z - z_surface| <= clearance.")
     post_group.add_argument("--freeze-water-fraction", type=float, default=0.0, help="DNA-only: convert this fraction of W waters to WF in final outputs.")
@@ -1117,7 +1134,63 @@ def _find_gmx_binary() -> str | None:
     return None
 
 
-def _write_ions_mdp(mdp_path: Path) -> None:
+def _write_ions_mdp(mdp_path: Path, polarizable_water: bool = False) -> None:
+    if polarizable_water:
+        mdp_path.write_text(
+            "integrator = steep\n"
+            "nsteps = 50\n"
+            "emtol = 1000\n"
+            "emstep = 0.01\n"
+            "cutoff-scheme = Verlet\n"
+            "nstlist = 20\n"
+            "ns_type = grid\n"
+            "pbc = xyz\n"
+            "rlist = 1.2\n"
+            "; OPTIONS FOR ELECTROSTATICS AND VDW =\n"
+            "; Method for doing electrostatics =\n"
+            ";coulombtype              = PME\n"
+            "coulombtype              = shift\n"
+            "rcoulomb                 = 1.2\n"
+            ";\n"
+            "; Polarizable water may be used with standard Martini shift, but also with PME\n"
+            ";\n"
+            "rcoulomb_switch          = 0.0\n"
+            "; Dielectric constant (DC) for cut-off or DC of reaction field =\n"
+            "epsilon_r                = 2.5\n"
+            "; Method for doing Van der Waals =\n"
+            "vdw_type                 = Shift\n"
+            "; cut-off lengths        =\n"
+            "rvdw_switch              = 0.9\n"
+            "rvdw                     = 1.2\n"
+            "; Apply long range dispersion corrections for Energy and Pressure =\n"
+            "DispCorr                 = No\n"
+            "; Spacing for the PME/PPPM FFT grid =\n"
+            "fourierspacing           = 0.12\n"
+            "; FFT grid size, when a value is 0 fourierspacing will be used =\n"
+            "fourier_nx               = 10\n"
+            "fourier_ny               = 10\n"
+            "fourier_nz               = 10\n"
+            "; EWALD/PME/PPPM parameters =\n"
+            "pme_order                = 4\n"
+            "ewald_rtol               = 1e-05\n"
+            "epsilon_surface          = 0\n"
+            "optimize_fft             = no\n"
+            "; OPTIONS FOR BONDS     =\n"
+            "constraints              = none\n"
+            "; Type of constraint algorithm =\n"
+            "constraint_algorithm     = Lincs\n"
+            "; Do not constrain the start configuration =\n"
+            "unconstrained_start      = no\n"
+            "; Relative tolerance of shake =\n"
+            "shake_tol                = 0.0001\n"
+            "; Highest order in the expansion of the constraint coupling matrix =\n"
+            "lincs_order              = 4\n"
+            "; Lincs will write a warning to the stderr if in one step a bond =\n"
+            "; rotates over more degrees than =\n"
+            "lincs_warnangle          = 90\n"
+        )
+        return
+
     mdp_path.write_text(
         "integrator = steep\n"
         "nsteps = 50\n"
@@ -1464,7 +1537,7 @@ def _normalize_uniform_atom_names_from_itp(top_dir: Path, top_path: Path, gro_pa
         return False
 
     water_ion_names = {
-        "W", "SOL", "WF", "NA", "NA+", "CL", "CL-", "K", "CA", "MG", "ZN", "LI", "RB", "CS", "BA", "SR", "F", "BR", "I",
+        "W", "SOL", "WF", "PW", "NA", "NA+", "CL", "CL-", "K", "CA", "MG", "ZN", "LI", "RB", "CS", "BA", "SR", "F", "BR", "I",
     }
     moltypes = [name for name, count in entries if count > 0 and name not in water_ion_names]
     if not moltypes:
@@ -1618,7 +1691,7 @@ def _run_genion_with_fallback(
     if salt_conc > 0:
         cmd += ["-conc", str(salt_conc)]
 
-    candidates = ["W\n", "SOL\n"] + [f"{i}\n" for i in range(0, 50)]
+    candidates = ["W\n", "SOL\n", "PW\n"] + [f"{i}\n" for i in range(0, 50)]
     last_err = ""
     for selection in candidates:
         res = _run_capture(cmd, cwd=cwd, stdin_text=selection)
@@ -1627,7 +1700,7 @@ def _run_genion_with_fallback(
         last_err = f"STDOUT:\n{res.stdout[-2000:]}\nSTDERR:\n{res.stderr[-2000:]}"
 
     raise RuntimeError(
-        "gmx genion failed for all tested solvent selections (W/SOL/group numbers 0-49).\n"
+        "gmx genion failed for all tested solvent selections (W/SOL/PW/group numbers 0-49).\n"
         f"{last_err}"
     )
 
@@ -1877,13 +1950,14 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
     if args.water_gro:
         water_gro = Path(args.water_gro).resolve()
     else:
-        water_gro = system_dir / "water.gro"
+        default_water_name = _default_water_template_name(args.polarizable_water)
+        water_gro = system_dir / default_water_name
         if not water_gro.exists():
-            pkg_water = Path(__file__).resolve().parent / "system_templates" / "water.gro"
+            pkg_water = Path(__file__).resolve().parent / "system_templates" / default_water_name
             if pkg_water.exists():
                 water_gro = pkg_water
             else:
-                raise FileNotFoundError("water.gro template not found for solvation.")
+                raise FileNotFoundError(f"{default_water_name} template not found for solvation.")
 
     base_top = top_dir / "system.top"
     if not base_top.exists():
@@ -1935,7 +2009,7 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
 
     ions_mdp = system_dir / "_ions_tmp.mdp"
     ions_tpr = system_dir / "_ions_tmp.tpr"
-    _write_ions_mdp(ions_mdp)
+    _write_ions_mdp(ions_mdp, polarizable_water=args.polarizable_water)
 
     _run_with_check([
         gmx_bin, "grompp",
@@ -2481,6 +2555,8 @@ def main(argv=None):
         final_args += ["--moltype", mol]
         if protein_go_model:
             final_args += ["--go-model"]
+    elif args.polarizable_water:
+        final_args += ["--polarizable-water"]
 
     if args.linker:
         final_args += ["--use-linker"]

@@ -160,6 +160,46 @@ def test_parser_rejects_negative_solvate_surface_clearance():
         pipeline._validate_args(parser, args)
 
 
+def test_parser_accepts_polarizable_water_for_dna():
+    parser = pipeline.build_parser()
+    args = parser.parse_args([
+        "--dna",
+        "--pdb", "4C64",
+        "--anchor", "1", "1",
+        "--lx", "10",
+        "--ly", "10",
+        "--solvate",
+        "--polarizable-water",
+    ])
+    pipeline._validate_args(parser, args)
+    assert args.polarizable_water is True
+
+
+def test_parser_rejects_polarizable_water_without_dna():
+    parser = pipeline.build_parser()
+    with pytest.raises(SystemExit):
+        args = parser.parse_args([
+            "--pdb", "1RJW",
+            "--anchor", "1", "1",
+            "--lx", "10",
+            "--ly", "10",
+            "--solvate",
+            "--polarizable-water",
+        ])
+        pipeline._validate_args(parser, args)
+
+
+def test_write_ions_mdp_supports_polarizable_water(tmp_path):
+    mdp = tmp_path / "ions.mdp"
+    pipeline._write_ions_mdp(mdp, polarizable_water=True)
+    text = mdp.read_text()
+
+    assert "coulombtype              = shift" in text
+    assert "vdw_type                 = Shift" in text
+    assert "constraints              = none" in text
+    assert "epsilon_r                = 2.5" in text
+
+
 def test_parser_accepts_dna_freeze_water_options():
     parser = pipeline.build_parser()
     args = parser.parse_args([

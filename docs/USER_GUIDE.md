@@ -56,21 +56,28 @@ use `--dna` + Not explicit Linker (`--anchor`) or explicit linker (`--linker`).
 - Already CG protein+cofactor complex:
 use `--complex-config`.
 
-Recommended complete examples (solvated/ionized and ready for MD workflow):
+Recommended examples: `06`, `07`, and `08` are the most complete solvated/ionized workflows; `12` is the polarizable-water build + solvation reference:
 - `martinisurf/examples/06_protein_anchor_solvate_ionize`
 - `martinisurf/examples/07_dna_linker_solvate_ionize_freeze`
 - `martinisurf/examples/08_protein_nad`
+- `martinisurf/examples/12_dna_linker_solvate_polarizable_water`
 
-Run pattern:
+Typical run pattern for the full workflow examples (`06`, `07`, `08`):
 ```bash
 cd martinisurf/examples/06_protein_anchor_solvate_ionize
 bash run.sh
 bash work_flow_gromacs.sh
 ```
 
+Run pattern for the polarizable-water reference (`12`):
+```bash
+cd martinisurf/examples/12_dna_linker_solvate_polarizable_water
+bash run.sh
+```
+
 ## 4) Copy-and-run commands
 
-If you want the most complete and production-oriented setups, use examples `06`, `07`, and `08` above.
+If you want the most complete and production-oriented setups, use examples `06`, `07`, and `08` above. Use `12` when you specifically want the polarizable-water DNA setup.
 
 ### A) Example 06: Protein + Not explicit Linker (`--anchor`) + solvate + ionize
 

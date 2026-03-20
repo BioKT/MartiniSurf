@@ -15,13 +15,13 @@ python -m martinisurf \
   --lx 10 \
   --ly 10 \
   --dx 0.27 \
-  --surface-bead C1 \
+  --surface-bead C1 C1 \
   --linker-surf-dist 0.6 \
   --linker inputs/ALK.gro \
   --linker-group A 1 \
   --solvate \
   --ionize \
   --salt-conc 0.15 \
-  --freeze-water-fraction 0.10 \
+  --freeze-water-fraction 0.12 \
   --freeze-water-seed 42 \
   --merge A,B

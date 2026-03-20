@@ -102,6 +102,50 @@ def test_water_template_is_copied_when_present(tmp_path, monkeypatch):
             water_tpl.write_text(backup)
 
 
+def test_polarizable_water_mode_uses_pw_templates_for_dna(tmp_path, monkeypatch):
+    sim, sys2 = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sys2)
+
+    dna_gro = """DNA polarizable water test
+  2
+    1DG     BB1    1   1.000   1.000   1.000
+    1DG     BB2    2   1.100   1.000   1.000
+   3.00000   3.00000   3.00000
+"""
+    (sys2 / "immobilized_system.gro").write_text(dna_gro)
+    (sim / "immobilized_system.gro").write_text(dna_gro)
+
+    itp = sim / "system_itp"
+    (itp / "Active.itp").unlink(missing_ok=True)
+    (itp / "surface.itp").write_text("[ moleculetype ]\nSRF 1\n")
+    (itp / "Nucleic_A+Nucleic_B.itp").write_text(
+        "[ moleculetype ]\nNucleic_A+Nucleic_B 1\n\n"
+        "[ atoms ]\n"
+        "1 Q0 1 DG BB1 1 -1.0\n"
+        "2 SN0 1 DG BB2 2 0.0\n"
+    )
+    (itp / "martini_v2.1-dna.itp").write_text("; standard dna\n")
+    (itp / "martini_v2.1P-dna.itp").write_text("; polarizable dna\n")
+    (itp / "martini_v2.0_ions.itp").write_text("; ions\n")
+
+    gms.main([
+        "--anchor", "1", "1",
+        "--polarizable-water",
+    ])
+
+    assert (sim / "2_system" / "polarize-water.gro").exists()
+
+    system_top = (sim / "0_topology" / "system.top").read_text()
+    assert '#include "system_itp/martini_v2.1P-dna.itp"' in system_top
+    assert '#include "system_itp/martini_v2.1-dna.itp"' not in system_top
+
+    production = (sim / "1_mdp" / "production_dna.mdp").read_text()
+    assert "coulombtype              = shift" in production
+    assert "vdw_type                 = Shift" in production
+    assert "constraints              = none" in production
+    assert "epsilon_rf" not in production
+
+
 def test_gomartini_inside_Simulation(tmp_path, monkeypatch):
     sim, sys2 = prepare_simulation_structure(tmp_path)
 

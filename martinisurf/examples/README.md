@@ -1,6 +1,6 @@
 # Examples
 
-Curated set of 11 examples. Recommended production-oriented workflows are `06`, `07`, and `08`.
+Curated set of 12 examples. Recommended production-oriented workflows are `06`, `07`, and `08`, plus `12` as the polarizable-water build+solvate reference.
 
 For examples driven from `--pdb`, the recommended syntax is now chain-based:
 - `--anchor A 8 10 11`
@@ -26,19 +26,23 @@ Behavior:
 Constraints:
 - `--ads-mode` is incompatible with linker mode (`--linker` / `--use-linker`).
 
-## Recommended Complete Examples
+## Recommended Examples
 1. Protein anchor + solvate + ionize  
 Path: `martinisurf/examples/06_protein_anchor_solvate_ionize`
+Run: `bash run.sh` then `bash work_flow_gromacs.sh`
 
 2. DNA linker + solvate + ionize + frozen water  
 Path: `martinisurf/examples/07_dna_linker_solvate_ionize_freeze`
+Run: `bash run.sh` then `bash work_flow_gromacs.sh`
 
 3. Pre-CG protein+cofactor + substrate + solvate + ionize  
 Path: `martinisurf/examples/08_protein_nad`
+Run: `bash run.sh` then `bash work_flow_gromacs.sh`
 
-Run pattern:
-- `bash run.sh`
-- `bash work_flow_gromacs.sh`
+4. DNA linker + solvate + polarizable water  
+Path: `martinisurf/examples/12_dna_linker_solvate_polarizable_water`
+Run: `bash run.sh`
+Note: this example is bundled as build + solvation because legacy Martini 2 polarizable-water MDPs may require a compatible GROMACS/MDP stack for ionization and MD.
 
 Workflow scripts note:
 - `minimization/nvt/npt/deposition` run with non-restrained topology (`system_final.top` when available).

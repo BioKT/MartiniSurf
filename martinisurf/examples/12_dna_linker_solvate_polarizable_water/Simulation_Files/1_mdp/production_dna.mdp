@@ -1,0 +1,102 @@
+define                   = -DPOSRES
+
+integrator               = md
+dt                       = 0.005
+nsteps                   = 200000000
+nstxout                  = 0
+nstvout                  = 0
+nstfout                  = 0
+nstlog                   = 20000
+nstxout-compressed       = 20000
+compressed-x-precision   = 100
+
+
+cutoff-scheme            = Verlet
+nstlist                  = 20
+ns_type                  = grid
+pbc                      = xyz
+verlet-buffer-tolerance  = 0.005
+
+
+
+; OPTIONS FOR ELECTROSTATICS AND VDW =
+; Method for doing electrostatics =
+;coulombtype              = PME
+coulombtype              = shift
+rcoulomb                 = 1.2
+;
+; Polarizable water may be used with standard Martini shift, but also with PME
+;
+rcoulomb_switch          = 0.0
+; Dielectric constant (DC) for cut-off or DC of reaction field =
+epsilon_r                = 2.5
+; Method for doing Van der Waals =
+vdw_type                 = Shift
+; cut-off lengths        =
+rvdw_switch              = 0.9
+rvdw                     = 1.2
+; Apply long range dispersion corrections for Energy and Pressure =
+DispCorr                 = No
+; Spacing for the PME/PPPM FFT grid =
+fourierspacing           = 0.12
+; FFT grid size, when a value is 0 fourierspacing will be used =
+fourier_nx               = 10
+fourier_ny               = 10
+fourier_nz               = 10
+; EWALD/PME/PPPM parameters =
+pme_order                = 4
+ewald_rtol               = 1e-05
+epsilon_surface          = 0
+optimize_fft             = no
+
+tcoupl                   = v-rescale
+tc-grps                  = system
+tau-t                    = 1.0
+ref-t                    = 300
+
+continuation = yes
+
+freezegrps               = SRF
+freezedim                = Y Y Y
+cos-acceleration         = 0
+
+refcoord_scaling         = all
+
+Pcoupl                   = Parrinello-Rahman ;parrinello-rahman
+Pcoupltype               = semiisotropic
+tau-p                    = 12.0
+compressibility          = 0 4e-5
+ref-p                    = 1 1
+
+
+; First pulling coordinate (Umbrella 1)
+
+pull                     = yes
+pull-ngroups             = 4
+pull-group1-name         = Anchor_1
+pull-group2-name         = Anchor_2
+pull-group3-name         = Anchor_3
+pull-group4-name         = SRF
+
+pull-ncoords             = 1
+pull-coord1-geometry     = distance
+pull-coord1-groups       = 3 4
+pull-coord1-type         = umbrella
+pull-coord1-k            = 500.0
+pull-coord1-rate         = 0
+pull-coord1-dim          = N N Y
+pull-coord1-init         = 0.600
+
+; OPTIONS FOR BONDS     =
+constraints              = none
+; Type of constraint algorithm =
+constraint_algorithm     = Lincs
+; Do not constrain the start configuration =
+unconstrained_start      = no
+; Relative tolerance of shake =
+shake_tol                = 0.0001
+; Highest order in the expansion of the constraint coupling matrix =
+lincs_order              = 4
+; Lincs will write a warning to the stderr if in one step a bond =
+; rotates over more degrees than =
+lincs_warnangle          = 90
