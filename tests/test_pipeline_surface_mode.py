@@ -178,6 +178,9 @@ def test_generated_surface_args_forward_cnt_flags():
     ])
     builder_args = _build_generated_surface_args(args, Path("surface"))
     assert builder_args[:4] == ["--mode", "cnt-m2", "--lx", "10.0"]
+    assert "--martini-version" in builder_args
+    mv_index = builder_args.index("--martini-version")
+    assert builder_args[mv_index + 1] == "2"
     assert "--cnt-numrings" in builder_args
     assert "--cnt-ringsize" in builder_args
     assert "--cnt-bondlength" in builder_args
@@ -205,4 +208,6 @@ def test_surface_bead_accepts_multiple_values_and_forwards_them():
 
     builder_args = _build_generated_surface_args(args, Path("surface"))
     bead_index = builder_args.index("--bead")
+    mv_index = builder_args.index("--martini-version")
+    assert builder_args[mv_index + 1] == "3"
     assert builder_args[bead_index + 1:bead_index + 3] == ["P4", "C1"]

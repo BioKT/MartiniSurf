@@ -1,6 +1,6 @@
 import os
 import math
-from martinisurf.surface_builder import main
+from martinisurf.surface_builder import SIGMA_SPACING_FACTOR, main
 
 
 # ============================================================
@@ -140,6 +140,64 @@ def test_2_1_layers_scale_atom_count_and_z_levels(tmp_path):
     assert z_values == [3.0, 3.4]
 
 
+def test_2_1_layers_default_to_sigma_based_spacing_for_regular_beads(tmp_path):
+    out = tmp_path / "surf_sigma_regular"
+
+    main([
+        "--mode", "2-1",
+        "--lx", "2",
+        "--ly", "2",
+        "--layers", "2",
+        "--bead", "P4",
+        "--output", str(out),
+    ])
+
+    lines = (tmp_path / "surf_sigma_regular.gro").read_text().splitlines()
+    z_values = sorted({round(float(line[36:44]), 3) for line in lines[2:-1]})
+    expected_spacing = round(0.47 * SIGMA_SPACING_FACTOR, 3)
+
+    assert z_values == [3.0, round(3.0 + expected_spacing, 3)]
+
+
+def test_4_1_layers_default_to_martini3_sigma_for_small_beads(tmp_path):
+    out = tmp_path / "surf_sigma_small_m3"
+
+    main([
+        "--mode", "4-1",
+        "--lx", "2",
+        "--ly", "2",
+        "--layers", "2",
+        "--bead", "SC5",
+        "--output", str(out),
+    ])
+
+    lines = (tmp_path / "surf_sigma_small_m3.gro").read_text().splitlines()
+    z_values = sorted({round(float(line[36:44]), 3) for line in lines[2:-1]})
+    expected_spacing = round(0.41 * SIGMA_SPACING_FACTOR, 3)
+
+    assert z_values == [3.0, round(3.0 + expected_spacing, 3)]
+
+
+def test_4_1_layers_can_use_martini2_sigma_for_dna_small_beads(tmp_path):
+    out = tmp_path / "surf_sigma_small_m2"
+
+    main([
+        "--mode", "4-1",
+        "--lx", "2",
+        "--ly", "2",
+        "--layers", "2",
+        "--bead", "SC5",
+        "--martini-version", "2",
+        "--output", str(out),
+    ])
+
+    lines = (tmp_path / "surf_sigma_small_m2.gro").read_text().splitlines()
+    z_values = sorted({round(float(line[36:44]), 3) for line in lines[2:-1]})
+    expected_spacing = round(0.43 * SIGMA_SPACING_FACTOR, 3)
+
+    assert z_values == [3.0, round(3.0 + expected_spacing, 3)]
+
+
 # ============================================================
 # STANDALONE MODE
 # ============================================================
@@ -266,6 +324,25 @@ def test_4_1_layers_follow_graphite_like_abab_stacking(tmp_path):
     assert coords[0] == (0.0, 0.0, 3.0)
     assert coords[1] == (0.0, round(dx, 3), 3.335)
     assert coords[2] == (0.0, 0.0, 3.67)
+
+
+def test_local_multilayer_surface_mixed_beads_use_average_sigma_between_layers(tmp_path):
+    out = tmp_path / "surf_sigma_mixed"
+
+    main([
+        "--mode", "2-1",
+        "--lx", "1",
+        "--ly", "1",
+        "--layers", "2",
+        "--bead", "P4", "SC5",
+        "--output", str(out),
+    ])
+
+    lines = (tmp_path / "surf_sigma_mixed.gro").read_text().splitlines()
+    z_values = sorted({round(float(line[36:44]), 3) for line in lines[2:-1]})
+    expected_spacing = round(((0.47 + 0.41) / 2.0) * SIGMA_SPACING_FACTOR, 3)
+
+    assert z_values == [3.0, round(3.0 + expected_spacing, 3)]
 
 
 def test_graphite_mode_copies_posre_support_files(tmp_path):

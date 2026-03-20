@@ -44,6 +44,10 @@ VALID_SURFACE_MODES = (
     "cnt-martini3",
 )
 
+SIGMA_SPACING_FACTOR = 1.12
+DEFAULT_LAYER_Z0 = 3.0
+_SIGMA_CACHE: dict[str, dict[str, float]] = {}
+
 
 def normalize_surface_mode(mode: str) -> str:
     clean_mode = (mode or "").strip().lower()
@@ -101,6 +105,91 @@ def graphite_ab_shift(layer_index: int, x_shift: float, y_shift: float) -> tuple
     if layer_index % 2 == 0:
         return 0.0, 0.0
     return x_shift, y_shift
+
+
+def _load_self_sigma_map(martini_version: str) -> dict[str, float]:
+    version = str(martini_version).strip()
+    cached = _SIGMA_CACHE.get(version)
+    if cached is not None:
+        return cached
+
+    ff_name = "martini_v2.1-dna.itp" if version == "2" else "martini_v3.0.0.itp"
+    ff_path = Path(__file__).resolve().parent / "system_itp" / ff_name
+    sigma_map: dict[str, float] = {}
+    if ff_path.exists():
+        in_nonbond_params = False
+        for raw in ff_path.read_text().splitlines():
+            stripped = raw.strip()
+            if not stripped or stripped.startswith(";"):
+                continue
+            if stripped.lower() == "[ nonbond_params ]":
+                in_nonbond_params = True
+                continue
+            if in_nonbond_params and stripped.startswith("["):
+                break
+            if not in_nonbond_params:
+                continue
+
+            parts = stripped.split()
+            if len(parts) < 5:
+                continue
+            bead_a, bead_b, funct = parts[:3]
+            if bead_a != bead_b or funct != "1":
+                continue
+            try:
+                sigma_map[bead_a.upper()] = float(parts[3])
+            except ValueError:
+                continue
+
+    _SIGMA_CACHE[version] = sigma_map
+    return sigma_map
+
+
+def _bead_self_sigma(bead: str, martini_version: str) -> float:
+    bead_name = str(bead).strip().upper()
+    sigma = _load_self_sigma_map(martini_version).get(bead_name)
+    if sigma is not None:
+        return sigma
+    if str(martini_version).strip() == "2":
+        if bead_name.startswith("T"):
+            return 0.32
+        if bead_name.startswith("S"):
+            return 0.43
+        return 0.47
+    if bead_name.startswith("T"):
+        return 0.34
+    if bead_name.startswith("S"):
+        return 0.41
+    return 0.47
+
+
+def local_layer_z_positions(
+    layer_beads: list[str],
+    layers: int,
+    dist_z: float | None,
+    martini_version: str,
+) -> list[float]:
+    if layers <= 0:
+        return []
+
+    z_positions = [DEFAULT_LAYER_Z0]
+    if layers == 1:
+        return z_positions
+
+    if dist_z is not None:
+        for _ in range(1, layers):
+            z_positions.append(z_positions[-1] + dist_z)
+        return z_positions
+
+    for layer in range(1, layers):
+        prev_bead = bead_for_layer(layer_beads, layer - 1)
+        bead = bead_for_layer(layer_beads, layer)
+        sigma = (
+            _bead_self_sigma(prev_bead, martini_version)
+            + _bead_self_sigma(bead, martini_version)
+        ) / 2.0
+        z_positions.append(z_positions[-1] + (sigma * SIGMA_SPACING_FACTOR))
+    return z_positions
 
 
 def write_local_surface_itp(
@@ -348,10 +437,21 @@ def main(argv: Iterable[str] | None = None) -> None:
     parser.add_argument("--resname", type=str, default="SRF", help="Residue name")
     parser.add_argument("--output", type=str, default="surface", help="Output basename")
     parser.add_argument("--charge", type=float, default=0.0, help="Charge per bead")
+    parser.add_argument(
+        "--martini-version",
+        choices=["2", "3"],
+        default="3",
+        help="Martini version used to derive local multilayer sigma spacing. Use 2 for DNA and 3 for protein workflows.",
+    )
 
     # Local hexagonal surface parameters
     parser.add_argument("--layers", type=int, default=1, help="Number of layers for local 2-1 / 4-1 surfaces.")
-    parser.add_argument("--dist-z", type=float, default=0.5, help="Interlayer spacing in nm for local multilayer surfaces.")
+    parser.add_argument(
+        "--dist-z",
+        type=float,
+        default=None,
+        help="Optional manual interlayer spacing in nm for local multilayer surfaces. If omitted, spacing is computed as 1.12 x sigma from the layer bead type(s) using the selected Martini version.",
+    )
     parser.add_argument("--graphite-layers", type=int, default=5, help="Number of layers in graphite mode")
     parser.add_argument("--graphite-spacing", type=float, default=0.382, help="Interlayer spacing in graphite mode (nm)")
     parser.add_argument("--cnt-numrings", type=int, help="Number of CNT rings.")
@@ -375,7 +475,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         parser.error("--dx must be positive.")
     if args.layers <= 0:
         parser.error("--layers must be positive.")
-    if args.dist_z <= 0:
+    if args.dist_z is not None and args.dist_z <= 0:
         parser.error("--dist-z must be positive.")
     if args.graphite_layers <= 0:
         parser.error("--graphite-layers must be positive.")
@@ -402,6 +502,12 @@ def main(argv: Iterable[str] | None = None) -> None:
     os.makedirs(outdir_path, exist_ok=True)
 
     layer_beads = normalize_layer_beads(args.bead)
+    layer_z_positions = local_layer_z_positions(
+        layer_beads,
+        args.layers,
+        args.dist_z,
+        args.martini_version,
+    )
     atoms: List[Tuple[float, float, float, str]] = []
     final_lx, final_ly = args.lx, args.ly
 
@@ -426,7 +532,7 @@ def main(argv: Iterable[str] | None = None) -> None:
             # place odd layers over triangular hollow sites instead of directly
             # on top of occupied sites.
             shift_x, shift_y = graphite_ab_shift(layer, 0.5 * a, (math.sqrt(3) / 6) * a)
-            z_pos = 3.0 + (layer * args.dist_z)
+            z_pos = layer_z_positions[layer]
             bead = bead_for_layer(layer_beads, layer)
 
             for i in range(nx):
@@ -452,7 +558,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         for layer in range(args.layers):
             # Graphite-like ABAB (Bernal) stacking.
             shift_x, shift_y = graphite_ab_shift(layer, 0.0, d_cc)
-            z_pos = 3.0 + (layer * args.dist_z)
+            z_pos = layer_z_positions[layer]
             bead = bead_for_layer(layer_beads, layer)
             
             for i in range(nx):

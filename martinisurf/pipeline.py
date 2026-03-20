@@ -841,6 +841,7 @@ def _build_generated_surface_args(args: argparse.Namespace, output_path: Path) -
         "--lx", str(args.lx),
         "--ly", str(args.ly),
         "--dx", str(args.dx),
+        "--martini-version", "2" if args.dna else "3",
         "--bead", *args.surface_bead,
         "--charge", str(args.charge),
         "--output", str(output_path),
@@ -972,12 +973,12 @@ def build_parser():
     surface_group.add_argument(
         "--surface-layers",
         type=int,
-        help="Number of layers for 4-1 surfaces. If omitted, graphite mode uses its own default.",
+        help="Number of layers for local 2-1 / 4-1 surfaces. If omitted, graphite mode uses its own default.",
     )
     surface_group.add_argument(
         "--surface-dist-z",
         type=float,
-        help="Interlayer spacing in nm for 4-1 surfaces.",
+        help="Optional manual interlayer spacing in nm for local 2-1 / 4-1 surfaces. If omitted, spacing is derived from the layer bead sigma.",
     )
     surface_group.add_argument(
         "--graphite-layers",
