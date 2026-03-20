@@ -26,7 +26,7 @@ rvdw                     = 1.1
 tcoupl                   = v-rescale
 tc-grps                  = system
 tau-t                    = 1.0
-ref-t                    = 300
+ref-t                    = 310
 
 
 ; Freeze groups

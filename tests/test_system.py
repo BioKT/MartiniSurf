@@ -777,6 +777,13 @@ def test_dna_npt_template_uses_requested_pressure_parameters():
     assert "compressibility          = 0 4e-5" in npt
 
 
+def test_dna_nvt_template_uses_310_k():
+    mdp_dir = Path(gms.__file__).resolve().parent / "mdp_templates"
+    nvt = (mdp_dir / "nvt_dna.mdp").read_text()
+
+    assert "ref-t                    = 310" in nvt
+
+
 def test_write_custom_mdp_skips_pull_rewrite_when_disabled(tmp_path):
     src = tmp_path / "nvt_dna.mdp"
     dst = tmp_path / "nvt_dna_out.mdp"

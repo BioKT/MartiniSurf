@@ -46,25 +46,25 @@ def test_apply_freeze_water_fraction_updates_gro_and_top(tmp_path):
     assert n_w == 4
     assert n_wf == 1
     assert alias.exists()
-    gro_text = gro.read_text()
-    assert "WF" in gro_text
-    assert "    6WF      WF    6" in gro_text
+    body = gro.read_text().splitlines()[2:-1]
+    water_resnames = [ln[5:10].strip() for ln in body if ln[5:10].strip() in {"W", "WF"}]
+    assert water_resnames == ["W", "W", "W", "W", "WF"]
     top_text = top.read_text()
     assert "W               4" in top_text
     assert "WF              1" in top_text
     assert top_text.index("W               4") < top_text.index("WF              1")
 
 
-def test_apply_freeze_water_fraction_is_deterministic_and_tail_group(tmp_path):
+def test_apply_freeze_water_fraction_spreads_wf_and_keeps_them_after_w(tmp_path):
     gro = tmp_path / "final_system.gro"
     top = tmp_path / "system_final.top"
 
     atoms = [
         (1, "W", "W", 1, 0.100, 0.100, 0.100),
-        (2, "W", "W", 2, 0.200, 0.200, 0.200),
-        (3, "W", "W", 3, 0.300, 0.300, 0.300),
-        (4, "W", "W", 4, 0.400, 0.400, 0.400),
-        (5, "W", "W", 5, 0.500, 0.500, 0.500),
+        (2, "W", "W", 2, 0.900, 0.100, 0.100),
+        (3, "W", "W", 3, 0.100, 0.900, 0.100),
+        (4, "W", "W", 4, 0.900, 0.900, 0.100),
+        (5, "W", "W", 5, 0.500, 0.500, 0.900),
     ]
     atom_lines = [
         f"{resid:5d}{resname:<5}{atomname:>5}{atomid:5d}{x:8.3f}{y:8.3f}{z:8.3f}\n"
@@ -74,14 +74,13 @@ def test_apply_freeze_water_fraction_is_deterministic_and_tail_group(tmp_path):
         "Test\n"
         "    5\n"
         + "".join(atom_lines)
-        + "   2.00000   2.00000   2.00000\n"
+        + "   1.00000   1.00000   1.00000\n"
     )
     top.write_text(
         "[ molecules ]\n"
         "W 5\n"
     )
 
-    # 40% of 5 -> 2 waters frozen; must be residues 4 and 5 (tail), no randomness.
     _, n_w, n_wf = apply_freeze_water_fraction(
         top_path=top,
         gro_path=gro,
@@ -93,11 +92,12 @@ def test_apply_freeze_water_fraction_is_deterministic_and_tail_group(tmp_path):
 
     assert (n_w, n_wf) == (3, 2)
     body = gro.read_text().splitlines()[2:-1]
-    assert "    1W        W    1" in body[0]
-    assert "    2W        W    2" in body[1]
-    assert "    3W        W    3" in body[2]
-    assert "    4WF      WF    4" in body[3]
-    assert "    5WF      WF    5" in body[4]
+    water_resnames = [ln[5:10].strip() for ln in body]
+    frozen_resids = [int(ln[0:5]) for ln in body if ln[5:10].strip() == "WF"]
+
+    assert water_resnames == ["W", "W", "W", "WF", "WF"]
+    assert frozen_resids == [2, 5]
+    assert frozen_resids != [4, 5]
 
 
 def test_apply_freeze_water_fraction_noop_with_zero_fraction(tmp_path):
