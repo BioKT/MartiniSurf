@@ -1,0 +1,6 @@
+[submodule "martinisurf/surfaces_generator/Martini3-Graphene"]
+	path = martinisurf/surfaces_generator/Martini3-Graphene
+	url = https://github.com/MoMS-MMSB/Martini3-Graphene.git
+[submodule "martinisurf/surfaces_generator/cnt-martini"]
+	path = martinisurf/surfaces_generator/cnt-martini
+	url = https://github.com/bio-phys/cnt-martini.git
