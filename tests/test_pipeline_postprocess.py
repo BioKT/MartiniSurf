@@ -194,12 +194,13 @@ def test_write_ions_mdp_supports_polarizable_water(tmp_path):
     pipeline._write_ions_mdp(mdp, polarizable_water=True)
     text = mdp.read_text()
 
-    assert "coulombtype              = reaction-field" in text
-    assert "vdw_type                 = cutoff" in text
-    assert "vdw-modifier             = Potential-shift-verlet" in text
+    assert "coulombtype              = Cut-off" in text
+    assert "coulomb-modifier         = Potential-shift" in text
+    assert "vdwtype                  = Cut-off" in text
+    assert "vdw-modifier             = Force-switch" in text
     assert "constraints              = none" in text
-    assert "epsilon_r                = 2.5" in text
-    assert "epsilon_rf               = 0" in text
+    assert "epsilon-r                = 2.5" in text
+    assert "verlet-buffer-tolerance = -1" in text
 
 
 def test_parser_accepts_dna_freeze_water_options():

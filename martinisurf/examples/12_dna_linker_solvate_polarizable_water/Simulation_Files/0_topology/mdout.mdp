@@ -2,7 +2,7 @@
 ;	File 'mdout.mdp' was generated
 ;	By user: jjimenez (1005)
 ;	On host: Loacoon2
-;	At date: Mon Mar 23 11:00:09 2026
+;	At date: Mon Mar 23 11:30:23 2026
 ;
 ;	Created by:
 ;	             :-) GROMACS - gmx grompp, 2020.1-Ubuntu-2020.1-1 (-:
@@ -86,25 +86,25 @@ pbc                      = xyz
 periodic-molecules       = no
 ; Allowed energy error due to the Verlet buffer in kJ/mol/ps per atom,
 ; a value of -1 means: use rlist
-verlet-buffer-tolerance  = 0.005
+verlet-buffer-tolerance  = -1
 ; nblist cut-off        
 rlist                    = 1.2
 ; long-range cut-off for switched potentials
 
 ; OPTIONS FOR ELECTROSTATICS AND VDW
 ; Method for doing electrostatics
-coulombtype              = reaction-field
-coulomb-modifier         = Potential-shift-Verlet
+coulombtype              = Cut-off
+coulomb-modifier         = Potential-shift
 rcoulomb-switch          = 0
 rcoulomb                 = 1.2
 ; Relative dielectric constant for the medium and the reaction field
-epsilon_r                = 2.5
-epsilon_rf               = 0
+epsilon-r                = 2.5
+epsilon-rf               = 0
 ; Method for doing Van der Waals
-vdw_type                 = cutoff
-vdw-modifier             = Potential-shift-verlet
+vdwtype                  = Cut-off
+vdw-modifier             = Force-switch
 ; cut-off lengths       
-rvdw_switch              = 0.9
+rvdw-switch              = 0.9
 rvdw                     = 1.2
 ; Apply long range dispersion corrections for Energy and Pressure
 DispCorr                 = No

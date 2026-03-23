@@ -55,18 +55,18 @@ def _select_dna_forcefield_name(itp_dir: Path, polarizable_water: bool = False) 
 def _polarizable_water_electrostatics_block() -> list[str]:
     return [
         "; OPTIONS FOR ELECTROSTATICS AND VDW =",
-        "; Modern GROMACS/Verlet-compatible approximation of the legacy Martini 2 PW setup =",
-        "; Method for doing electrostatics =",
-        "coulombtype              = reaction-field",
+        "; Martini 2 DNA polarizable-water setup modernized for GROMACS 2024 =",
+        "; Legacy Coulomb Shift is approximated with Cut-off + Potential-shift =",
+        "coulombtype              = Cut-off",
+        "coulomb-modifier         = Potential-shift",
         "rcoulomb                 = 1.2",
-        "; Dielectric constant (DC) for cut-off or DC of reaction field =",
-        "epsilon_r                = 2.5",
-        "epsilon_rf               = 0",
-        "; Method for doing Van der Waals =",
-        "vdw_type                 = cutoff",
-        "vdw-modifier             = Potential-shift-verlet",
+        "; Dielectric constant =",
+        "epsilon-r                = 2.5",
+        "; Legacy VdW Shift is approximated with Cut-off + Force-switch =",
+        "vdwtype                  = Cut-off",
+        "vdw-modifier             = Force-switch",
         "; cut-off lengths        =",
-        "rvdw_switch              = 0.9",
+        "rvdw-switch              = 0.9",
         "rvdw                     = 1.2",
         "; Apply long range dispersion corrections for Energy and Pressure =",
         "DispCorr                 = No",
@@ -94,12 +94,17 @@ def _rewrite_mdp_for_polarizable_water(mdp_path: Path) -> None:
 
     electrostatic_keys = {
         "coulombtype",
+        "coulomb-modifier",
+        "rcoulomb_switch",
         "rcoulomb",
         "epsilon_r",
+        "epsilon-r",
         "epsilon_rf",
         "vdw_type",
+        "vdwtype",
         "vdw-modifier",
         "rvdw_switch",
+        "rvdw-switch",
         "rvdw",
         "dispcorr",
     }
@@ -126,6 +131,12 @@ def _rewrite_mdp_for_polarizable_water(mdp_path: Path) -> None:
             ):
                 insert_after = len(kept)
         kept.append(raw)
+
+    if not any(line.strip().lower().startswith("verlet-buffer-tolerance") for line in kept):
+        if insert_after >= 0:
+            kept.insert(insert_after + 1, "verlet-buffer-tolerance  = -1")
+        else:
+            kept.insert(0, "verlet-buffer-tolerance  = -1")
 
     electro_block = _polarizable_water_electrostatics_block()
     if insert_after < 0:
