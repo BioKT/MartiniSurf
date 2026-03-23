@@ -412,4 +412,5 @@ def test_cnt_m3_mode_uses_martini3_preset(tmp_path):
     assert gro.exists()
     assert itp.exists()
     assert "SC5" in itp.read_text()
+    assert "SNda" not in itp.read_text()
     assert "0.410" in itp.read_text()

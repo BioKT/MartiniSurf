@@ -264,7 +264,7 @@ def run_cnt_generator(
             "bondforce": 5000.0,
             "angleforce": 350.0,
             "beadtype": "SC5",
-            "functype": "SNda",
+            "functype": "SC5",
             "func_begin": 1,
             "func_end": 1,
         },

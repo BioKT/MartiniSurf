@@ -799,11 +799,15 @@ def test_protein_deposition_and_production_templates_only_differ_in_nsteps():
     assert normalized_deposition == normalized_production
 
 
-def test_dna_deposition_and_production_templates_only_differ_in_nsteps():
+def test_dna_deposition_and_production_templates_keep_expected_protocol_values():
     mdp_dir = Path(gms.__file__).resolve().parent / "mdp_templates"
     deposition = (mdp_dir / "deposition_dna.mdp").read_text()
     production = (mdp_dir / "production_dna.mdp").read_text()
 
+    assert "dt                       = 0.01" in deposition
+    assert "nsteps                   = 2000000" in deposition
+    assert "dt                       = 0.005" in production
+    assert "nsteps                   = 200000000" in production
     assert "tau-p                    = 12.0" in deposition
     assert "tau-p                    = 12.0" in production
     assert "compressibility          = 0 4e-5" in deposition
@@ -811,15 +815,13 @@ def test_dna_deposition_and_production_templates_only_differ_in_nsteps():
     assert "define                   = -DPOSRES" not in deposition
     assert "define                   = -DPOSRES" in production
 
-    normalized_deposition = _normalize_mdp_nsteps(deposition)
-    normalized_production = _normalize_mdp_nsteps(production).replace("define                   = -DPOSRES\n\n", "", 1)
-    assert normalized_deposition == normalized_production
-
 
 def test_dna_npt_template_uses_requested_pressure_parameters():
     mdp_dir = Path(gms.__file__).resolve().parent / "mdp_templates"
     npt = (mdp_dir / "npt_dna.mdp").read_text()
 
+    assert "dt                       = 0.005" in npt
+    assert "nsteps                   = 10000000" in npt
     assert "tau-p                    = 12 ; 12" in npt
     assert "compressibility          = 0 4e-5" in npt
 

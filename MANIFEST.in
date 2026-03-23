@@ -1,0 +1,17 @@
+include README.md
+recursive-include martinisurf/system_templates *
+recursive-include martinisurf/system_itp *
+recursive-include martinisurf/martini-dna_itp *
+recursive-include martinisurf/mdp_templates *
+recursive-include martinisurf/data *
+recursive-include martinisurf/dssp *
+recursive-include martinisurf/surfaces_generator *
+recursive-include martinisurf/utils/dna_backmapping_files *
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude .DS_Store
+global-exclude *.swp
+prune martinisurf/surfaces_generator/cnt-martini/.git
+prune martinisurf/surfaces_generator/Martini3-Graphene/.git
+prune martinisurf/surfaces_generator/Martini3-Graphene/.github
+prune martinisurf/surfaces_generator/Martini3-Graphene/__pycache__

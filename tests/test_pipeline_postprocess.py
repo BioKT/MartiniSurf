@@ -324,6 +324,36 @@ def test_remove_waters_near_surface_updates_top(tmp_path):
     assert "W               1" in t
 
 
+def test_convert_standard_waters_to_polarizable_updates_gro_and_top(tmp_path):
+    gro = tmp_path / "solvated_system.gro"
+    top = tmp_path / "system_final.top"
+    gro.write_text(
+        "Test\n"
+        "    3\n"
+        "    1PRO    B1    1   0.100   0.100   1.000\n"
+        "    2W       W    2   0.200   0.200   0.350\n"
+        "    3W       W    3   0.800   0.800   1.000\n"
+        "   2.00000   2.00000   2.00000\n"
+    )
+    top.write_text(
+        "[ molecules ]\n"
+        "Protein 1\n"
+        "W 2\n"
+    )
+
+    converted = pipeline._convert_standard_waters_to_polarizable(gro, top, {"W"})
+
+    assert converted == 2
+    text = gro.read_text()
+    assert "    7\n" in text
+    assert "PW       W" in text
+    assert "PW      WP" in text
+    assert "PW      WM" in text
+    top_text = top.read_text()
+    assert "PW 2" in top_text
+    assert "\nW 2\n" not in top_text
+
+
 def test_rebuild_merged_index_appends_custom_groups(monkeypatch, tmp_path):
     top_dir = tmp_path / "0_topology"
     top_dir.mkdir(parents=True)
