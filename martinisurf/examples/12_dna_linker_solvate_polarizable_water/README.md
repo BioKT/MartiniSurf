@@ -1,6 +1,6 @@
 # DNA Linker + Solvate + Polarizable Water Example
 
-Builds a DNA-on-surface system in linker mode, runs GROMACS solvation, and uses Martini 2 polarizable water (`PW`) instead of standard `W` water.
+Builds a DNA-on-surface system in linker mode, runs GROMACS solvation + ionization, and uses Martini 2 polarizable water (`PW`) instead of standard `W` water.
 
 Run:
 ```bash
@@ -12,6 +12,8 @@ What this example configures in `martinisurf`:
 - Linker from inputs: `--linker inputs/ALK.gro --linker-group A 1` (uses `inputs/ALK.itp`)
 - Polarizable water mode: `--polarizable-water`
 - Solvation: `--solvate`
+- Ionization: `--ionize --salt-conc 0.15`
+- Reduced solvent exclusion near the surface: `--solvate-surface-clearance 0.2`
 
 Polarizable-water specifics:
 - Solvent template: `polarize-water.gro`
@@ -32,9 +34,8 @@ Generated outputs are updated automatically:
 - `Simulation_Files/0_topology/system_final_res.top`
 
 Compatibility note:
-- The generated polarizable-water `.mdp` files follow the legacy Martini 2 polarizable-water setup requested for this repository.
-- With the GROMACS 2020 package available in this environment, `grompp` rejects that legacy `coulombtype = shift` setup for ionization and MD stages under the modern cutoff scheme.
-- For that reason, this bundled example is provided as a build + solvation example. If you want to run ionization/MD, use a GROMACS/MDP combination that supports this polarizable-water setup or adapt the electrostatics settings accordingly.
+- The generated polarizable-water `.mdp` files use a modern GROMACS/Verlet-compatible approximation of the legacy Martini 2 PW setup.
+- The example now includes ionization and produces `PW`, `NA`, and `CL` in the final topology/system.
 
 Notes:
 - This example is intended for Martini 2 DNA with polarizable water only.

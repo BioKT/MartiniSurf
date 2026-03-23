@@ -196,7 +196,7 @@ def test_write_ions_mdp_supports_polarizable_water(tmp_path):
 
     assert "coulombtype              = reaction-field" in text
     assert "vdw_type                 = cutoff" in text
-    assert "vdw-modifier             = Force-switch" in text
+    assert "vdw-modifier             = Potential-shift-verlet" in text
     assert "constraints              = none" in text
     assert "epsilon_r                = 2.5" in text
     assert "epsilon_rf               = 0" in text

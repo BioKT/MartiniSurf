@@ -64,7 +64,7 @@ def _polarizable_water_electrostatics_block() -> list[str]:
         "epsilon_rf               = 0",
         "; Method for doing Van der Waals =",
         "vdw_type                 = cutoff",
-        "vdw-modifier             = Force-switch",
+        "vdw-modifier             = Potential-shift-verlet",
         "; cut-off lengths        =",
         "rvdw_switch              = 0.9",
         "rvdw                     = 1.2",

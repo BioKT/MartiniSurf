@@ -142,7 +142,7 @@ def test_polarizable_water_mode_uses_pw_templates_for_dna(tmp_path, monkeypatch)
     production = (sim / "1_mdp" / "production_dna.mdp").read_text()
     assert "coulombtype              = reaction-field" in production
     assert "vdw_type                 = cutoff" in production
-    assert "vdw-modifier             = Force-switch" in production
+    assert "vdw-modifier             = Potential-shift-verlet" in production
     assert "constraints              = none" in production
     assert "epsilon_rf               = 0" in production
 
