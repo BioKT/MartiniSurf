@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="prev" title="CLI Reference" href="cli.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="prev" title="CLI Overview" href="cli.html">
         <link rel="prefetch" href="_static/logo.png" as="image">
 
     <!-- Generated with Sphinx 7.4.7 and Furo 2025.12.19 -->
@@ -199,7 +199,7 @@
 <li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples.html">Recommended Examples</a></li>
-<li class="toctree-l1"><a class="reference internal" href="cli.html">CLI Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">CLI Overview</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">MartiniSurf Quick Guide for New Users</a></li>
 </ul>
 
@@ -302,24 +302,30 @@ use <code class="docutils literal notranslate"><span class="pre">--dna</span></c
 <li><p>Already CG protein+cofactor complex:
 use <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>.</p></li>
 </ul>
-<p>Recommended complete examples (solvated/ionized and ready for MD workflow):</p>
+<p>Recommended examples: <code class="docutils literal notranslate"><span class="pre">protein/04</span></code>, <code class="docutils literal notranslate"><span class="pre">dna/03</span></code>, and <code class="docutils literal notranslate"><span class="pre">protein/05</span></code> are the most complete solvated/ionized workflows; <code class="docutils literal notranslate"><span class="pre">dna/04</span></code> is the polarizable-water build + solvation reference:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/06_protein_anchor_solvate_ionize</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/07_dna_linker_solvate_ionize_freeze</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/08_protein_nad</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/protein/04_anchor_solvate_ionize</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/dna/03_linker_solvate_ionize_freeze</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/protein/05_pre_cg_nad_substrate</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">martinisurf/examples/dna/04_linker_solvate_polarizable_water</span></code></p></li>
 </ul>
-<p>Run pattern:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>martinisurf/examples/06_protein_anchor_solvate_ionize
+<p>Typical run pattern for the full workflow examples (<code class="docutils literal notranslate"><span class="pre">protein/04</span></code>, <code class="docutils literal notranslate"><span class="pre">dna/03</span></code>, <code class="docutils literal notranslate"><span class="pre">protein/05</span></code>):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>martinisurf/examples/protein/04_anchor_solvate_ionize
 bash<span class="w"> </span>run.sh
 bash<span class="w"> </span>work_flow_gromacs.sh
+</pre></div>
+</div>
+<p>Run pattern for the polarizable-water reference (<code class="docutils literal notranslate"><span class="pre">dna/04</span></code>):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>martinisurf/examples/dna/04_linker_solvate_polarizable_water
+bash<span class="w"> </span>run.sh
 </pre></div>
 </div>
 </section>
 <section id="copy-and-run-commands">
 <h2>4) Copy-and-run commands<a class="headerlink" href="#copy-and-run-commands" title="Link to this heading">¶</a></h2>
-<p>If you want the most complete and production-oriented setups, use examples <code class="docutils literal notranslate"><span class="pre">06</span></code>, <code class="docutils literal notranslate"><span class="pre">07</span></code>, and <code class="docutils literal notranslate"><span class="pre">08</span></code> above.</p>
-<section id="a-example-06-protein-not-explicit-linker-anchor-solvate-ionize">
-<h3>A) Example 06: Protein + Not explicit Linker (<code class="docutils literal notranslate"><span class="pre">--anchor</span></code>) + solvate + ionize<a class="headerlink" href="#a-example-06-protein-not-explicit-linker-anchor-solvate-ionize" title="Link to this heading">¶</a></h3>
+<p>If you want the most complete and production-oriented setups, use examples <code class="docutils literal notranslate"><span class="pre">protein/04</span></code>, <code class="docutils literal notranslate"><span class="pre">dna/03</span></code>, and <code class="docutils literal notranslate"><span class="pre">protein/05</span></code> above. Use <code class="docutils literal notranslate"><span class="pre">dna/04</span></code> when you specifically want the polarizable-water DNA setup.</p>
+<section id="a-example-protein-04-protein-not-explicit-linker-anchor-solvate-ionize">
+<h3>A) Example protein/04: Protein + Not explicit Linker (<code class="docutils literal notranslate"><span class="pre">--anchor</span></code>) + solvate + ionize<a class="headerlink" href="#a-example-protein-04-protein-not-explicit-linker-anchor-solvate-ionize" title="Link to this heading">¶</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>martinisurf<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--pdb<span class="w"> </span>inputs/1RJW.pdb<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--dssp<span class="w"> </span><span class="se">\</span>
@@ -339,8 +345,8 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 </pre></div>
 </div>
 </section>
-<section id="b-example-07-dna-linker-solvate-ionize-frozen-water">
-<h3>B) Example 07: DNA + linker + solvate + ionize + frozen water<a class="headerlink" href="#b-example-07-dna-linker-solvate-ionize-frozen-water" title="Link to this heading">¶</a></h3>
+<section id="b-example-dna-03-dna-linker-solvate-ionize-frozen-water">
+<h3>B) Example dna/03: DNA + linker + solvate + ionize + frozen water<a class="headerlink" href="#b-example-dna-03-dna-linker-solvate-ionize-frozen-water" title="Link to this heading">¶</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>martinisurf<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--dna<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--dnatype<span class="w"> </span>ds-stiff<span class="w"> </span><span class="se">\</span>
@@ -361,8 +367,8 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 </pre></div>
 </div>
 </section>
-<section id="c-example-08-pre-cg-protein-cofactor-substrate-solvate-ionize">
-<h3>C) Example 08: pre-CG protein+cofactor + substrate + solvate + ionize<a class="headerlink" href="#c-example-08-pre-cg-protein-cofactor-substrate-solvate-ionize" title="Link to this heading">¶</a></h3>
+<section id="c-example-protein-05-pre-cg-protein-cofactor-substrate-solvate-ionize">
+<h3>C) Example protein/05: pre-CG protein+cofactor + substrate + solvate + ionize<a class="headerlink" href="#c-example-protein-05-pre-cg-protein-cofactor-substrate-solvate-ionize" title="Link to this heading">¶</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>martinisurf<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--complex-config<span class="w"> </span>input/complex_config.yaml<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--surface-mode<span class="w"> </span><span class="m">4</span>-1<span class="w"> </span><span class="se">\</span>
@@ -409,7 +415,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <td><p><code class="docutils literal notranslate"><span class="pre">surface.gro</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--surface-mode</span></code></p></td>
-<td><p>Builds 2-1 or 4-1 surface</p></td>
+<td><p>Builds <code class="docutils literal notranslate"><span class="pre">2-1</span></code>, <code class="docutils literal notranslate"><span class="pre">4-1</span></code>, <code class="docutils literal notranslate"><span class="pre">graphene</span></code>, <code class="docutils literal notranslate"><span class="pre">graphene-finite</span></code>, or <code class="docutils literal notranslate"><span class="pre">graphite</span></code> surfaces</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">4-1</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--lx</span> <span class="pre">--ly</span> <span class="pre">--dx</span></code></p></td>
@@ -491,12 +497,26 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <h3>Surface<a class="headerlink" href="#surface" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">--surface</span></code> (default: none): existing surface <code class="docutils literal notranslate"><span class="pre">.gro</span></code> file.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--surface-mode</span> <span class="pre">{2-1,4-1}</span></code> (default: <code class="docutils literal notranslate"><span class="pre">2-1</span></code>): grid mode for generated surfaces.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--surface-mode</span> <span class="pre">{2-1,4-1,graphene,graphene-periodic,graphene-finite,graphite}</span></code> (default: <code class="docutils literal notranslate"><span class="pre">2-1</span></code>): mode for generated surfaces.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--surface-geometry</span> <span class="pre">{planar,3d}</span></code> (default: <code class="docutils literal notranslate"><span class="pre">planar</span></code>): orientation handling for the surface. Use <code class="docutils literal notranslate"><span class="pre">3d</span></code> for nanotubes and other non-planar surfaces.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--lx</span></code> (default: none): generated surface X size (nm).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--ly</span></code> (default: none): generated surface Y size (nm).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--dx</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.47</span></code>): bead spacing (2-1) or C-C parameter (4-1).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--surface-layers</span></code> (default: none): number of layers for <code class="docutils literal notranslate"><span class="pre">4-1</span></code> mode.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--surface-dist-z</span></code> (default: none): interlayer spacing in nm for <code class="docutils literal notranslate"><span class="pre">4-1</span></code> mode.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--graphite-layers</span></code> (default: none): number of stacked graphene layers for <code class="docutils literal notranslate"><span class="pre">graphite</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--graphite-spacing</span></code> (default: none): interlayer spacing in nm for <code class="docutils literal notranslate"><span class="pre">graphite</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--surface-bead</span></code> (default: <code class="docutils literal notranslate"><span class="pre">C1</span></code>): bead type for generated surface.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--charge</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0</span></code>): bead charge for generated surface topology.</p></li>
+</ul>
+<p>Notes:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">graphene</span></code> and <code class="docutils literal notranslate"><span class="pre">graphene-periodic</span></code> use the vendored Martini 3 periodic graphene generator.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">graphene-finite</span></code> builds a finite graphene sheet.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">graphite</span></code> builds a stacked graphitic slab and carries over the generated <code class="docutils literal notranslate"><span class="pre">posre_GRA.itp</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">graphene</span></code> and <code class="docutils literal notranslate"><span class="pre">graphite</span></code> are intended for Martini 3 / protein workflows.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">planar</span></code> keeps the current surface orientation workflow unchanged.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">3d</span></code> first lays the surface onto the <code class="docutils literal notranslate"><span class="pre">XY</span></code> plane using its principal axes and then places the biomolecule above the top external side.</p></li>
 </ul>
 <p>Unit note:</p>
 <ul class="simple">
@@ -606,7 +626,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <section id="python-m-martinisurf-surface-builder">
 <h3>7.1 <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">martinisurf.surface_builder</span></code><a class="headerlink" href="#python-m-martinisurf-surface-builder" title="Link to this heading">¶</a></h3>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">--mode</span> <span class="pre">{2-1,4-1}</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--mode</span> <span class="pre">{2-1,4-1,graphene,graphene-periodic,graphene-finite,graphite,cnt-m2,cnt-m3}</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--bead</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--dx</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--lx</span></code></p></li>
@@ -617,6 +637,23 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p><code class="docutils literal notranslate"><span class="pre">--charge</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--layers</span></code> (4-1)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--dist-z</span></code> (4-1)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--graphite-layers</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--graphite-spacing</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--cnt-numrings</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--cnt-ringsize</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--cnt-bondlength</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--cnt-bondforce</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--cnt-angleforce</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--cnt-beadtype</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--cnt-functype</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--cnt-func-begin</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--cnt-func-end</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--cnt-base36</span></code></p></li>
+</ul>
+<p>Notes:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">cnt-m2</span></code> wraps the vendored <code class="docutils literal notranslate"><span class="pre">cnt-martini</span></code> default Martini 2 preset.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cnt-m3</span></code> uses the same CNT generator with Martini 3-style defaults: <code class="docutils literal notranslate"><span class="pre">0.41</span> <span class="pre">nm</span></code> bond length, <code class="docutils literal notranslate"><span class="pre">9</span></code> beads per ring, and <code class="docutils literal notranslate"><span class="pre">SC5</span></code> carbon beads.</p></li>
 </ul>
 </section>
 <section id="python-m-martinisurf-system-tethered">
@@ -775,7 +812,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <ul class="simple">
 <li><p>Depends on external tools (<code class="docutils literal notranslate"><span class="pre">martinize2</span></code>, Python2, <code class="docutils literal notranslate"><span class="pre">gmx</span></code>).</p></li>
 <li><p>DNA path still depends on <code class="docutils literal notranslate"><span class="pre">martinize-dna.py</span></code> (Python2 ecosystem).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--freeze-water-seed</span></code> exists as a parameter, but current freeze-water selection is deterministic in the implementation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--freeze-water-seed</span></code> is active in the current implementation and controls the stochastic water-to-<code class="docutils literal notranslate"><span class="pre">WF</span></code> selection when <code class="docutils literal notranslate"><span class="pre">--freeze-water-fraction</span></code> is used.</p></li>
 </ul>
 </section>
 <section id="colab-behavior-notes">
@@ -800,7 +837,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">CLI Reference</div>
+                <div class="title">CLI Overview</div>
                 
               </div>
             </a>
@@ -839,9 +876,9 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><a class="reference internal" href="#minimum-installation">2) Minimum installation</a></li>
 <li><a class="reference internal" href="#pick-your-workflow">3) Pick your workflow</a></li>
 <li><a class="reference internal" href="#copy-and-run-commands">4) Copy-and-run commands</a><ul>
-<li><a class="reference internal" href="#a-example-06-protein-not-explicit-linker-anchor-solvate-ionize">A) Example 06: Protein + Not explicit Linker (<code class="docutils literal notranslate"><span class="pre">--anchor</span></code>) + solvate + ionize</a></li>
-<li><a class="reference internal" href="#b-example-07-dna-linker-solvate-ionize-frozen-water">B) Example 07: DNA + linker + solvate + ionize + frozen water</a></li>
-<li><a class="reference internal" href="#c-example-08-pre-cg-protein-cofactor-substrate-solvate-ionize">C) Example 08: pre-CG protein+cofactor + substrate + solvate + ionize</a></li>
+<li><a class="reference internal" href="#a-example-protein-04-protein-not-explicit-linker-anchor-solvate-ionize">A) Example protein/04: Protein + Not explicit Linker (<code class="docutils literal notranslate"><span class="pre">--anchor</span></code>) + solvate + ionize</a></li>
+<li><a class="reference internal" href="#b-example-dna-03-dna-linker-solvate-ionize-frozen-water">B) Example dna/03: DNA + linker + solvate + ionize + frozen water</a></li>
+<li><a class="reference internal" href="#c-example-protein-05-pre-cg-protein-cofactor-substrate-solvate-ionize">C) Example protein/05: pre-CG protein+cofactor + substrate + solvate + ionize</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#flags-you-will-use-most-often">5) Flags you will use most often</a></li>

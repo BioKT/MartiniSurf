@@ -56,30 +56,30 @@ use `--dna` + Not explicit Linker (`--anchor`) or explicit linker (`--linker`).
 - Already CG protein+cofactor complex:
 use `--complex-config`.
 
-Recommended examples: `06`, `07`, and `08` are the most complete solvated/ionized workflows; `12` is the polarizable-water build + solvation reference:
-- `martinisurf/examples/06_protein_anchor_solvate_ionize`
-- `martinisurf/examples/07_dna_linker_solvate_ionize_freeze`
-- `martinisurf/examples/08_protein_nad`
-- `martinisurf/examples/12_dna_linker_solvate_polarizable_water`
+Recommended examples: `protein/04`, `dna/03`, and `protein/05` are the most complete solvated/ionized workflows; `dna/04` is the polarizable-water build + solvation reference:
+- `martinisurf/examples/protein/04_anchor_solvate_ionize`
+- `martinisurf/examples/dna/03_linker_solvate_ionize_freeze`
+- `martinisurf/examples/protein/05_pre_cg_nad_substrate`
+- `martinisurf/examples/dna/04_linker_solvate_polarizable_water`
 
-Typical run pattern for the full workflow examples (`06`, `07`, `08`):
+Typical run pattern for the full workflow examples (`protein/04`, `dna/03`, `protein/05`):
 ```bash
-cd martinisurf/examples/06_protein_anchor_solvate_ionize
+cd martinisurf/examples/protein/04_anchor_solvate_ionize
 bash run.sh
 bash work_flow_gromacs.sh
 ```
 
-Run pattern for the polarizable-water reference (`12`):
+Run pattern for the polarizable-water reference (`dna/04`):
 ```bash
-cd martinisurf/examples/12_dna_linker_solvate_polarizable_water
+cd martinisurf/examples/dna/04_linker_solvate_polarizable_water
 bash run.sh
 ```
 
 ## 4) Copy-and-run commands
 
-If you want the most complete and production-oriented setups, use examples `06`, `07`, and `08` above. Use `12` when you specifically want the polarizable-water DNA setup.
+If you want the most complete and production-oriented setups, use examples `protein/04`, `dna/03`, and `protein/05` above. Use `dna/04` when you specifically want the polarizable-water DNA setup.
 
-### A) Example 06: Protein + Not explicit Linker (`--anchor`) + solvate + ionize
+### A) Example protein/04: Protein + Not explicit Linker (`--anchor`) + solvate + ionize
 
 ```bash
 martinisurf \
@@ -100,7 +100,7 @@ martinisurf \
   --merge A,B,C,D
 ```
 
-### B) Example 07: DNA + linker + solvate + ionize + frozen water
+### B) Example dna/03: DNA + linker + solvate + ionize + frozen water
 
 ```bash
 martinisurf \
@@ -122,7 +122,7 @@ martinisurf \
   --merge A,B
 ```
 
-### C) Example 08: pre-CG protein+cofactor + substrate + solvate + ionize
+### C) Example protein/05: pre-CG protein+cofactor + substrate + solvate + ionize
 
 ```bash
 martinisurf \
@@ -437,7 +437,7 @@ What is strong:
 What to keep in mind:
 - Depends on external tools (`martinize2`, Python2, `gmx`).
 - DNA path still depends on `martinize-dna.py` (Python2 ecosystem).
-- `--freeze-water-seed` exists as a parameter, but current freeze-water selection is deterministic in the implementation.
+- `--freeze-water-seed` is active in the current implementation and controls the stochastic water-to-`WF` selection when `--freeze-water-fraction` is used.
 
 ## 12) Colab behavior notes
 

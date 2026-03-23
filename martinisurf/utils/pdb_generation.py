@@ -134,11 +134,13 @@ def resolve_pdb_input(pdb_input: str, workdir: Path) -> Path:
     if candidate.exists():
         return candidate.resolve()
 
+    system_dir = workdir / "2_system"
+
     if len(pdb_input) == 4 and pdb_input.isalnum():
-        return fetch_pdb(pdb_input, outdir=workdir)
+        return fetch_pdb(pdb_input, outdir=system_dir)
 
     if len(pdb_input) == 6 and pdb_input.isalnum():
-        return fetch_alphafold_pdb(pdb_input, outdir=workdir)
+        return fetch_alphafold_pdb(pdb_input, outdir=system_dir)
 
     raise ValueError(
         f"Invalid --pdb '{pdb_input}'. Must be:\n"

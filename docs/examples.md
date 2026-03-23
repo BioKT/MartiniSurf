@@ -4,20 +4,20 @@ The recommended complete workflows are:
 
 ## Protein + Not explicit Linker + solvate + ionize
 
-Path: `martinisurf/examples/06_protein_anchor_solvate_ionize`
+Path: `martinisurf/examples/protein/04_anchor_solvate_ionize`
 
 ```bash
-cd martinisurf/examples/06_protein_anchor_solvate_ionize
+cd martinisurf/examples/protein/04_anchor_solvate_ionize
 bash run.sh
 bash work_flow_gromacs.sh
 ```
 
 ## DNA + linker + solvate + ionize + frozen water
 
-Path: `martinisurf/examples/07_dna_linker_solvate_ionize_freeze`
+Path: `martinisurf/examples/dna/03_linker_solvate_ionize_freeze`
 
 ```bash
-cd martinisurf/examples/07_dna_linker_solvate_ionize_freeze
+cd martinisurf/examples/dna/03_linker_solvate_ionize_freeze
 bash run.sh
 bash work_flow_gromacs.sh
 ```
@@ -28,10 +28,10 @@ Behavior notes:
 
 ## DNA + linker + solvate + polarizable water
 
-Path: `martinisurf/examples/12_dna_linker_solvate_polarizable_water`
+Path: `martinisurf/examples/dna/04_linker_solvate_polarizable_water`
 
 ```bash
-cd martinisurf/examples/12_dna_linker_solvate_polarizable_water
+cd martinisurf/examples/dna/04_linker_solvate_polarizable_water
 bash run.sh
 ```
 
@@ -41,10 +41,10 @@ Behavior notes:
 
 ## Pre-CG protein+cofactor + substrate + solvate + ionize
 
-Path: `martinisurf/examples/08_protein_nad`
+Path: `martinisurf/examples/protein/05_pre_cg_nad_substrate`
 
 ```bash
-cd martinisurf/examples/08_protein_nad
+cd martinisurf/examples/protein/05_pre_cg_nad_substrate
 bash run.sh
 bash work_flow_gromacs.sh
 ```
@@ -53,13 +53,22 @@ Behavior notes:
 - In `pre_cg_complex`, low-Z balancing is enabled by default.
 - Default low-Z fraction is `0.2` unless `protein.balance_low_z_fraction` is provided in `complex_config.yaml`.
 
-## Basic build-only examples
+## Protein build-only examples
 
-- `martinisurf/examples/01_protein_anchor`
-- `martinisurf/examples/02_protein_ads`
-- `martinisurf/examples/03_protein_linker`
-- `martinisurf/examples/04_dna_anchor`
-- `martinisurf/examples/05_dna_linker`
+- `martinisurf/examples/protein/01_anchor`
+- `martinisurf/examples/protein/02_adsorption`
+- `martinisurf/examples/protein/03_linker_surface_decoration`
+
+## DNA build-only examples
+
+- `martinisurf/examples/dna/01_anchor`
+- `martinisurf/examples/dna/02_linker`
+
+## Surface-focused examples
+
+- `martinisurf/examples/surfaces/01_protein_cnt_3d`
+- `martinisurf/examples/surfaces/02_protein_graphene_resizable`
+- `martinisurf/examples/surfaces/03_protein_bilayer_hexagonal`
 
 ## Adsorption mode note
 

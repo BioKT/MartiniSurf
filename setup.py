@@ -1,8 +1,40 @@
-from setuptools import setup, find_packages
+from pathlib import Path
+
+from setuptools import find_packages, setup
+
+
+ROOT = Path(__file__).resolve().parent
+README = (ROOT / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="martinisurf",
     version="1.0.0",
+    description="Toolkit for automated Martini protein and DNA surface-system setup.",
+    long_description=README,
+    long_description_content_type="text/markdown",
+    url="https://github.com/jjimenezgar/MartiniSurf",
+    project_urls={
+        "Documentation": "https://github.com/jjimenezgar/MartiniSurf/tree/master/docs",
+        "Source": "https://github.com/jjimenezgar/MartiniSurf",
+        "Issues": "https://github.com/jjimenezgar/MartiniSurf/issues",
+    },
+    python_requires=">=3.9",
+    keywords=[
+        "martini",
+        "gromacs",
+        "coarse-grained",
+        "molecular-dynamics",
+        "biomolecular-surfaces",
+    ],
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Intended Audience :: Science/Research",
+        "Topic :: Scientific/Engineering :: Bio-Informatics",
+        "Topic :: Scientific/Engineering :: Chemistry",
+    ],
     packages=find_packages(),
     include_package_data=True,
     package_data={
@@ -28,12 +60,13 @@ setup(
         "pyvista",
         "MDAnalysis",
         "scipy",
-        "vermouth" ,
+        "vermouth",
         "mdtraj",
     ],
     entry_points={
         "console_scripts": [
             "martinisurf = martinisurf.__main__:main",
         ]
-    }
+    },
+    zip_safe=False,
 )

@@ -1,6 +1,6 @@
 # Examples
 
-Curated set of 12 examples. Recommended production-oriented workflows are `06`, `07`, and `08`, plus `12` as the polarizable-water build+solvate reference.
+Curated set of 12 examples, now grouped by topic under `protein/`, `dna/`, and `surfaces/`. Recommended production-oriented workflows are `protein/04`, `dna/03`, and `protein/05`, plus `dna/04` as the polarizable-water build+solvate reference.
 
 For examples driven from `--pdb`, the recommended syntax is now chain-based:
 - `--anchor A 8 10 11`
@@ -28,19 +28,19 @@ Constraints:
 
 ## Recommended Examples
 1. Protein anchor + solvate + ionize  
-Path: `martinisurf/examples/06_protein_anchor_solvate_ionize`
+Path: `martinisurf/examples/protein/04_anchor_solvate_ionize`
 Run: `bash run.sh` then `bash work_flow_gromacs.sh`
 
 2. DNA linker + solvate + ionize + frozen water  
-Path: `martinisurf/examples/07_dna_linker_solvate_ionize_freeze`
+Path: `martinisurf/examples/dna/03_linker_solvate_ionize_freeze`
 Run: `bash run.sh` then `bash work_flow_gromacs.sh`
 
 3. Pre-CG protein+cofactor + substrate + solvate + ionize  
-Path: `martinisurf/examples/08_protein_nad`
+Path: `martinisurf/examples/protein/05_pre_cg_nad_substrate`
 Run: `bash run.sh` then `bash work_flow_gromacs.sh`
 
 4. DNA linker + solvate + polarizable water  
-Path: `martinisurf/examples/12_dna_linker_solvate_polarizable_water`
+Path: `martinisurf/examples/dna/04_linker_solvate_polarizable_water`
 Run: `bash run.sh`
 Note: this example is bundled as build + solvation because legacy Martini 2 polarizable-water MDPs may require a compatible GROMACS/MDP stack for ionization and MD.
 
@@ -48,30 +48,44 @@ Workflow scripts note:
 - `minimization/nvt/npt/deposition` run with non-restrained topology (`system_final.top` when available).
 - `production` runs with restrained topology (`system_final_res.top`) when available.
 
-## Basic Build Examples
+## Protein Examples
 1. Protein anchor mode  
-Path: `martinisurf/examples/01_protein_anchor`
+Path: `martinisurf/examples/protein/01_anchor`
 
 2. Protein adsorption mode (`--ads-mode`)  
-Path: `martinisurf/examples/02_protein_ads`
+Path: `martinisurf/examples/protein/02_adsorption`
 
 3. Protein linker mode + surface decoration  
-Path: `martinisurf/examples/03_protein_linker`
+Path: `martinisurf/examples/protein/03_linker_surface_decoration`
 
-4. DNA anchor mode  
-Path: `martinisurf/examples/04_dna_anchor`
+4. Protein anchor + solvate + ionize  
+Path: `martinisurf/examples/protein/04_anchor_solvate_ionize`
 
-5. DNA linker mode  
-Path: `martinisurf/examples/05_dna_linker`
+5. Pre-CG protein + NAD + substrate  
+Path: `martinisurf/examples/protein/05_pre_cg_nad_substrate`
 
-6. Protein immobilization on a nanotube (`--surface-geometry 3d`)  
-Path: `martinisurf/examples/09_protein_cnt_3d`
+## DNA Examples
+1. DNA anchor mode  
+Path: `martinisurf/examples/dna/01_anchor`
 
-7. Protein immobilization on resizable graphene  
-Path: `martinisurf/examples/10_protein_graphene_resizable`
+2. DNA linker mode  
+Path: `martinisurf/examples/dna/02_linker`
 
-8. Protein immobilization on a two-layer hexagonal surface  
-Path: `martinisurf/examples/11_protein_bilayer_hexagonal`
+3. DNA linker + solvate + ionize + frozen water  
+Path: `martinisurf/examples/dna/03_linker_solvate_ionize_freeze`
+
+4. DNA linker + solvate + polarizable water  
+Path: `martinisurf/examples/dna/04_linker_solvate_polarizable_water`
+
+## Surface-Focused Examples
+1. Protein immobilization on a nanotube (`--surface-geometry 3d`)  
+Path: `martinisurf/examples/surfaces/01_protein_cnt_3d`
+
+2. Protein immobilization on resizable graphene  
+Path: `martinisurf/examples/surfaces/02_protein_graphene_resizable`
+
+3. Protein immobilization on a two-layer hexagonal surface  
+Path: `martinisurf/examples/surfaces/03_protein_bilayer_hexagonal`
 
 ## Per-Example Layout
 - `inputs/`: required input files

@@ -55,23 +55,24 @@ MartiniSurf expects the following tools in your environment:
 
 
 ## Quick Start (Recommended Examples)
-These are the main ready-to-use examples. The first three are full build + solvation/ionization + workflow examples; `12` is the polarizable-water build + solvation reference:
+Examples are grouped by topic under `martinisurf/examples/protein`, `martinisurf/examples/dna`, and `martinisurf/examples/surfaces`.
+The main ready-to-use workflows are:
 
-- `martinisurf/examples/06_protein_anchor_solvate_ionize`
-- `martinisurf/examples/07_dna_linker_solvate_ionize_freeze`
-- `martinisurf/examples/08_protein_nad`
-- `martinisurf/examples/12_dna_linker_solvate_polarizable_water`
+- `martinisurf/examples/protein/04_anchor_solvate_ionize`
+- `martinisurf/examples/dna/03_linker_solvate_ionize_freeze`
+- `martinisurf/examples/protein/05_pre_cg_nad_substrate`
+- `martinisurf/examples/dna/04_linker_solvate_polarizable_water`
 
-Typical run pattern for the full workflow examples (`06`, `07`, `08`):
+Typical run pattern for the full workflow examples (`protein/04`, `dna/03`, `protein/05`):
 ```bash
-cd martinisurf/examples/06_protein_anchor_solvate_ionize
+cd martinisurf/examples/protein/04_anchor_solvate_ionize
 bash run.sh
 bash work_flow_gromacs.sh
 ```
 
-Run pattern for the polarizable-water reference (`12`):
+Run pattern for the polarizable-water reference (`dna/04`):
 ```bash
-cd martinisurf/examples/12_dna_linker_solvate_polarizable_water
+cd martinisurf/examples/dna/04_linker_solvate_polarizable_water
 bash run.sh
 ```
 

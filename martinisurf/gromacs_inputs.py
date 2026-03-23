@@ -55,14 +55,12 @@ def _select_dna_forcefield_name(itp_dir: Path, polarizable_water: bool = False) 
 def _polarizable_water_electrostatics_block() -> list[str]:
     return [
         "; OPTIONS FOR ELECTROSTATICS AND VDW =",
-        "; Martini 2 DNA polarizable-water setup modernized for GROMACS 2024 =",
-        "; Legacy Coulomb Shift is approximated with Cut-off + Potential-shift =",
-        "coulombtype              = Cut-off",
-        "coulomb-modifier         = Potential-shift",
+        "; Martini 2 DNA polarizable-water setup =",
+        "coulombtype              = Reaction-Field",
         "rcoulomb                 = 1.2",
         "; Dielectric constant =",
-        "epsilon-r                = 2.5",
-        "; Legacy VdW Shift is approximated with Cut-off + Force-switch =",
+        "epsilon_r                = 2.5",
+        "epsilon_rf               = 2.5",
         "vdwtype                  = Cut-off",
         "vdw-modifier             = Force-switch",
         "; cut-off lengths        =",

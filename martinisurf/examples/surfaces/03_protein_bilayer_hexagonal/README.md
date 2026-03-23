@@ -1,6 +1,6 @@
 # Protein Immobilization on a Two-Layer Hexagonal Surface
 
-Builds the same protein used in examples `09` and `10` (`2A3D`), but on a two-layer local hexagonal surface.
+Builds the same protein used in `../01_protein_cnt_3d` and `../02_protein_graphene_resizable` (`2A3D`), but on a two-layer local hexagonal surface.
 
 Run:
 ```bash

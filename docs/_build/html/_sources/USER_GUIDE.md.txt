@@ -56,23 +56,30 @@ use `--dna` + Not explicit Linker (`--anchor`) or explicit linker (`--linker`).
 - Already CG protein+cofactor complex:
 use `--complex-config`.
 
-Recommended complete examples (solvated/ionized and ready for MD workflow):
-- `martinisurf/examples/06_protein_anchor_solvate_ionize`
-- `martinisurf/examples/07_dna_linker_solvate_ionize_freeze`
-- `martinisurf/examples/08_protein_nad`
+Recommended examples: `protein/04`, `dna/03`, and `protein/05` are the most complete solvated/ionized workflows; `dna/04` is the polarizable-water build + solvation reference:
+- `martinisurf/examples/protein/04_anchor_solvate_ionize`
+- `martinisurf/examples/dna/03_linker_solvate_ionize_freeze`
+- `martinisurf/examples/protein/05_pre_cg_nad_substrate`
+- `martinisurf/examples/dna/04_linker_solvate_polarizable_water`
 
-Run pattern:
+Typical run pattern for the full workflow examples (`protein/04`, `dna/03`, `protein/05`):
 ```bash
-cd martinisurf/examples/06_protein_anchor_solvate_ionize
+cd martinisurf/examples/protein/04_anchor_solvate_ionize
 bash run.sh
 bash work_flow_gromacs.sh
 ```
 
+Run pattern for the polarizable-water reference (`dna/04`):
+```bash
+cd martinisurf/examples/dna/04_linker_solvate_polarizable_water
+bash run.sh
+```
+
 ## 4) Copy-and-run commands
 
-If you want the most complete and production-oriented setups, use examples `06`, `07`, and `08` above.
+If you want the most complete and production-oriented setups, use examples `protein/04`, `dna/03`, and `protein/05` above. Use `dna/04` when you specifically want the polarizable-water DNA setup.
 
-### A) Example 06: Protein + Not explicit Linker (`--anchor`) + solvate + ionize
+### A) Example protein/04: Protein + Not explicit Linker (`--anchor`) + solvate + ionize
 
 ```bash
 martinisurf \
@@ -93,7 +100,7 @@ martinisurf \
   --merge A,B,C,D
 ```
 
-### B) Example 07: DNA + linker + solvate + ionize + frozen water
+### B) Example dna/03: DNA + linker + solvate + ionize + frozen water
 
 ```bash
 martinisurf \
@@ -115,7 +122,7 @@ martinisurf \
   --merge A,B
 ```
 
-### C) Example 08: pre-CG protein+cofactor + substrate + solvate + ionize
+### C) Example protein/05: pre-CG protein+cofactor + substrate + solvate + ionize
 
 ```bash
 martinisurf \
@@ -142,7 +149,7 @@ martinisurf \
 | `--moltype` | Molecule name for protein topology | `Protein` |
 | `--dna` | Enables DNA workflow | no value |
 | `--surface` | Reuses an existing surface file | `surface.gro` |
-| `--surface-mode` | Builds 2-1 or 4-1 surface | `4-1` |
+| `--surface-mode` | Builds `2-1`, `4-1`, `graphene`, `graphene-finite`, or `graphite` surfaces | `4-1` |
 | `--lx --ly --dx` | Size and spacing for generated surface | `15 15 0.47` |
 | `--anchor ...` | Not explicit Linker orientation (anchor mode) | `--anchor B 8 10 11` |
 | `--ads-mode` | Anchor-like adsorption mode without anchor pull/restraint topology | no value |
@@ -185,12 +192,25 @@ This section includes ALL flags from the main pipeline.
 ### Surface
 
 - `--surface` (default: none): existing surface `.gro` file.
-- `--surface-mode {2-1,4-1}` (default: `2-1`): grid mode for generated surfaces.
+- `--surface-mode {2-1,4-1,graphene,graphene-periodic,graphene-finite,graphite}` (default: `2-1`): mode for generated surfaces.
+- `--surface-geometry {planar,3d}` (default: `planar`): orientation handling for the surface. Use `3d` for nanotubes and other non-planar surfaces.
 - `--lx` (default: none): generated surface X size (nm).
 - `--ly` (default: none): generated surface Y size (nm).
 - `--dx` (default: `0.47`): bead spacing (2-1) or C-C parameter (4-1).
+- `--surface-layers` (default: none): number of layers for `4-1` mode.
+- `--surface-dist-z` (default: none): interlayer spacing in nm for `4-1` mode.
+- `--graphite-layers` (default: none): number of stacked graphene layers for `graphite`.
+- `--graphite-spacing` (default: none): interlayer spacing in nm for `graphite`.
 - `--surface-bead` (default: `C1`): bead type for generated surface.
 - `--charge` (default: `0`): bead charge for generated surface topology.
+
+Notes:
+- `graphene` and `graphene-periodic` use the vendored Martini 3 periodic graphene generator.
+- `graphene-finite` builds a finite graphene sheet.
+- `graphite` builds a stacked graphitic slab and carries over the generated `posre_GRA.itp`.
+- `graphene` and `graphite` are intended for Martini 3 / protein workflows.
+- `planar` keeps the current surface orientation workflow unchanged.
+- `3d` first lays the surface onto the `XY` plane using its principal axes and then places the biomolecule above the top external side.
 
 Unit note:
 - In the main `martinisurf` CLI, `--lx`, `--ly`, and `--dx` are provided in nm.
@@ -262,7 +282,7 @@ These commands are usually called by MartiniSurf internally. Most new users do n
 
 ### 7.1 `python -m martinisurf.surface_builder`
 
-- `--mode {2-1,4-1}`
+- `--mode {2-1,4-1,graphene,graphene-periodic,graphene-finite,graphite,cnt-m2,cnt-m3}`
 - `--bead`
 - `--dx`
 - `--lx`
@@ -273,6 +293,22 @@ These commands are usually called by MartiniSurf internally. Most new users do n
 - `--charge`
 - `--layers` (4-1)
 - `--dist-z` (4-1)
+- `--graphite-layers`
+- `--graphite-spacing`
+- `--cnt-numrings`
+- `--cnt-ringsize`
+- `--cnt-bondlength`
+- `--cnt-bondforce`
+- `--cnt-angleforce`
+- `--cnt-beadtype`
+- `--cnt-functype`
+- `--cnt-func-begin`
+- `--cnt-func-end`
+- `--cnt-base36`
+
+Notes:
+- `cnt-m2` wraps the vendored `cnt-martini` default Martini 2 preset.
+- `cnt-m3` uses the same CNT generator with Martini 3-style defaults: `0.41 nm` bond length, `9` beads per ring, and `SC5` carbon beads.
 
 ### 7.2 `python -m martinisurf.system_tethered`
 
@@ -401,7 +437,7 @@ What is strong:
 What to keep in mind:
 - Depends on external tools (`martinize2`, Python2, `gmx`).
 - DNA path still depends on `martinize-dna.py` (Python2 ecosystem).
-- `--freeze-water-seed` exists as a parameter, but current freeze-water selection is deterministic in the implementation.
+- `--freeze-water-seed` is active in the current implementation and controls the stochastic water-to-`WF` selection when `--freeze-water-fraction` is used.
 
 ## 12) Colab behavior notes
 

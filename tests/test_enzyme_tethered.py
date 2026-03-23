@@ -656,6 +656,39 @@ def test_save_full_system_expands_xy_box_when_needed(tmp_path):
     assert float(box_vals[1]) >= 21.0
 
 
+def test_save_full_system_cnt_keeps_1p5_nm_xy_margin_around_biomolecule(tmp_path):
+    out = tmp_path / "cnt_margin.gro"
+
+    surf_atoms = [(1, "CNT", "C1", 1)]
+    surf_coords = np.array([[0.0, 0.0, 0.0]])
+    enz_atoms = [(1, "ALA", "CA", 1)]
+    enz_coords = np.array([[5.0, 6.0, 20.0]])  # Angstrom
+    box_line = "2.00000 2.00000 2.00000"
+
+    enz.save_full_system(
+        out,
+        surf_atoms,
+        surf_coords,
+        enz_atoms,
+        enz_coords,
+        box_line,
+    )
+
+    lines = out.read_text().splitlines()
+    atom_lines = lines[2:-1]
+    box_vals = [float(v) for v in lines[-1].split()[:3]]
+    protein_line = atom_lines[0]
+    px = float(protein_line[20:28])
+    py = float(protein_line[28:36])
+    cnt_x = [float(line[20:28]) for line in atom_lines[1:]]
+    assert px >= 1.5
+    assert py >= 1.5
+    assert box_vals[0] - px >= 1.5
+    assert box_vals[1] - py >= 1.5
+    assert min(cnt_x) >= 1.5
+    assert box_vals[0] - max(cnt_x) >= 1.5
+
+
 def test_invert_linker_switches_attachment_side(tmp_path):
     surface = tmp_path / "surface.gro"
     system = tmp_path / "system.gro"

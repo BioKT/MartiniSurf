@@ -1,6 +1,7 @@
-# CLI Reference
+# CLI Overview
 
 MartiniSurf exposes one main command with module entrypoints.
+This page is the quick navigation map for the CLI. The detailed flag-by-flag reference lives in {doc}`USER_GUIDE`.
 
 ## Compact package help
 
@@ -19,6 +20,8 @@ martinisurf --full-help
 ```bash
 martinisurf build -h
 ```
+
+This is the main detailed help page for end-to-end system construction.
 
 You can also call build flags directly without `build`:
 
