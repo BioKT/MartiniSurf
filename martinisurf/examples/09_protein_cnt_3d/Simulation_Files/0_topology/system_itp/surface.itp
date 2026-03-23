@@ -10,19 +10,19 @@
 
 [ moleculetype ]
 ; Name	 nrexcl
-cnt-24-9-f11-SNda  1
+cnt-24-9-f11-SC5  1
 
 [ atoms ]
 ; nr	 type	 resnr	 residue	 atom	 cgnr	 charge	 mass
-  1    SNda   1   CNT    F001       1       0      48
-  2    SNda   1   CNT    F002       2       0      48
-  3    SNda   1   CNT    F003       3       0      48
-  4    SNda   1   CNT    F004       4       0      48
-  5    SNda   1   CNT    F005       5       0      48
-  6    SNda   1   CNT    F006       6       0      48
-  7    SNda   1   CNT    F007       7       0      48
-  8    SNda   1   CNT    F008       8       0      48
-  9    SNda   1   CNT    F009       9       0      48
+  1     SC5   1   CNT    F001       1       0      48
+  2     SC5   1   CNT    F002       2       0      48
+  3     SC5   1   CNT    F003       3       0      48
+  4     SC5   1   CNT    F004       4       0      48
+  5     SC5   1   CNT    F005       5       0      48
+  6     SC5   1   CNT    F006       6       0      48
+  7     SC5   1   CNT    F007       7       0      48
+  8     SC5   1   CNT    F008       8       0      48
+  9     SC5   1   CNT    F009       9       0      48
  10     SC5   1   CNT    C010      10       0      48
  11     SC5   1   CNT    C011      11       0      48
  12     SC5   1   CNT    C012      12       0      48
@@ -221,15 +221,15 @@ cnt-24-9-f11-SNda  1
 205     SC5   1   CNT    C205     205       0      48
 206     SC5   1   CNT    C206     206       0      48
 207     SC5   1   CNT    C207     207       0      48
-208    SNda   1   CNT    F208     208       0      48
-209    SNda   1   CNT    F209     209       0      48
-210    SNda   1   CNT    F210     210       0      48
-211    SNda   1   CNT    F211     211       0      48
-212    SNda   1   CNT    F212     212       0      48
-213    SNda   1   CNT    F213     213       0      48
-214    SNda   1   CNT    F214     214       0      48
-215    SNda   1   CNT    F215     215       0      48
-216    SNda   1   CNT    F216     216       0      48
+208     SC5   1   CNT    F208     208       0      48
+209     SC5   1   CNT    F209     209       0      48
+210     SC5   1   CNT    F210     210       0      48
+211     SC5   1   CNT    F211     211       0      48
+212     SC5   1   CNT    F212     212       0      48
+213     SC5   1   CNT    F213     213       0      48
+214     SC5   1   CNT    F214     214       0      48
+215     SC5   1   CNT    F215     215       0      48
+216     SC5   1   CNT    F216     216       0      48
 
 [ bonds ]
 ; i	 j	  funct	 length	 force

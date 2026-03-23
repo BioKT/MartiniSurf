@@ -490,6 +490,9 @@ def save_full_system(output_gro,
     surf_out = np.array(surf_coords, dtype=float, copy=True)
     enz_out = np.array(enz_coords, dtype=float, copy=True)
     total = len(surf_out) + len(enz_out)
+    is_cnt_surface = any(str(rn).strip() == "CNT" for _, rn, _, _ in surf_atoms)
+    cnt_x_margin_a = 15.0 if is_cnt_surface else 0.0
+    cnt_y_margin_a = 15.0 if is_cnt_surface else 0.0
 
     # Keep original XY when possible, but expand/shift when needed so all coordinates
     # fit inside the declared box and avoid PBC-splitting artifacts downstream.
@@ -523,8 +526,52 @@ def save_full_system(output_gro,
             if len(enz_out) > 0:
                 enz_out[:, 0] += shift_x
                 enz_out[:, 1] += shift_y
-        box_x = max(box_x, float(np.max(xy[:, 0] + shift_x)) / 10.0)
-        box_y = max(box_y, float(np.max(xy[:, 1] + shift_y)) / 10.0)
+
+        # For CNT systems, keep at least 1.5 nm lateral clearance from the
+        # full system to the periodic box walls in X and from the biomolecule
+        # to the walls in Y. This prevents the tube from overlapping its image.
+        if (cnt_x_margin_a > 0.0 or cnt_y_margin_a > 0.0) and (len(surf_out) > 0 or len(enz_out) > 0):
+            x_parts = []
+            y_parts = []
+            if len(surf_out) > 0:
+                x_parts.append(surf_out[:, 0])
+                y_parts.append(surf_out[:, 1])
+            if len(enz_out) > 0:
+                x_parts.append(enz_out[:, 0])
+                y_parts.append(enz_out[:, 1])
+            min_all_x = float(np.min(np.concatenate(x_parts))) if x_parts else 0.0
+            min_ref_y = float(np.min(enz_out[:, 1])) if len(enz_out) > 0 else (
+                float(np.min(np.concatenate(y_parts))) if y_parts else 0.0
+            )
+            extra_shift_x = max(0.0, cnt_x_margin_a - min_all_x)
+            extra_shift_y = max(0.0, cnt_y_margin_a - min_ref_y)
+            if extra_shift_x or extra_shift_y:
+                if len(surf_out) > 0:
+                    surf_out[:, 0] += extra_shift_x
+                    surf_out[:, 1] += extra_shift_y
+                if len(enz_out) > 0:
+                    enz_out[:, 0] += extra_shift_x
+                    enz_out[:, 1] += extra_shift_y
+
+        max_x_a = float(np.max(surf_out[:, 0])) if len(surf_out) > 0 else float("-inf")
+        max_y_a = float(np.max(surf_out[:, 1])) if len(surf_out) > 0 else float("-inf")
+        if len(enz_out) > 0:
+            if cnt_x_margin_a > 0.0 or cnt_y_margin_a > 0.0:
+                max_x_a = max(
+                    max_x_a,
+                    float(np.max(enz_out[:, 0])) + cnt_x_margin_a,
+                )
+                max_y_a = max(
+                    max_y_a,
+                    float(np.max(enz_out[:, 1])) + cnt_y_margin_a,
+                )
+            else:
+                max_x_a = max(max_x_a, float(np.max(enz_out[:, 0])))
+                max_y_a = max(max_y_a, float(np.max(enz_out[:, 1])))
+        if len(surf_out) > 0 and cnt_x_margin_a > 0.0:
+            max_x_a = max(max_x_a, float(np.max(surf_out[:, 0])) + cnt_x_margin_a)
+        box_x = max(box_x, max_x_a / 10.0)
+        box_y = max(box_y, max_y_a / 10.0)
 
     if len(enz_out) > 0:
         if dna_mode:

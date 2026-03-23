@@ -53,7 +53,7 @@ ref-p                    = 1 1
 pull                     = yes
 pull-ngroups             = 2
 pull-group1-name         = Anchor_1
-pull-group2-name         = cnt-24-9-f11-SNda
+pull-group2-name         = cnt-24-9-f11-SC5
 
 pull-ncoords             = 1
 pull-coord1-geometry     = distance
