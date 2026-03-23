@@ -332,6 +332,27 @@ def _read_itp_moleculetype_set(itp_path: Path) -> set[str]:
     return moltypes
 
 
+def _read_itp_first_atoms_resname(itp_path: Path) -> str | None:
+    if not itp_path.exists():
+        return None
+
+    in_atoms = False
+    for raw in itp_path.read_text().splitlines():
+        line = raw.split(";", 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith("["):
+            section = line.strip("[]").strip().lower()
+            in_atoms = section == "atoms"
+            continue
+        if not in_atoms:
+            continue
+        parts = line.split()
+        if len(parts) >= 5:
+            return parts[3]
+    return None
+
+
 def _write_itp_with_moleculetype(src_itp: Path, dst_itp: Path, new_moltype: str) -> None:
     lines = src_itp.read_text().splitlines()
     out: list[str] = []
@@ -1493,6 +1514,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     surface_itp_path = dst_itp_dir / "surface.itp"
     surface_moltype = _read_itp_moleculetype(surface_itp_path) or "SRF"
+    surface_resname = _read_itp_first_atoms_resname(surface_itp_path) or surface_moltype
 
     # copy MDPs
     for src_name, dst_name in mdp_files.items():
@@ -1655,9 +1677,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         return [int(a.index + 1) for a in u.atoms if str(a.resname).strip() in wanted]
 
     # Surface freeze/pull groups referenced by mdp templates.
-    surface_atoms = _collect_resname_group(surface_moltype)
+    surface_atoms = _collect_resname_group(surface_moltype, surface_resname)
     if surface_atoms:
         custom_groups[surface_moltype] = surface_atoms
+        if surface_moltype != "SRF":
+            custom_groups["SRF"] = surface_atoms
 
     # Common optional groups used in workflows and useful for downstream grompp calls.
     for group_name, resnames in (

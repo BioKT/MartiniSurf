@@ -1076,6 +1076,39 @@ def test_surface_molecule_count_ignores_legacy_tilde_lines_in_surface_itp(tmp_pa
     assert "SRF 3" in system_top
 
 
+def test_non_srf_surface_gets_srf_alias_in_index(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    gro = """CNT alias test
+  4
+    1ALA     CA    1   1.000   1.000   1.000
+    2CNT      C    2   1.500   1.500   0.500
+    3CNT      C    3   2.000   1.500   0.500
+    4CNT      C    4   2.500   1.500   0.500
+   4.00000   4.00000   4.00000
+"""
+    (sim / "2_system" / "immobilized_system.gro").write_text(gro)
+    (sim / "system_itp" / "surface.itp").write_text(
+        "[ moleculetype ]\n"
+        "cnt-24-9-f11-SC5 1\n\n"
+        "[ atoms ]\n"
+        "1 SC5 1 CNT C 1 0.0\n"
+    )
+    (sim / "system_itp" / "Protein_0.itp").write_text(
+        "[ moleculetype ]\nPROT_REAL 1\n\n[ atoms ]\n1 C1 1 PRO A1 1 0.0\n"
+    )
+
+    gms.main([
+        "--moltype", "Protein",
+        "--anchor", "1", "1",
+    ])
+
+    index_text = (sim / "0_topology" / "index.ndx").read_text()
+    assert "[ cnt-24-9-f11-SC5 ]" in index_text
+    assert "[ SRF ]" in index_text
+
+
 def test_missing_named_protein_itp_uses_real_candidate_but_keeps_requested_moltype(tmp_path, monkeypatch):
     sim, _ = prepare_simulation_structure(tmp_path)
     monkeypatch.chdir(sim / "2_system")
