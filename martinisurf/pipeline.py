@@ -169,6 +169,91 @@ def _write_gro_records(gro_path: str, title: str, records: list[dict], box: list
         fh.write(f"{box[0]:10.5f}{box[1]:10.5f}{box[2]:10.5f}\n")
 
 
+def _convert_standard_waters_to_polarizable(
+    gro_path: Path,
+    top_path: Path,
+    water_resnames: set[str] | None = None,
+) -> int:
+    """Convert single-site Martini waters into PW triplets following triple-w.py."""
+    source_resnames = {str(name).strip() for name in (water_resnames or {"W", "SOL"}) if str(name).strip()}
+    if not source_resnames:
+        source_resnames = {"W", "SOL"}
+
+    title, records, box = _read_gro_records(str(gro_path))
+    if not records:
+        return 0
+
+    converted: list[dict] = []
+    converted_count = 0
+    next_atomid = 1
+
+    for rec in records:
+        resname = str(rec["resname"]).strip()
+        atomname = str(rec["atomname"]).strip()
+        if resname in source_resnames and atomname == "W":
+            converted_count += 1
+
+            base = dict(rec)
+            base["resname"] = "PW"
+            base["atomname"] = "W"
+            base["atomid"] = next_atomid
+            next_atomid += 1
+            converted.append(base)
+
+            wp = dict(base)
+            wp["atomname"] = "WP"
+            wp["atomid"] = next_atomid
+            wp["x"] = float(base["x"]) + 0.06
+            wp["y"] = float(base["y"]) + 0.09
+            wp["z"] = float(base["z"]) + 0.09
+            next_atomid += 1
+            converted.append(wp)
+
+            wm = dict(base)
+            wm["atomname"] = "WM"
+            wm["atomid"] = next_atomid
+            wm["x"] = float(base["x"]) + 0.07
+            wm["y"] = float(base["y"]) + 0.07
+            wm["z"] = float(base["z"]) + 0.10
+            next_atomid += 1
+            converted.append(wm)
+            continue
+
+        kept = dict(rec)
+        kept["atomid"] = next_atomid
+        next_atomid += 1
+        converted.append(kept)
+
+    if converted_count == 0:
+        return 0
+
+    _write_gro_records(str(gro_path), title, converted, box)
+
+    entries = _parse_molecules_entries(top_path)
+    if entries:
+        counts: dict[str, int] = {}
+        order: list[str] = []
+        for name, count in entries:
+            if name not in counts:
+                order.append(name)
+            counts[name] = int(count)
+
+        replaced = 0
+        for water_name in source_resnames:
+            replaced += int(counts.pop(water_name, 0))
+        counts["PW"] = int(counts.get("PW", 0)) + replaced
+        if "PW" not in order:
+            order.append("PW")
+
+        block_lines = ["[ molecules ]"]
+        for name in order:
+            if counts.get(name, 0) > 0:
+                block_lines.append(f"{name} {counts[name]}")
+        _replace_molecules_block(top_path, "\n".join(block_lines) + "\n")
+
+    return converted_count
+
+
 def _resolve_sidecar_itp(gro_path: str, explicit_itp: str | None, label: str) -> Path:
     if explicit_itp:
         itp = Path(explicit_itp)
@@ -1081,7 +1166,7 @@ def build_parser():
     post_group.add_argument(
         "--polarizable-water",
         action="store_true",
-        help="DNA-only: use polarizable Martini 2 water (PW), polarize-water.gro, and martini_v2.1P-dna.itp.",
+        help="DNA-only: use Martini 2 polarizable water (PW) and martini_v2.1P-dna.itp; standard waters are converted to PW after solvation.",
     )
     post_group.add_argument("--solvate-radius", type=float, default=0.21, help="Exclusion radius (nm) for gmx solvate (Martini recommended: 0.21).")
     post_group.add_argument("--solvate-surface-clearance", type=float, default=0.4, help="Remove water in a symmetric slab around the surface plane: |z - z_surface| <= clearance.")
@@ -1809,7 +1894,7 @@ def _normalize_molecules_block(
             counts[preferred] = int(counts.get(preferred, 0)) + int(counts[alias])
             del counts[alias]
 
-    water_names = ["W", "SOL", "WF"]
+    water_names = ["W", "SOL", "PW", "WF"]
     ion_names = [
         ff_ions.get("NA", "NA"),
         ff_ions.get("CL", "CL"),
@@ -1936,7 +2021,7 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
     if args.water_gro:
         water_gro = Path(args.water_gro).resolve()
     else:
-        default_water_name = _default_water_template_name(args.polarizable_water)
+        default_water_name = STANDARD_WATER_TEMPLATE if args.polarizable_water else _default_water_template_name(False)
         water_gro = system_dir / default_water_name
         if not water_gro.exists():
             pkg_water = Path(__file__).resolve().parent / "system_templates" / default_water_name
@@ -1979,6 +2064,12 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
     final_gro = system_dir / "final_system.gro"
     final_alias_gro = system_dir / "system_final.gro"
     if not args.ionize:
+        if args.polarizable_water:
+            _convert_standard_waters_to_polarizable(
+                gro_path=solvated_gro,
+                top_path=final_top,
+                water_resnames=water_resnames,
+            )
         _normalize_molecules_block(final_top=final_top, base_top=base_top, top_dir=top_dir)
         shutil.copy(solvated_gro, final_gro)
         _normalize_uniform_atom_names_from_itp(top_dir=top_dir, top_path=final_top, gro_path=final_gro)
@@ -2020,6 +2111,12 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
         water_resnames=water_resnames,
         ion_resnames={"NA", "CL"},
     )
+    if args.polarizable_water:
+        _convert_standard_waters_to_polarizable(
+            gro_path=final_gro,
+            top_path=final_top,
+            water_resnames=water_resnames,
+        )
     _normalize_uniform_atom_names_from_itp(top_dir=top_dir, top_path=final_top, gro_path=final_gro)
     _normalize_ion_atom_names_from_itp(top_dir=top_dir, gro_path=final_gro)
     _normalize_molecules_block(final_top=final_top, base_top=base_top, top_dir=top_dir)
