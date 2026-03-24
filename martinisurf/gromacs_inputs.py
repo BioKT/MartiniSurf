@@ -1676,6 +1676,49 @@ def main(argv: Sequence[str] | None = None) -> None:
         wanted = {str(r).strip() for r in resnames if str(r).strip()}
         return [int(a.index + 1) for a in u.atoms if str(a.resname).strip() in wanted]
 
+    def _iter_extra_resnames() -> List[str]:
+        protein_resnames = {
+            "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY",
+            "HIS", "ILE", "LEU", "LYS", "MET", "PHE", "PRO", "SER",
+            "THR", "TRP", "TYR", "VAL",
+        }
+        ignored = {
+            "",
+            surface_moltype,
+            surface_resname,
+            "W",
+            "WF",
+            "PW",
+            "SOL",
+            "NA",
+            "CL",
+            "K",
+            "CA",
+            "MG",
+            "ZN",
+            "LI",
+            "RB",
+            "CS",
+            "BA",
+            "SR",
+            "F",
+            "BR",
+            "I",
+            "DA",
+            "DC",
+            "DG",
+            "DT",
+        } | protein_resnames
+        seen: set[str] = set()
+        ordered: List[str] = []
+        for atom in u.atoms:
+            resname = str(atom.resname).strip()
+            if resname in ignored or resname in seen:
+                continue
+            seen.add(resname)
+            ordered.append(resname)
+        return ordered
+
     # Surface freeze/pull groups referenced by mdp templates.
     surface_atoms = _collect_resname_group(surface_moltype, surface_resname)
     if surface_atoms:
@@ -1707,6 +1750,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         protein_atoms = _collect_resname_group(*protein_resnames)
         if protein_atoms:
             custom_groups["Protein"] = protein_atoms
+
+    for resname in _iter_extra_resnames():
+        atoms = _collect_resname_group(resname)
+        if atoms:
+            custom_groups[resname] = atoms
 
     if groups_for_index or custom_groups:
         with open(topo_dir / "index.ndx", "w") as ndx:

@@ -1967,30 +1967,160 @@ def _rebuild_merged_index(
     gro_path: Path,
     top_dir: Path,
 ) -> Path:
+    from martinisurf.gromacs_inputs import _read_itp_first_atoms_resname, _read_itp_moleculetype
+
+    def _parse_ndx_groups(text: str) -> list[tuple[str, list[int]]]:
+        groups: list[tuple[str, list[int]]] = []
+        current_name: str | None = None
+        current_atoms: list[int] = []
+        for raw_line in text.splitlines():
+            stripped = raw_line.strip()
+            if stripped.startswith("[") and stripped.endswith("]"):
+                if current_name is not None:
+                    groups.append((current_name, current_atoms))
+                current_name = stripped[1:-1].strip()
+                current_atoms = []
+                continue
+            if current_name is None or not stripped or stripped.startswith(";"):
+                continue
+            for token in stripped.split():
+                try:
+                    current_atoms.append(int(token))
+                except ValueError:
+                    continue
+        if current_name is not None:
+            groups.append((current_name, current_atoms))
+        return groups
+
+    def _render_ndx_groups(groups: list[tuple[str, list[int]]], chunk: int = 15) -> str:
+        out: list[str] = []
+        for name, atoms in groups:
+            if not atoms:
+                continue
+            out.append(f"[ {name} ]")
+            for i in range(0, len(atoms), chunk):
+                out.append(" ".join(str(v) for v in atoms[i:i + chunk]))
+            out.append("")
+        return "\n".join(out).rstrip() + "\n" if out else ""
+
     index_path = top_dir / "index.ndx"
-    auto_index_path = top_dir / "_index_auto.ndx"
+    existing_groups = _parse_ndx_groups(index_path.read_text()) if index_path.exists() else []
 
-    custom_index_text = ""
-    if index_path.exists():
-        custom_index_text = index_path.read_text()
+    _, records, _ = _read_gro_records(str(gro_path))
+    atom_indices = list(range(1, len(records) + 1))
+    resnames = [str(rec["resname"]).strip() for rec in records]
 
-    _run_with_check(
-        [
-            gmx_bin, "make_ndx",
-            "-f", str(gro_path),
-            "-o", str(auto_index_path),
-        ],
-        cwd=top_dir,
-        stdin_text="q\n",
-    )
+    surface_itp = top_dir / "system_itp" / "surface.itp"
+    surface_moltype = _read_itp_moleculetype(surface_itp) or "SRF"
+    surface_resname = _read_itp_first_atoms_resname(surface_itp) or surface_moltype
 
-    auto_index_text = auto_index_path.read_text().rstrip()
-    merged = auto_index_text + "\n"
-    if custom_index_text.strip():
-        merged += "\n; MartiniSurf custom index groups (appended)\n"
-        merged += custom_index_text.strip() + "\n"
-    index_path.write_text(merged)
-    auto_index_path.unlink(missing_ok=True)
+    def _collect_resname_group(*wanted_resnames: str) -> list[int]:
+        wanted = {str(name).strip() for name in wanted_resnames if str(name).strip()}
+        return [idx for idx, resname in zip(atom_indices, resnames) if resname in wanted]
+
+    def _iter_extra_resnames() -> list[str]:
+        protein_resnames = {
+            "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY",
+            "HIS", "ILE", "LEU", "LYS", "MET", "PHE", "PRO", "SER",
+            "THR", "TRP", "TYR", "VAL",
+        }
+        ignored = {
+            "",
+            surface_moltype,
+            surface_resname,
+            "W",
+            "WF",
+            "PW",
+            "SOL",
+            "NA",
+            "CL",
+            "K",
+            "CA",
+            "MG",
+            "ZN",
+            "LI",
+            "RB",
+            "CS",
+            "BA",
+            "SR",
+            "F",
+            "BR",
+            "I",
+            "DA",
+            "DC",
+            "DG",
+            "DT",
+        } | protein_resnames
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for resname in resnames:
+            if resname in ignored or resname in seen:
+                continue
+            seen.add(resname)
+            ordered.append(resname)
+        return ordered
+
+    rebuilt_groups: list[tuple[str, list[int]]] = [("system", atom_indices)]
+
+    surface_atoms = _collect_resname_group(surface_moltype, surface_resname)
+    if surface_atoms:
+        rebuilt_groups.append((surface_moltype, surface_atoms))
+        if surface_moltype != "SRF":
+            rebuilt_groups.append(("SRF", surface_atoms))
+
+    for group_name, wanted in (
+        ("W", ("W",)),
+        ("WF", ("WF",)),
+        ("IONS", ("NA", "CL", "K", "CA", "MG", "ZN", "LI", "RB", "CS", "BA", "SR", "F", "BR", "I")),
+        ("DNA", ("DA", "DC", "DG", "DT")),
+        (
+            "Protein",
+            ("ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE", "LEU", "LYS",
+             "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL"),
+        ),
+    ):
+        atoms = _collect_resname_group(*wanted)
+        if atoms:
+            rebuilt_groups.append((group_name, atoms))
+
+    for resname in _iter_extra_resnames():
+        atoms = _collect_resname_group(resname)
+        if atoms:
+            rebuilt_groups.append((resname, atoms))
+
+    reserved_names = {
+        "system",
+        "srf",
+        surface_moltype.lower(),
+        surface_resname.lower(),
+        "w",
+        "wf",
+        "ions",
+        "dna",
+        "protein",
+        "pw",
+        "sol",
+    }
+    rebuilt_names = {name.lower() for name, _ in rebuilt_groups}
+
+    preserved_groups: list[tuple[str, list[int]]] = []
+    seen_preserved: set[str] = set()
+    for name, atoms in existing_groups:
+        lname = name.lower()
+        if name.startswith("Anchor_") or lname in reserved_names or lname in rebuilt_names or lname in seen_preserved:
+            continue
+        seen_preserved.add(lname)
+        preserved_groups.append((name, atoms))
+
+    anchor_groups: list[tuple[str, list[int]]] = []
+    seen_anchors: set[str] = set()
+    for name, atoms in existing_groups:
+        if not name.startswith("Anchor_") or name in seen_anchors:
+            continue
+        seen_anchors.add(name)
+        anchor_groups.append((name, atoms))
+
+    index_path.write_text(_render_ndx_groups(rebuilt_groups + preserved_groups + anchor_groups))
     return index_path
 
 
