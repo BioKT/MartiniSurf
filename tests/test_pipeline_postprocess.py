@@ -354,37 +354,115 @@ def test_convert_standard_waters_to_polarizable_updates_gro_and_top(tmp_path):
     assert "\nW 2\n" not in top_text
 
 
-def test_rebuild_merged_index_appends_custom_groups(monkeypatch, tmp_path):
+def test_rebuild_merged_index_writes_clean_groups_and_keeps_anchor_last(tmp_path):
     top_dir = tmp_path / "0_topology"
-    top_dir.mkdir(parents=True)
+    (top_dir / "system_itp").mkdir(parents=True)
     gro = tmp_path / "2_system" / "system_final.gro"
     gro.parent.mkdir(parents=True)
-    gro.write_text("dummy\n")
+    gro.write_text(
+        "Dummy\n"
+        "    4\n"
+        "    1PRO     BB    1   0.100   0.100   0.100\n"
+        "    2SRF     C1    2   0.200   0.200   0.200\n"
+        "    3W       W     3   0.300   0.300   0.300\n"
+        "    4NA     NA     4   0.400   0.400   0.400\n"
+        "   1.00000   1.00000   1.00000\n"
+    )
+    (top_dir / "system_itp" / "surface.itp").write_text("[ moleculetype ]\nSRF 1\n\n[ atoms ]\n1 C1 1 SRF C1 1 0.0\n")
 
     index = top_dir / "index.ndx"
-    index.write_text("[ Anchor_1 ]\n1 2 3\n")
-
-    calls = {"n": 0}
-
-    def fake_run_with_check(cmd, cwd=None, stdin_text=None):
-        calls["n"] += 1
-        assert cmd[0] == "gmx"
-        assert cmd[1] == "make_ndx"
-        assert stdin_text == "q\n"
-        out_path = Path(cmd[cmd.index("-o") + 1])
-        out_path.write_text("[ System ]\n1 2 3 4\n")
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
-
-    monkeypatch.setattr(pipeline, "_run_with_check", fake_run_with_check)
+    index.write_text("[ LINKER ]\n2\n[ Anchor_1 ]\n1 2 3\n")
 
     out = pipeline._rebuild_merged_index(gmx_bin="gmx", gro_path=gro, top_dir=top_dir)
     assert out == index
-    assert calls["n"] == 1
 
     merged = index.read_text()
-    assert "[ System ]" in merged
+    assert "[ system ]" in merged
+    assert "[ SRF ]" in merged
+    assert "[ W ]" in merged
+    assert "[ IONS ]" in merged
+    assert "[ Protein ]" in merged
+    assert "[ LINKER ]" in merged
     assert "[ Anchor_1 ]" in merged
-    assert merged.index("[ System ]") < merged.index("[ Anchor_1 ]")
+    assert merged.index("[ LINKER ]") < merged.index("[ Anchor_1 ]")
+
+
+def test_rebuild_merged_index_adds_extra_resname_groups_like_mol1(tmp_path):
+    top_dir = tmp_path / "0_topology"
+    (top_dir / "system_itp").mkdir(parents=True)
+    gro = tmp_path / "2_system" / "system_final.gro"
+    gro.parent.mkdir(parents=True)
+    fmt = "{resid:5d}{resname:<5}{atomname:>5}{atomid:5d}{x:8.3f}{y:8.3f}{z:8.3f}\n"
+    gro.write_text(
+        "Dummy\n"
+        "    5\n"
+        + fmt.format(resid=1, resname="DA", atomname="BB1", atomid=1, x=0.100, y=0.100, z=0.100)
+        + fmt.format(resid=2, resname="MOL1", atomname="C01", atomid=2, x=0.200, y=0.200, z=0.200)
+        + fmt.format(resid=2, resname="MOL1", atomname="C02", atomid=3, x=0.300, y=0.300, z=0.300)
+        + fmt.format(resid=3, resname="SRF", atomname="C1", atomid=4, x=0.400, y=0.400, z=0.400)
+        + fmt.format(resid=4, resname="W", atomname="W", atomid=5, x=0.500, y=0.500, z=0.500)
+        + "   1.00000   1.00000   1.00000\n"
+    )
+    (top_dir / "system_itp" / "surface.itp").write_text("[ moleculetype ]\nSRF 1\n\n[ atoms ]\n1 C1 1 SRF C1 1 0.0\n")
+
+    pipeline._rebuild_merged_index(gmx_bin="gmx", gro_path=gro, top_dir=top_dir)
+    merged = (top_dir / "index.ndx").read_text()
+
+    assert "[ DNA ]" in merged
+    assert "[ MOL1 ]" in merged
+    assert "[ W ]" in merged
+    assert "[ SRF ]" in merged
+
+
+def test_rebuild_merged_index_replaces_case_conflicting_auto_group(tmp_path):
+    top_dir = tmp_path / "0_topology"
+    (top_dir / "system_itp").mkdir(parents=True)
+    gro = tmp_path / "2_system" / "system_final.gro"
+    gro.parent.mkdir(parents=True)
+    gro.write_text(
+        "Dummy\n"
+        "    2\n"
+        "    1PRO     BB    1   0.100   0.100   0.100\n"
+        "    2SRF     C1    2   0.200   0.200   0.200\n"
+        "   1.00000   1.00000   1.00000\n"
+    )
+    (top_dir / "system_itp" / "surface.itp").write_text("[ moleculetype ]\nSRF 1\n\n[ atoms ]\n1 C1 1 SRF C1 1 0.0\n")
+
+    index = top_dir / "index.ndx"
+    index.write_text("[ System ]\n1 2\n[ system ]\n1 2\n[ Anchor_1 ]\n1 2\n")
+
+    pipeline._rebuild_merged_index(gmx_bin="gmx", gro_path=gro, top_dir=top_dir)
+    merged = index.read_text()
+
+    assert "[ system ]" in merged
+    assert "[ System ]" not in merged
+    assert "[ Anchor_1 ]" in merged
+
+
+def test_rebuild_merged_index_deduplicates_existing_custom_group_names(tmp_path):
+    top_dir = tmp_path / "0_topology"
+    (top_dir / "system_itp").mkdir(parents=True)
+    gro = tmp_path / "2_system" / "system_final.gro"
+    gro.parent.mkdir(parents=True)
+    fmt = "{resid:5d}{resname:<5}{atomname:>5}{atomid:5d}{x:8.3f}{y:8.3f}{z:8.3f}\n"
+    gro.write_text(
+        "Dummy\n"
+        "    3\n"
+        + fmt.format(resid=1, resname="DA", atomname="BB1", atomid=1, x=0.100, y=0.100, z=0.100)
+        + fmt.format(resid=2, resname="MOL1", atomname="C01", atomid=2, x=0.200, y=0.200, z=0.200)
+        + fmt.format(resid=2, resname="MOL1", atomname="C02", atomid=3, x=0.300, y=0.300, z=0.300)
+        + "   1.00000   1.00000   1.00000\n"
+    )
+    (top_dir / "system_itp" / "surface.itp").write_text("[ moleculetype ]\nSRF 1\n\n[ atoms ]\n1 C1 1 SRF C1 1 0.0\n")
+
+    index = top_dir / "index.ndx"
+    index.write_text("[ MOL1 ]\n2 3\n[ MOL1 ]\n2 3\n[ Anchor_1 ]\n1 2\n")
+
+    pipeline._rebuild_merged_index(gmx_bin="gmx", gro_path=gro, top_dir=top_dir)
+    merged = index.read_text()
+
+    assert merged.count("[ MOL1 ]") == 1
+    assert merged.count("[ Anchor_1 ]") == 1
 
 
 def test_restore_non_solvent_from_reference_keeps_solute_labels(tmp_path):

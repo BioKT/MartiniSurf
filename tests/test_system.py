@@ -556,6 +556,7 @@ def test_linker_pull_generates_two_coordinates(tmp_path, monkeypatch):
     assert "pull-coord2-groups       = 3 4" in production
     assert "[ Anchor_2 ]" in index_text
     assert "[ Anchor_3 ]" in index_text
+    assert "[ LNK ]" in index_text
     # Anchor_1 must remain the selected biomolecule atoms only (not linker atom 2).
     anchor1_block = index_text.split("[ Anchor_1 ]", 1)[1].split("[ Anchor_2 ]", 1)[0]
     assert "1" in anchor1_block
@@ -806,31 +807,32 @@ def test_dna_deposition_and_production_templates_keep_expected_protocol_values()
 
     assert "dt                       = 0.01" in deposition
     assert "nsteps                   = 2000000" in deposition
-    assert "dt                       = 0.005" in production
-    assert "nsteps                   = 200000000" in production
-    assert "tau-p                    = 12.0" in deposition
-    assert "tau-p                    = 12.0" in production
-    assert "compressibility          = 0 4e-5" in deposition
-    assert "compressibility          = 0 4e-5" in production
+    assert "dt                       = 0.01" in production
+    assert "nsteps                   = 10000000" in production
+    assert "coulombtype              = reaction-field" in deposition
+    assert "coulombtype              = reaction-field" in production
+    assert "vdw-modifier             = Potential-shift-verlet" in deposition
+    assert "vdw-modifier             = Potential-shift-verlet" in production
+    assert "tc-grps                  = System" in deposition
+    assert "tc-grps                  = System" in production
+    assert "ref-t                    = 300" in deposition
+    assert "ref-t                    = 300" in production
+    assert "tau-p" not in deposition
+    assert "tau-p" not in production
+    assert "compressibility" not in deposition
+    assert "compressibility" not in production
     assert "define                   = -DPOSRES" not in deposition
     assert "define                   = -DPOSRES" in production
 
 
-def test_dna_npt_template_uses_requested_pressure_parameters():
-    mdp_dir = Path(gms.__file__).resolve().parent / "mdp_templates"
-    npt = (mdp_dir / "npt_dna.mdp").read_text()
-
-    assert "dt                       = 0.005" in npt
-    assert "nsteps                   = 10000000" in npt
-    assert "tau-p                    = 12 ; 12" in npt
-    assert "compressibility          = 0 4e-5" in npt
-
-
-def test_dna_nvt_template_uses_310_k():
+def test_dna_nvt_template_uses_requested_thermostat_settings():
     mdp_dir = Path(gms.__file__).resolve().parent / "mdp_templates"
     nvt = (mdp_dir / "nvt_dna.mdp").read_text()
 
-    assert "ref-t                    = 310" in nvt
+    assert "coulombtype              = reaction-field" in nvt
+    assert "vdw-modifier             = Potential-shift-verlet" in nvt
+    assert "tc-grps                  = System" in nvt
+    assert "ref-t                    = 300" in nvt
 
 
 def test_write_custom_mdp_skips_pull_rewrite_when_disabled(tmp_path):

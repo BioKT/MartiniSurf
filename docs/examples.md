@@ -75,3 +75,6 @@ Behavior notes:
 For adsorption setups, use the main build command with `--ads-mode` and anchor-based orientation
 (`--anchor ...` or `--complex-config` anchor groups). This mode runs:
 `minimization -> nvt -> npt -> production` without deposition pulls/restraints.
+
+For the current DNA linker workflows (`dna/03`, `dna/04`), the MD protocol is:
+`minimization -> nvt -> deposition -> production` with no intermediate `npt` stage.
