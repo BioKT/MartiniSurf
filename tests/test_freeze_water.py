@@ -53,6 +53,9 @@ def test_apply_freeze_water_fraction_updates_gro_and_top(tmp_path):
     assert "W               4" in top_text
     assert "WF              1" in top_text
     assert top_text.index("W               4") < top_text.index("WF              1")
+    frozen_lines = [ln for ln in body if ln[5:10].strip() == "WF"]
+    assert len(frozen_lines) == 1
+    assert frozen_lines[0][10:15].strip() == "W"
 
 
 def test_apply_freeze_water_fraction_spreads_wf_and_keeps_them_after_w(tmp_path):

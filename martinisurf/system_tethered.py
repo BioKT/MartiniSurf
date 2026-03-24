@@ -66,7 +66,7 @@ def load_gro_coords(gro_file: str) -> Tuple[np.ndarray, List[Tuple[int, str, str
 
             atoms.append((resid, resname, atomname, atomid))
             coords.append([x, y, z])
-        except:
+        except (ValueError, IndexError):
             continue
 
     return np.array(coords, float), atoms
@@ -679,7 +679,8 @@ def main(argv=None):
     surf_coords, surf_atoms = load_gro_coords(args.surface)
     surf_coords, _ = orient_surface_top_geometry(surf_coords, mode=args.surface_geometry)
     sys_coords, sys_atoms   = load_gro_coords(args.system)
-    box_line = open(args.surface).readlines()[-1].strip()
+    with open(args.surface) as fh:
+        box_line = fh.readlines()[-1].strip()
     reference_coords = sys_coords
     if args.reference_exclude_resname:
         excluded = {name.strip() for name in args.reference_exclude_resname if name.strip()}

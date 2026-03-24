@@ -169,7 +169,7 @@ def main():
     # CASE 4 → implicit build mode
     if args[0].startswith("--"):
         tool = "build"
-        subcmd_args = args[:]      # CRÍTICO: forward ALL flags intact
+        subcmd_args = args[:]      # CRITICAL: forward ALL flags intact
     else:
         tool = args[0]
         subcmd_args = args[1:]
@@ -188,9 +188,6 @@ def main():
 
     elif tool == "build":
         import martinisurf.pipeline as module
-
-        # CRÍTICO: forward ALL flags to pipeline, including --dna
-        subcmd_args = args[:]      
 
     else:
         print(f"❌ Unknown command: {tool}")

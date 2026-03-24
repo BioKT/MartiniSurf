@@ -29,6 +29,8 @@ def build_linker(linker_input: str,
                  molname: str,
                  is_dna: bool,
                  workdir: Path):
+    # Reserved for future DNA-specific linker handling; keep in signature for API stability.
+    _ = is_dna
 
     workdir = Path(workdir)
     linker_gro = workdir / f"{molname}.gro"

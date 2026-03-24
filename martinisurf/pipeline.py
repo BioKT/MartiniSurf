@@ -1233,12 +1233,14 @@ def _write_ions_mdp(mdp_path: Path, polarizable_water: bool = False) -> None:
             "pbc = xyz\n"
             "rlist = 1.2\n"
             "; OPTIONS FOR ELECTROSTATICS AND VDW =\n"
-            "; Martini 2 DNA polarizable-water setup =\n"
-            "coulombtype              = Reaction-Field\n"
+            "; Martini 2 DNA polarizable-water setup modernized for GROMACS 2024 =\n"
+            "; Legacy Coulomb Shift is approximated with Cut-off + Potential-shift =\n"
+            "coulombtype              = Cut-off\n"
+            "coulomb-modifier         = Potential-shift\n"
             "rcoulomb                 = 1.2\n"
             "; Dielectric constant =\n"
-            "epsilon_r                = 2.5\n"
-            "epsilon_rf               = 2.5\n"
+            "epsilon-r                = 2.5\n"
+            "; Legacy VdW Shift is approximated with Cut-off + Force-switch =\n"
             "vdwtype                  = Cut-off\n"
             "vdw-modifier             = Force-switch\n"
             "; cut-off lengths        =\n"
@@ -1540,12 +1542,8 @@ def _detect_ff_ion_moltypes(top_dir: Path) -> dict[str, str]:
         available.update(_read_itp_moleculetype_names(itp))
 
     mapping = {
-        "NA": "NA+"
-        if "NA+" in available
-        else ("NA" if "NA" in available else "NA"),
-        "CL": "CL-"
-        if "CL-" in available
-        else ("CL" if "CL" in available else "CL"),
+        "NA": "NA+" if "NA+" in available else "NA",
+        "CL": "CL-" if "CL-" in available else "CL",
     }
     return mapping
 

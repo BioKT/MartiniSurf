@@ -55,12 +55,14 @@ def _select_dna_forcefield_name(itp_dir: Path, polarizable_water: bool = False) 
 def _polarizable_water_electrostatics_block() -> list[str]:
     return [
         "; OPTIONS FOR ELECTROSTATICS AND VDW =",
-        "; Martini 2 DNA polarizable-water setup =",
-        "coulombtype              = Reaction-Field",
+        "; Martini 2 DNA polarizable-water setup modernized for GROMACS 2024 =",
+        "; Legacy Coulomb Shift is approximated with Cut-off + Potential-shift =",
+        "coulombtype              = Cut-off",
+        "coulomb-modifier         = Potential-shift",
         "rcoulomb                 = 1.2",
         "; Dielectric constant =",
-        "epsilon_r                = 2.5",
-        "epsilon_rf               = 2.5",
+        "epsilon-r                = 2.5",
+        "; Legacy VdW Shift is approximated with Cut-off + Force-switch =",
         "vdwtype                  = Cut-off",
         "vdw-modifier             = Force-switch",
         "; cut-off lengths        =",
@@ -1372,7 +1374,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     if args.cofactor_count > 0 and args.cofactor_itp_name:
         cofactor_itp_path = dst_itp_dir / args.cofactor_itp_name
         cofactor_moltype_name = _read_itp_moleculetype(cofactor_itp_path) or cofactor_itp_path.stem
-    substrate_moltype_name: str | None = args.substrate_moltype or None
+    substrate_moltype_name: str | None = args.substrate_moltype
     if args.substrate_count > 0 and args.substrate_itp_name:
         substrate_itp_path = dst_itp_dir / args.substrate_itp_name
         substrate_moltype_name = _read_itp_moleculetype(substrate_itp_path) or substrate_itp_path.stem

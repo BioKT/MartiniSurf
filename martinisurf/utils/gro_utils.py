@@ -3,7 +3,8 @@ import numpy as np
 
 def load_gro(filename):
     coords, atoms = [], []
-    lines = open(filename).readlines()[2:-1]
+    with open(filename) as fh:
+        lines = fh.readlines()[2:-1]
     for line in lines:
         try:
             resid = int(line[0:5])
@@ -15,6 +16,6 @@ def load_gro(filename):
             z = float(line[36:44]) * 10
             atoms.append((resid, resname, atomname, atomid))
             coords.append([x, y, z])
-        except BaseException:
+        except (ValueError, IndexError):
             continue
     return np.array(coords), atoms

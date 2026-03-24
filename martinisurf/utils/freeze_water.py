@@ -41,7 +41,7 @@ def _rename_water_block(block_lines: list[str], target_resname: str) -> list[str
         if len(ln) < 20:
             renamed.append(ln)
             continue
-        renamed.append(ln[:5] + f"{target_resname:<5}" + f"{target_resname:>5}" + ln[15:])
+        renamed.append(ln[:5] + f"{target_resname:<5}" + ln[10:15] + ln[15:])
     return renamed
 
 
