@@ -207,10 +207,6 @@ for CHARGE in "${CHARGES[@]}"; do
     "${MDP_DIR}/nvt_dna.mdp" \
     "${MDP_DIR}/nvt.mdp")"
 
-  NPT_MDP="$(must_find_file "npt mdp" \
-    "${MDP_DIR}/npt_dna.mdp" \
-    "${MDP_DIR}/npt.mdp")"
-
   DEP_MDP="$(must_find_file "deposition mdp" \
     "${MDP_DIR}/deposition_dna.mdp" \
     "${MDP_DIR}/deposition.mdp")"
@@ -221,7 +217,6 @@ for CHARGE in "${CHARGES[@]}"; do
 
   MIN_NAME="${SYSTEM_TAG}_${CHARGE_TAG}_min_r${REPLICA_PADDED}"
   NVT_NAME="${SYSTEM_TAG}_${CHARGE_TAG}_nvt_r${REPLICA_PADDED}"
-  NPT_NAME="${SYSTEM_TAG}_${CHARGE_TAG}_npt_r${REPLICA_PADDED}"
   DEP_NAME="${SYSTEM_TAG}_${CHARGE_TAG}_dep_r${REPLICA_PADDED}"
   PROD_NAME="${SYSTEM_TAG}_${CHARGE_TAG}_prod_r${REPLICA_PADDED}"
 
@@ -247,21 +242,10 @@ for CHARGE in "${CHARGES[@]}"; do
 
   "${GMX_BIN}" grompp \
     -p "${EQUIL_TOPOLOGY}" \
-    -f "${NPT_MDP}" \
+    -f "${DEP_MDP}" \
     -c "${NVT_NAME}.gro" \
     -r "${NVT_NAME}.gro" \
     -t "${NVT_NAME}.cpt" \
-    -o "${NPT_NAME}.tpr" \
-    "${INDEX_ARGS[@]}" \
-    -maxwarn 3
-  run_mdrun "${NPT_NAME}"
-
-  "${GMX_BIN}" grompp \
-    -p "${EQUIL_TOPOLOGY}" \
-    -f "${DEP_MDP}" \
-    -c "${NPT_NAME}.gro" \
-    -r "${NPT_NAME}.gro" \
-    -t "${NPT_NAME}.cpt" \
     -o "${DEP_NAME}.tpr" \
     "${INDEX_ARGS[@]}" \
     -maxwarn 3
@@ -287,4 +271,3 @@ echo "===================================================="
 echo "Charge scan completed successfully."
 echo "Results directory: ${SCAN_ROOT}"
 echo "===================================================="
-

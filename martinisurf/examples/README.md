@@ -47,6 +47,7 @@ Note: this example is bundled as build + solvation because legacy Martini 2 pola
 Workflow scripts note:
 - `minimization/nvt/npt/deposition` run with non-restrained topology (`system_final.top` when available).
 - `production` runs with restrained topology (`system_final_res.top`) when available.
+- DNA linker workflows (`dna/03`, `dna/04`) currently use `minimization -> nvt -> deposition -> production` with no `npt` stage.
 
 ## Protein Examples
 1. Protein anchor mode  

@@ -1,8 +1,8 @@
 define                   = -DPOSRES
 
 integrator               = md
-dt                       = 0.005
-nsteps                   = 200000000
+dt                       = 0.01
+nsteps                   = 10000000
 nstxout                  = 0
 nstvout                  = 0
 nstfout                  = 0
@@ -19,25 +19,21 @@ verlet-buffer-tolerance  = 0.005
 
 
 
+
 ; OPTIONS FOR ELECTROSTATICS AND VDW =
-; Martini 2 DNA polarizable-water setup modernized for GROMACS 2024 =
-; Legacy Coulomb Shift is approximated with Cut-off + Potential-shift =
+; Martini 2 DNA polarizable-water setup for Verlet lists =
 coulombtype              = Cut-off
 coulomb-modifier         = Potential-shift
 rcoulomb                 = 1.2
-; Dielectric constant =
 epsilon-r                = 2.5
-; Legacy VdW Shift is approximated with Cut-off + Force-switch =
 vdwtype                  = Cut-off
 vdw-modifier             = Force-switch
-; cut-off lengths        =
 rvdw-switch              = 0.9
 rvdw                     = 1.2
-; Apply long range dispersion corrections for Energy and Pressure =
 DispCorr                 = No
 
 tcoupl                   = v-rescale
-tc-grps                  = system
+tc-grps                  = System
 tau-t                    = 1.0
 ref-t                    = 300
 
@@ -49,30 +45,20 @@ cos-acceleration         = 0
 
 refcoord_scaling         = all
 
-Pcoupl                   = Parrinello-Rahman ;parrinello-rahman
-Pcoupltype               = semiisotropic
-tau-p                    = 12.0
-compressibility          = 0 4e-5
-ref-p                    = 1 1
-
+pull                     = yes
+pull-ngroups             = 2                     ; Total number of pull groups
+pull-group1-name         = Anchor_1            ; First pull group
+pull-group2-name         = SRF                   ; Second pull group (common)
 
 ; First pulling coordinate (Umbrella 1)
-
-pull                     = yes
-pull-ngroups             = 4
-pull-group1-name         = Anchor_1
-pull-group2-name         = Anchor_2
-pull-group3-name         = Anchor_3
-pull-group4-name         = SRF
-
-pull-ncoords             = 1
-pull-coord1-geometry     = distance
-pull-coord1-groups       = 3 4
-pull-coord1-type         = umbrella
-pull-coord1-k            = 500.0
-pull-coord1-rate         = 0
-pull-coord1-dim          = N N Y
-pull-coord1-init         = 0.600
+pull-ncoords             = 2                     ; Two pulling coordinates
+pull-coord1-geometry     = distance              ; Geometry type for the first coordinate
+pull-coord1-groups       = 1 2                   ; Groups involved in the first coordinate (Anchor_1 and SRF)
+pull-coord1-type         = umbrella              ; Pulling type for the first coordinate (umbrella)
+pull-coord1-k            = 500.0                ; Force constant for the first coordinate
+pull-coord1-rate         = 0                     ; Pulling rate (0 for umbrella)
+pull-coord1-dim          = N N Y                 ; Pulling dimensions for the first coordinate
+pull-coord1_start        = yes                   ; Start from the current distance
 
 ; OPTIONS FOR BONDS     =
 constraints              = none

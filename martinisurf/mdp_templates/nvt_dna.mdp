@@ -24,9 +24,9 @@ vdw-modifier             = Potential-shift-verlet
 rvdw                     = 1.1
 
 tcoupl                   = v-rescale
-tc-grps                  = system
+tc-grps                  = System
 tau-t                    = 1.0
-ref-t                    = 310
+ref-t                    = 300
 
 
 ; Freeze groups

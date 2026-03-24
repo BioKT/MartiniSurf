@@ -95,7 +95,6 @@ fi
 
 MIN_MDP="$(must_find_file "minimization mdp" "${MDP_DIR}/minimization_dna.mdp" "${MDP_DIR}/minimization.mdp")"
 NVT_MDP="$(must_find_file "nvt mdp" "${MDP_DIR}/nvt_dna.mdp" "${MDP_DIR}/nvt.mdp")"
-NPT_MDP="$(must_find_file "npt mdp" "${MDP_DIR}/npt_dna.mdp" "${MDP_DIR}/npt.mdp")"
 DEP_MDP="$(must_find_file "deposition mdp" "${MDP_DIR}/deposition_dna.mdp" "${MDP_DIR}/deposition.mdp")"
 PROD_MDP="$(must_find_file "production mdp" "${MDP_DIR}/production_dna.mdp" "${MDP_DIR}/production.mdp")"
 
@@ -111,7 +110,6 @@ fi
 REPLICA_PADDED="$(printf "%02d" "${REPLICA}")"
 MIN_NAME="${SYSTEM_TAG}_min_r${REPLICA_PADDED}"
 NVT_NAME="${SYSTEM_TAG}_nvt_r${REPLICA_PADDED}"
-NPT_NAME="${SYSTEM_TAG}_npt_r${REPLICA_PADDED}"
 DEP_NAME="${SYSTEM_TAG}_dep_r${REPLICA_PADDED}"
 PROD_NAME="${SYSTEM_TAG}_prod_r${REPLICA_PADDED}"
 
@@ -157,21 +155,10 @@ run_mdrun "${NVT_NAME}"
 
 "${GMX_BIN}" grompp \
   -p "${EQUIL_TOPOLOGY}" \
-  -f "${NPT_MDP}" \
+  -f "${DEP_MDP}" \
   -c "${NVT_NAME}.gro" \
   -r "${NVT_NAME}.gro" \
   -t "${NVT_NAME}.cpt" \
-  -o "${NPT_NAME}.tpr" \
-  "${INDEX_ARGS[@]}" \
-  -maxwarn 3
-run_mdrun "${NPT_NAME}"
-
-"${GMX_BIN}" grompp \
-  -p "${EQUIL_TOPOLOGY}" \
-  -f "${DEP_MDP}" \
-  -c "${NPT_NAME}.gro" \
-  -r "${NPT_NAME}.gro" \
-  -t "${NPT_NAME}.cpt" \
   -o "${DEP_NAME}.tpr" \
   "${INDEX_ARGS[@]}" \
   -maxwarn 3

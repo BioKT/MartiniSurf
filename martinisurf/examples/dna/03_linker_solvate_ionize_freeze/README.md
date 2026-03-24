@@ -25,7 +25,8 @@ Generated outputs are updated automatically:
 - `Simulation_Files/0_topology/system_final_res.top`
 
 Workflow note:
-- `work_flow_gromacs.sh` uses `system_final.top` for equilibration stages and `system_final_res.top` for production when present.
+- `work_flow_gromacs.sh` uses the DNA protocol `minimization -> nvt -> deposition -> production`.
+- `system_final.top` is used for `minimization`, `nvt`, and `deposition`; `system_final_res.top` is used for production when present.
 
 Notes:
 - Assumes Martini solvent files already define `W` and `WF` behavior in your FF stack.

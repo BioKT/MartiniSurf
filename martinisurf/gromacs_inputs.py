@@ -55,20 +55,15 @@ def _select_dna_forcefield_name(itp_dir: Path, polarizable_water: bool = False) 
 def _polarizable_water_electrostatics_block() -> list[str]:
     return [
         "; OPTIONS FOR ELECTROSTATICS AND VDW =",
-        "; Martini 2 DNA polarizable-water setup modernized for GROMACS 2024 =",
-        "; Legacy Coulomb Shift is approximated with Cut-off + Potential-shift =",
+        "; Martini 2 DNA polarizable-water setup for Verlet lists =",
         "coulombtype              = Cut-off",
         "coulomb-modifier         = Potential-shift",
         "rcoulomb                 = 1.2",
-        "; Dielectric constant =",
         "epsilon-r                = 2.5",
-        "; Legacy VdW Shift is approximated with Cut-off + Force-switch =",
         "vdwtype                  = Cut-off",
         "vdw-modifier             = Force-switch",
-        "; cut-off lengths        =",
         "rvdw-switch              = 0.9",
         "rvdw                     = 1.2",
-        "; Apply long range dispersion corrections for Energy and Pressure =",
         "DispCorr                 = No",
     ]
 
@@ -86,6 +81,15 @@ def _polarizable_water_bond_block() -> list[str]:
         "; Lincs will write a warning to the stderr if in one step a bond =",
         "; rotates over more degrees than =",
         "lincs_warnangle          = 90",
+    ]
+
+
+def _polarizable_water_thermostat_block() -> list[str]:
+    return [
+        "tcoupl                   = v-rescale",
+        "tc-grps                  = System",
+        "tau-t                    = 1.0",
+        "ref-t                    = 300",
     ]
 
 
@@ -115,6 +119,14 @@ def _rewrite_mdp_for_polarizable_water(mdp_path: Path) -> None:
         "lincs_order",
         "lincs_warnangle",
     }
+    thermostat_keys = {
+        "tcoupl",
+        "tc-grps",
+        "tau_t",
+        "tau-t",
+        "ref_t",
+        "ref-t",
+    }
 
     kept: list[str] = []
     insert_after = -1
@@ -122,7 +134,7 @@ def _rewrite_mdp_for_polarizable_water(mdp_path: Path) -> None:
         stripped = raw.strip()
         if stripped:
             key = stripped.split("=", 1)[0].strip().lower() if "=" in stripped else ""
-            if key in electrostatic_keys or key in bond_keys:
+            if key in electrostatic_keys or key in bond_keys or key in thermostat_keys:
                 continue
             if (
                 key == "verlet-buffer-tolerance"
@@ -150,6 +162,8 @@ def _rewrite_mdp_for_polarizable_water(mdp_path: Path) -> None:
     if out and out[-1].strip():
         out.append("")
     out.extend(electro_block)
+    out.append("")
+    out.extend(_polarizable_water_thermostat_block())
 
     tail = kept[insert_at:]
     if tail and tail[0].strip():
@@ -1486,7 +1500,6 @@ def main(argv: Sequence[str] | None = None) -> None:
         mdp_files = {
             "minimization_dna.mdp": "minimization_dna.mdp",
             "nvt_dna.mdp": "nvt_dna.mdp",
-            "npt_dna.mdp": "npt_dna.mdp",
             "deposition_dna.mdp": "deposition_dna.mdp",
             "production_dna.mdp": "production_dna.mdp",
         }
@@ -1507,7 +1520,6 @@ def main(argv: Sequence[str] | None = None) -> None:
             "production.mdp",
             "minimization_dna.mdp",
             "nvt_dna.mdp",
-            "npt_dna.mdp",
             "production_dna.mdp",
         }
         mdp_files = {src_name: dst_name for src_name, dst_name in mdp_files.items() if dst_name in allowed_ads}
@@ -1524,7 +1536,6 @@ def main(argv: Sequence[str] | None = None) -> None:
                 "nvt.mdp",
                 "npt.mdp",
                 "nvt_dna.mdp",
-                "npt_dna.mdp",
                 "deposition.mdp",
                 "production.mdp",
                 "deposition_dna.mdp",
