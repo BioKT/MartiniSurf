@@ -320,6 +320,8 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <p>For adsorption setups, use the main build command with <code class="docutils literal notranslate"><span class="pre">--ads-mode</span></code> and anchor-based orientation
 (<code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">...</span></code> or <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code> anchor groups). This mode runs:
 <code class="docutils literal notranslate"><span class="pre">minimization</span> <span class="pre">-&gt;</span> <span class="pre">nvt</span> <span class="pre">-&gt;</span> <span class="pre">npt</span> <span class="pre">-&gt;</span> <span class="pre">production</span></code> without deposition pulls/restraints.</p>
+<p>For the current DNA linker workflows (<code class="docutils literal notranslate"><span class="pre">dna/03</span></code>, <code class="docutils literal notranslate"><span class="pre">dna/04</span></code>), the MD protocol is:
+<code class="docutils literal notranslate"><span class="pre">minimization</span> <span class="pre">-&gt;</span> <span class="pre">nvt</span> <span class="pre">-&gt;</span> <span class="pre">deposition</span> <span class="pre">-&gt;</span> <span class="pre">production</span></code> with no intermediate <code class="docutils literal notranslate"><span class="pre">npt</span></code> stage.</p>
 </section>
 </section>
 

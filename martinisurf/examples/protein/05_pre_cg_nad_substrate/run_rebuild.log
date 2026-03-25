@@ -1,0 +1,48 @@
+/home/jjimenez/anaconda3/lib/python3.11/site-packages/MDAnalysis-2.7.0-py3.11-linux-x86_64.egg/MDAnalysis/topology/guessers.py:146: UserWarning: Failed to guess the mass for the following atom types: A
+  warnings.warn("Failed to guess the mass for the following atom types: {}".format(atom_type))
+/home/jjimenez/anaconda3/lib/python3.11/site-packages/MDAnalysis-2.7.0-py3.11-linux-x86_64.egg/MDAnalysis/topology/guessers.py:146: UserWarning: Failed to guess the mass for the following atom types: E
+  warnings.warn("Failed to guess the mass for the following atom types: {}".format(atom_type))
+
+=== MartiniSurf Configuration ===
+Mode:             Protein (pre-CG complex)
+Complex config:   input/complex_config.yaml
+Orientation:      anchor (from config)
+Output:           Simulation_Files
+=================================
+
+✔ 4-1 Surface (Honeycomb Carbon) generated with 792 beads.
+✔ Moved generated surface.itp into topology
+✔ Saved oriented system → /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/05_pre_cg_nad_substrate/Simulation_Files/2_system/immobilized_system.gro
+✔ Added 10 random substrate molecule(s) inside the box
+✔ Copied ETO.itp into topology
+
+• Using input system: /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/05_pre_cg_nad_substrate/Simulation_Files/2_system/immobilized_system.gro
+• Output directory:   /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/05_pre_cg_nad_substrate/Simulation_Files
+
+🔍 Molecule type detected: PROTEIN/MARTINI3
+
+=== Anchor Groups Provided ===
+  Anchor_1: [8, 10, 11]
+  Anchor_2: [1025, 1027, 1028]
+
+  → Anchor_1: 15 atoms
+  → Anchor_2: 15 atoms
+✔ Copied water.gro template into 2_system
+ℹ ETO detected in Martini FF, skipping ETO.itp include.
+• Copying MDP templates ...
+  ✔ minimization.mdp → minimization.mdp
+  ✔ nvt.mdp → nvt.mdp
+  ✔ npt.mdp → npt.mdp
+  ✔ deposition.mdp → deposition.mdp
+  ✔ production.mdp → production.mdp
+✔ GoMartini system built
+✔ Ionized system written: /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/05_pre_cg_nad_substrate/Simulation_Files/2_system/final_system.gro
+✔ Alias final system written: /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/05_pre_cg_nad_substrate/Simulation_Files/2_system/system_final.gro
+✔ Final topology written: /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/05_pre_cg_nad_substrate/Simulation_Files/0_topology/system_final.top
+✔ Merged index written: /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/05_pre_cg_nad_substrate/Simulation_Files/0_topology/index.ndx
+✔ Final restrained topology written: /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/05_pre_cg_nad_substrate/Simulation_Files/0_topology/system_final_res.top
+
+=====================================
+✔ MartiniSurf Finished Successfully
+=====================================
+

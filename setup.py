@@ -12,11 +12,11 @@ setup(
     description="Toolkit for automated Martini protein and DNA surface-system setup.",
     long_description=README,
     long_description_content_type="text/markdown",
-    url="https://github.com/jjimenezgar/MartiniSurf",
+    url="https://github.com/BioKT/MartiniSurf",
     project_urls={
-        "Documentation": "https://github.com/jjimenezgar/MartiniSurf/tree/master/docs",
-        "Source": "https://github.com/jjimenezgar/MartiniSurf",
-        "Issues": "https://github.com/jjimenezgar/MartiniSurf/issues",
+        "Documentation": "https://github.com/BioKT/MartiniSurf/tree/master/docs",
+        "Source": "https://github.com/BioKT/MartiniSurf",
+        "Issues": "https://github.com/BioKT/MartiniSurf/issues",
     },
     python_requires=">=3.9",
     keywords=[

@@ -1,6 +1,6 @@
 ; MARTINI (elnedyn22dna) Coarse Grained topology file for "Nucleic_A+Nucleic_B"
 ; Created by py version 2.2 
-; Using the following options:  -f /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/04_dna_linker/Simulation_Files/_martinize_tmp/dna_input.gro -x /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/04_dna_linker/Simulation_Files/_martinize_tmp/DNA_cg.pdb -o /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/04_dna_linker/Simulation_Files/_martinize_tmp/DNA_cg.top -dnatype ds-stiff -p Backbone -pf 1000 -merge A,B
+; Using the following options:  -f /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/dna/02_linker/Simulation_Files/_martinize_tmp/dna_input.gro -x /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/dna/02_linker/Simulation_Files/_martinize_tmp/DNA_cg.pdb -o /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/dna/02_linker/Simulation_Files/_martinize_tmp/DNA_cg.top -dnatype ds-stiff -p Backbone -pf 1000 -merge A,B
 ; #####################################################################################################
 ; This topology is based on development beta of Martini DNA and should NOT be used for production runs.
 ; #####################################################################################################

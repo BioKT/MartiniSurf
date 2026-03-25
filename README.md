@@ -9,17 +9,17 @@ Toolkit for automated Martini protein/DNA surface-system setup, including linker
 </p>
 
 <p align="center">
-  <a href="https://github.com/jjimenezgar/MartiniSurf/actions/workflows/python-ci.yml">
-    <img src="https://github.com/jjimenezgar/MartiniSurf/actions/workflows/python-ci.yml/badge.svg" alt="CI">
+  <a href="https://github.com/BioKT/MartiniSurf/actions/workflows/python-ci.yml">
+    <img src="https://github.com/BioKT/MartiniSurf/actions/workflows/python-ci.yml/badge.svg" alt="CI">
   </a>
-  <a href="https://codecov.io/gh/jjimenezgar/MartiniSurf">
-    <img src="https://codecov.io/gh/jjimenezgar/MartiniSurf/branch/master/graph/badge.svg" alt="Coverage">
+  <a href="https://codecov.io/gh/BioKT/MartiniSurf">
+    <img src="https://codecov.io/gh/BioKT/MartiniSurf/branch/master/graph/badge.svg" alt="Coverage">
   </a>
   <img src="https://img.shields.io/badge/python-3.9%20|%203.10%20|%203.11-blue.svg" alt="Python versions">
-  <a href="https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_Protein.ipynb">
+  <a href="https://colab.research.google.com/github/BioKT/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_Protein.ipynb">
     <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open MartiniSurf_Protein">
   </a>
-  <a href="https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_DNA.ipynb">
+  <a href="https://colab.research.google.com/github/BioKT/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_DNA.ipynb">
     <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open MartiniSurf_DNA">
   </a>
 </p>
@@ -79,10 +79,10 @@ bash run.sh
 ## Google Colab Notebooks
 - Protein workflow + optional linker generation with AutoMartini M3:
   - Notebook: `martinisurf/examples/MartiniSurf_Protein.ipynb`
-  - Open in Colab: https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_Protein.ipynb
+  - Open in Colab: https://colab.research.google.com/github/BioKT/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_Protein.ipynb
 - DNA workflow + optional linker generation with auto_martini M2:
   - Notebook: `martinisurf/examples/MartiniSurf_DNA.ipynb`
-  - Open in Colab: https://colab.research.google.com/github/jjimenezgar/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_DNA.ipynb
+  - Open in Colab: https://colab.research.google.com/github/BioKT/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_DNA.ipynb
 
 ## Linker Mode Notes
 - `--anchor` and `--linker-group` accept either legacy global residue ids or chain-based residue ids from the input PDB:

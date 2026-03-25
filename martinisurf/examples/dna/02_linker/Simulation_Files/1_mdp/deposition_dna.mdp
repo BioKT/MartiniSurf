@@ -37,17 +37,21 @@ cos-acceleration         = 0
 
 refcoord_scaling         = all
 
-pull                     = yes
-pull-ngroups             = 2                     ; Total number of pull groups
-pull-group1-name         = Anchor_1            ; First pull group
-pull-group2-name         = SRF                   ; Second pull group (common)
 
 ; First pulling coordinate (Umbrella 1)
-pull-ncoords             = 2                     ; Two pulling coordinates
-pull-coord1-geometry     = distance              ; Geometry type for the first coordinate
-pull-coord1-groups       = 1 2                   ; Groups involved in the first coordinate (Anchor_1 and SRF)
-pull-coord1-type         = umbrella              ; Pulling type for the first coordinate (umbrella)
-pull-coord1-k            = 500.0                ; Force constant for the first coordinate
-pull-coord1-rate         = 0                     ; Pulling rate (0 for umbrella)
-pull-coord1-dim          = N N Y                 ; Pulling dimensions for the first coordinate
-pull-coord1_start        = yes                   ; Start from the current distance
+
+pull                     = yes
+pull-ngroups             = 4
+pull-group1-name         = Anchor_1
+pull-group2-name         = Anchor_2
+pull-group3-name         = Anchor_3
+pull-group4-name         = GRA
+
+pull-ncoords             = 1
+pull-coord1-geometry     = distance
+pull-coord1-groups       = 3 4
+pull-coord1-type         = umbrella
+pull-coord1-k            = 500.0
+pull-coord1-rate         = 0
+pull-coord1-dim          = N N Y
+pull-coord1-init         = 0.564

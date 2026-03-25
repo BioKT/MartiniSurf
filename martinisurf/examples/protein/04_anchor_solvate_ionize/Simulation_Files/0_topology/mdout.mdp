@@ -2,16 +2,16 @@
 ;	File 'mdout.mdp' was generated
 ;	By user: jjimenez (1005)
 ;	On host: Loacoon2
-;	At date: Mon Mar  9 15:27:54 2026
+;	At date: Wed Mar 25 10:56:40 2026
 ;
 ;	Created by:
 ;	             :-) GROMACS - gmx grompp, 2020.1-Ubuntu-2020.1-1 (-:
 ;	
 ;	Executable:   /usr/bin/gmx
 ;	Data prefix:  /usr
-;	Working dir:  /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/05_protein_anchor_solvate_ionize/Simulation_Files/0_topology
+;	Working dir:  /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/04_anchor_solvate_ionize/Simulation_Files/0_topology
 ;	Command line:
-;	  gmx grompp -f /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/05_protein_anchor_solvate_ionize/Simulation_Files/2_system/_ions_tmp.mdp -c /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/05_protein_anchor_solvate_ionize/Simulation_Files/2_system/solvated_system.gro -p /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/05_protein_anchor_solvate_ionize/Simulation_Files/0_topology/system_final.top -o /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/05_protein_anchor_solvate_ionize/Simulation_Files/2_system/_ions_tmp.tpr -maxwarn 2
+;	  gmx grompp -f /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/04_anchor_solvate_ionize/Simulation_Files/2_system/_ions_tmp.mdp -c /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/04_anchor_solvate_ionize/Simulation_Files/2_system/solvated_system.gro -p /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/04_anchor_solvate_ionize/Simulation_Files/0_topology/system_final.top -o /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/04_anchor_solvate_ionize/Simulation_Files/2_system/_ions_tmp.tpr -maxwarn 2
 
 ; VARIOUS PREPROCESSING OPTIONS
 ; Preprocessor information: use cpp syntax.
@@ -102,7 +102,7 @@ epsilon_r                = 15
 epsilon_rf               = 0
 ; Method for doing Van der Waals
 vdwtype                  = cutoff
-vdw-modifier             = Potential-shift-Verlet
+vdw-modifier             = Potential-shift-verlet
 ; cut-off lengths       
 rvdw-switch              = 0
 rvdw                     = 1.1

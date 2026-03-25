@@ -12,16 +12,37 @@ ns_type                  = grid
 pbc                      = xyz
 verlet-buffer-tolerance  = 0.005
 
-coulombtype              = reaction-field
-rcoulomb                 = 1.1
-epsilon_r                = 2.5    ; 2.5 (with polarizable water)
-epsilon_rf               = 0
 
-vdw_type                 = cutoff
-vdw-modifier             = Potential-shift-verlet
-rvdw                     = 1.1
+
+; OPTIONS FOR ELECTROSTATICS AND VDW =
+; Martini 2 DNA polarizable-water setup for Verlet lists =
+coulombtype              = Cut-off
+coulomb-modifier         = Potential-shift
+rcoulomb                 = 1.2
+epsilon-r                = 2.5
+vdwtype                  = Cut-off
+vdw-modifier             = Force-switch
+rvdw-switch              = 0.9
+rvdw                     = 1.2
+DispCorr                 = No
+
+tcoupl                   = v-rescale
+tc-grps                  = System
+tau-t                    = 1.0
+ref-t                    = 300
 
 ; Freeze groups
 freezegrps = SRF
 freezedim = Y Y Y
 
+; OPTIONS FOR BONDS     =
+constraints              = none
+; Type of constraint algorithm =
+constraint_algorithm     = Lincs
+; Relative tolerance of shake =
+shake_tol                = 0.0001
+; Highest order in the expansion of the constraint coupling matrix =
+lincs_order              = 4
+; Lincs will write a warning to the stderr if in one step a bond =
+; rotates over more degrees than =
+lincs_warnangle          = 90

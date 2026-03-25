@@ -2,14 +2,12 @@
 
 #include "system_itp/martini_v2.1-dna.itp"
 #include "system_itp/martini_v2.0_ions.itp"
-#include "system_itp/Nucleic_A+Nucleic_B.itp"
+#include "system_itp/Nucleic_A+Nucleic_B_linker.itp"
 #include "system_itp/surface.itp"
-#include "system_itp/ALK.itp"
 
 [ system ]
 MartiniSurf system
 
 [ molecules ]
 Nucleic_A+Nucleic_B 1
-ALK 1
 GRA 1144

@@ -55,7 +55,7 @@ def test_apply_freeze_water_fraction_updates_gro_and_top(tmp_path):
     assert top_text.index("W               4") < top_text.index("WF              1")
     frozen_lines = [ln for ln in body if ln[5:10].strip() == "WF"]
     assert len(frozen_lines) == 1
-    assert frozen_lines[0][10:15].strip() == "W"
+    assert frozen_lines[0][10:15].strip() == "WF"
 
 
 def test_apply_freeze_water_fraction_spreads_wf_and_keeps_them_after_w(tmp_path):
@@ -101,6 +101,8 @@ def test_apply_freeze_water_fraction_spreads_wf_and_keeps_them_after_w(tmp_path)
     assert water_resnames == ["W", "W", "W", "WF", "WF"]
     assert frozen_resids == [2, 5]
     assert frozen_resids != [4, 5]
+    frozen_atomnames = [ln[10:15].strip() for ln in body if ln[5:10].strip() == "WF"]
+    assert frozen_atomnames == ["WF", "WF"]
 
 
 def test_apply_freeze_water_fraction_noop_with_zero_fraction(tmp_path):

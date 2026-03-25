@@ -1,0 +1,107 @@
+    INFO - general - Read 1 molecules from PDB file /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/03_linker_surface_decoration/Simulation_Files/2_system/cleaned_input.pdb
+    INFO - step - Guessing the bonds.
+    INFO - general - 4 molecules after guessing bonds
+    INFO - step - Repairing the graph.
+    INFO - general - Applying modification N-ter to residue A-MET1
+    INFO - general - Applying modification + to residue A-MET1
+    INFO - general - Applying modification C-ter to residue A-LYS339
+    INFO - general - Applying modification + to residue A-LYS339
+    INFO - general - Applying modification N-ter to residue B-MET1
+    INFO - general - Applying modification + to residue B-MET1
+    INFO - general - Applying modification C-ter to residue B-LYS339
+    INFO - general - Applying modification + to residue B-LYS339
+    INFO - general - Applying modification N-ter to residue C-MET1
+    INFO - general - Applying modification + to residue C-MET1
+    INFO - general - Applying modification C-ter to residue C-LYS339
+    INFO - general - Applying modification + to residue C-LYS339
+    INFO - general - Applying modification N-ter to residue D-MET1
+    INFO - general - Applying modification + to residue D-MET1
+    INFO - general - Applying modification C-ter to residue D-LYS339
+    INFO - general - Applying modification + to residue D-LYS339
+    INFO - step - Dealing with modifications.
+    INFO - general - Identified the modifications ['N-ter'] on residues ['MET1', 'MET1', 'MET1', 'MET1']
+    INFO - general - Identified the modifications ['C-ter'] on residues ['LYS339', 'LYS339', 'LYS339']
+    INFO - general - Identified the modifications ['N-ter'] on residues ['MET1', 'MET1', 'MET1', 'MET1']
+    INFO - general - Identified the modifications ['C-ter'] on residues ['LYS339', 'LYS339', 'LYS339']
+    INFO - general - Identified the modifications ['N-ter'] on residues ['MET1', 'MET1', 'MET1', 'MET1']
+    INFO - general - Identified the modifications ['C-ter'] on residues ['LYS339', 'LYS339', 'LYS339']
+    INFO - general - Identified the modifications ['N-ter'] on residues ['MET1', 'MET1', 'MET1', 'MET1']
+    INFO - general - Identified the modifications ['C-ter'] on residues ['LYS339', 'LYS339', 'LYS339']
+    INFO - step - Read input.
+    INFO - step - Creating the graph at the target resolution.
+    INFO - general - Applying modification mapping ('C-ter',)
+    INFO - general - Applying modification mapping ('N-ter',)
+    INFO - general - Applying modification mapping ('C-ter',)
+    INFO - general - Applying modification mapping ('N-ter',)
+    INFO - general - Applying modification mapping ('C-ter',)
+    INFO - general - Applying modification mapping ('N-ter',)
+    INFO - general - Applying modification mapping ('C-ter',)
+    INFO - general - Applying modification mapping ('N-ter',)
+    INFO - step - Averaging the coordinates.
+    INFO - step - Applying the links.
+    INFO - step - Placing the charge dummies.
+    INFO - step - Applying position restraints.
+    INFO - step - Sorting atomids
+    INFO - step - Writing output.
+    INFO - general - Please cite: Kroon, P C; Grunewald, F; Barnoud, J; van Tilburg, M; Souza, P C; Wassenaar, T A; Marrink, S J;  elife 2024; 10.7554/elife.90627.2
+    INFO - general - Please cite: McGibbon, R T; Beauchamp, K A; Harrigan, M P; Klein, C; Swails, J M; Hernández, C X; Schwantes, C R; Wang, L; Lane, T J; Pande, V S;  Biophysical Journal 2015; 10.1016/j.bpj.2015.08.015
+    INFO - general - Please cite: Souza, P C T; Alessandri, R; Barnoud, J; Thallmair, S; Faustino, I; Grünewald, F; Patmanidis, I; Abdizadeh, H; Bruininks, B M H; Wassenaar, T A; Kroon, P C; Melcr, J; Nieto, V; Corradi, V; Khan, H M; Domański, J; Javanainen, M; Martinez-Seara, H; Reuter, N; Best, R B; Vattulainen, I; Monticelli, L; Periole, X; Tieleman, D P; de Vries, A H; Marrink, S J;  Nature Methods 2021; 10.1038/s41592-021-01098-3
+    INFO - general - I prefer one with gin, but James Bond liked a vodka martini. -- Sir Roger Moore (The Guardian, 17/03/2015)
+
+=== MartiniSurf Configuration ===
+Mode:            Protein
+PDB/Input:       inputs/1RJW.pdb
+Orientation:      linker
+Output:           Simulation_Files
+Max warnings:     0
+Linker groups:    2
+Invert linker:    False
+Merge groups:     A,B,C,D
+=================================
+
+🧹 Cleaned PDB → /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/03_linker_surface_decoration/Simulation_Files/2_system/cleaned_input.pdb
+🧬 Protein mode → using martinize2
+
+▶ Running:
+  martinize2 -f /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/03_linker_surface_decoration/Simulation_Files/2_system/cleaned_input.pdb -x /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/03_linker_surface_decoration/Simulation_Files/_martinize_tmp/Protein_cg.pdb -o /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/03_linker_surface_decoration/Simulation_Files/_martinize_tmp/Protein_cg.top -ff martini3001 -name Protein -maxwarn 0 -merge A,B,C,D -p backbone -pf 1000 -dssp 
+
+✔ Done
+
+✔ 4-1 Surface (Honeycomb Carbon) generated with 792 beads.
+✔ Moved generated surface.itp into topology
+🔄 Converting PDB → GRO (MDTraj): /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/03_linker_surface_decoration/Simulation_Files/2_system/Protein_cg.pdb → /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/03_linker_surface_decoration/Simulation_Files/2_system/Protein_cg.gro
+✔ GRO written: /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/03_linker_surface_decoration/Simulation_Files/2_system/Protein_cg.gro
+ℹ Linker distances (nm): prot=0.564 surf=0.564
+✔ Saved oriented system → /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/03_linker_surface_decoration/Simulation_Files/2_system/immobilized_system.gro
+✔ Copied EPOXY.itp into topology
+
+• Using input system: /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/03_linker_surface_decoration/Simulation_Files/2_system/immobilized_system.gro
+• Output directory:   /home/jjimenez/Documents/Research_P450/SurfMartini2/martinisurf/examples/protein/03_linker_surface_decoration/Simulation_Files
+
+🔍 Molecule type detected: PROTEIN/MARTINI3
+
+=== Anchor Groups Provided ===
+  Anchor_1: [8, 10, 11]
+  Anchor_2: [1025, 1027, 1028]
+
+  → Anchor_1: 7 atoms
+  → Anchor_2: 7 atoms
+  → Anchor_2 (linker head): atom 3033
+  → Anchor_3 (linker tail): atom 3034
+  → Anchor_5 (linker head): atom 3035
+  → Anchor_6 (linker tail): atom 3036
+✔ Copied water.gro template into 2_system
+✔ Normalized POSRES_FC macros in 1 ITP file(s)
+• Copying MDP templates ...
+  ✔ minimization.mdp → minimization.mdp
+  ✔ nvt.mdp → nvt.mdp
+  ✔ npt.mdp → npt.mdp
+  ✔ deposition.mdp → deposition.mdp
+  ✔ production.mdp → production.mdp
+✔ Linker restrained topology generated: EPOXY_anchor.itp (atoms [2])
+✔ MartiniSurf system built
+
+=====================================
+✔ MartiniSurf Finished Successfully
+=====================================
+

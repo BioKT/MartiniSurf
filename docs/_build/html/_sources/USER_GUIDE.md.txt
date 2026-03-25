@@ -442,4 +442,5 @@ What to keep in mind:
 ## 12) Colab behavior notes
 
 - In `MartiniSurf_Protein.ipynb` and `MartiniSurf_DNA.ipynb`, Step `6B` runs `grompp` with `-maxwarn 3`.
-- Step `6C - View MD Result` uses a stage toggle selector (`nvt`, `npt`, `deposition`, `production`) and renders the selected stage when available.
+- In `MartiniSurf_DNA.ipynb`, Step `6B` uses the DNA short-MD protocol `nvt -> deposition -> production` (no `npt` stage).
+- Step `6C - View MD Result` renders the stages that are actually available for the selected notebook workflow.
