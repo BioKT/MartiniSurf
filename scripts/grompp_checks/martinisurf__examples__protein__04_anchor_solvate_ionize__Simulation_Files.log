@@ -1,0 +1,38 @@
+               :-) GROMACS - gmx grompp, 2024-EasyBuild_4.9.0 (-:
+
+Executable:   /scicomp/builds/Rocky/8.7/CascadeLake/software/GROMACS/2024-foss-2023a/bin/gmx_mpi
+Data prefix:  /scicomp/builds/Rocky/8.7/CascadeLake/software/GROMACS/2024-foss-2023a
+Working dir:  /scratch/jcjimenez/martini_surf_test/repo/scripts
+Command line:
+  gmx_mpi grompp -p /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/protein/04_anchor_solvate_ionize/Simulation_Files/0_topology/system_final_res.top -f /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/protein/04_anchor_solvate_ionize/Simulation_Files/1_mdp/minimization.mdp -c /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/protein/04_anchor_solvate_ionize/Simulation_Files/2_system/system_final.gro -r /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/protein/04_anchor_solvate_ionize/Simulation_Files/2_system/system_final.gro -o /scratch/jcjimenez/martini_surf_test/repo/scripts/grompp_checks/martinisurf__examples__protein__04_anchor_solvate_ionize__Simulation_Files.tpr -po /scratch/jcjimenez/martini_surf_test/repo/scripts/grompp_checks/martinisurf__examples__protein__04_anchor_solvate_ionize__Simulation_Files_mdout.mdp -n /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/protein/04_anchor_solvate_ionize/Simulation_Files/0_topology/index.ndx -maxwarn 3
+
+Ignoring obsolete mdp entry 'ns_type'
+
+NOTE 1 [file /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/protein/04_anchor_solvate_ionize/Simulation_Files/1_mdp/minimization.mdp]:
+  There are 792 atoms that are fully frozen and part of COMM removal
+  group(s), removing these atoms from the COMM removal group(s)
+
+Number of degrees of freedom in T-Coupling group rest is 73197.80
+The integrator does not provide a ensemble temperature, there is no system ensemble temperature
+
+There was 1 NOTE
+
+GROMACS reminds you: "Big Data is like teenage sex: everyone talks about it, nobody really knows how to do it, everyone thinks everyone else is doing it, so everyone claims they are doing it..." (Dan Ariely)
+
+Setting the LD random seed to -538067215
+
+Generated 2061873 of the 2421100 non-bonded parameter combinations
+
+Excluding 1 bonded neighbours molecule type 'Protein'
+
+Excluding 1 bonded neighbours molecule type 'SRF'
+
+Excluding 1 bonded neighbours molecule type 'W'
+
+Excluding 1 bonded neighbours molecule type 'NA'
+
+Excluding 1 bonded neighbours molecule type 'CL'
+
+Cleaning up constraints and constant bonded interactions with virtual sites
+
+This run will generate roughly 2 Mb of data

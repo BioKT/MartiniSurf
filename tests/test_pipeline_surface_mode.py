@@ -193,6 +193,37 @@ def test_generated_surface_args_forward_cnt_flags():
     assert "--cnt-base36" in builder_args
 
 
+def test_dna_local_surface_args_enable_periodic_xy_by_default():
+    parser = build_parser()
+    args = parser.parse_args([
+        "--dna",
+        "--pdb", "4C64",
+        "--anchor", "1", "1",
+        "--lx", "10",
+        "--ly", "10",
+        "--surface-mode", "2-1",
+    ])
+
+    builder_args = _build_generated_surface_args(args, Path("surface"))
+
+    assert "--periodic-xy" in builder_args
+
+
+def test_protein_local_surface_args_do_not_enable_periodic_xy_by_default():
+    parser = build_parser()
+    args = parser.parse_args([
+        "--pdb", "1RJW",
+        "--anchor", "1", "1",
+        "--lx", "10",
+        "--ly", "10",
+        "--surface-mode", "2-1",
+    ])
+
+    builder_args = _build_generated_surface_args(args, Path("surface"))
+
+    assert "--periodic-xy" not in builder_args
+
+
 def test_surface_bead_accepts_multiple_values_and_forwards_them():
     parser = build_parser()
     args = parser.parse_args([

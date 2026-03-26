@@ -2163,7 +2163,7 @@ Nucleic_A+Nucleic_B   1
   149   150   151   154      2  92.00000    15 ; DG
 ; Sidechain improper dihedrals
 [ position_restraints ]
-#ifdef POSRES
+#ifdef POSRES_DNA
 1 1 1000 1000 0
 2 1 1000 1000 0
 3 1 1000 1000 0

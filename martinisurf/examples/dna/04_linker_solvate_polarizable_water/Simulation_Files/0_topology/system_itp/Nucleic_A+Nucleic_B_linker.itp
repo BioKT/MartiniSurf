@@ -2169,6 +2169,6 @@ Nucleic_A+Nucleic_B   1
 ; Sidechain improper dihedrals
 
 [ position_restraints ]
-#ifdef POSRES
+#ifdef POSRES_DNA
 156 1 1000 1000 0
 #endif

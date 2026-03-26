@@ -12,6 +12,9 @@ Toolkit for automated Martini protein/DNA surface-system setup, including linker
   <a href="https://github.com/BioKT/MartiniSurf/actions/workflows/python-ci.yml">
     <img src="https://github.com/BioKT/MartiniSurf/actions/workflows/python-ci.yml/badge.svg" alt="CI">
   </a>
+  <a href="https://biokt.github.io/MartiniSurf/">
+    <img src="https://img.shields.io/badge/docs-GitHub%20Pages-2ea44f?logo=github" alt="Docs">
+  </a>
   <a href="https://codecov.io/gh/BioKT/MartiniSurf">
     <img src="https://codecov.io/gh/BioKT/MartiniSurf/branch/master/graph/badge.svg" alt="Coverage">
   </a>
@@ -31,6 +34,7 @@ MartiniSurf builds complete GROMACS-ready simulation folders for:
 - Linker-mediated immobilization workflows
 
 ## Documentation
+- Published docs (GitHub Pages): https://biokt.github.io/MartiniSurf/
 - Beginner-friendly complete guide (including full flag-by-flag reference): `docs/USER_GUIDE.md`
 
 Main capabilities:

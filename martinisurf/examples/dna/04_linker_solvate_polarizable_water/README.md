@@ -13,7 +13,7 @@ What this example configures in `martinisurf`:
 - Polarizable water mode: `--polarizable-water`
 - Solvation: `--solvate`
 - Ionization: `--ionize --salt-conc 0.15`
-- Reduced solvent exclusion near the surface: `--solvate-surface-clearance 0.2`
+- Surface clearance: uses the default DNA value (`0.4`)
 
 Polarizable-water specifics:
 - Solvent template: `polarize-water.gro`

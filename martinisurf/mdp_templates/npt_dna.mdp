@@ -1,3 +1,5 @@
+define                   = -DPOSRES
+
 integrator               = md
 dt                       = 0.005
 nsteps                   = 10000000
@@ -17,8 +19,6 @@ verlet-buffer-tolerance  = 0.005
 coulombtype              = reaction-field
 rcoulomb                 = 1.1
 epsilon_r                = 15    ; 2.5 (with polarizable water)
-epsilon_rf               = 0
-
 vdw_type                 = cutoff
 vdw-modifier             = Potential-shift-verlet
 rvdw                     = 1.1

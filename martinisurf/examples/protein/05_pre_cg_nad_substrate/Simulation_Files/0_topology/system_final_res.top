@@ -6,6 +6,7 @@
 #include "system_itp/Active_anchor.itp"
 #include "system_itp/surface.itp"
 #include "system_itp/NAD.itp"
+#include "system_itp/ETO.itp"
 
 [ system ]
 MartiniSurf restrained system
@@ -14,7 +15,7 @@ MartiniSurf restrained system
 Active 1
 NAD 4
 SRF 792
-ETO 10
-W 22055
+ETO_LOCAL 10
+W 22053
 NA 319
 CL 295

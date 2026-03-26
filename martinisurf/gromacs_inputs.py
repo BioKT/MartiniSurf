@@ -22,6 +22,25 @@ DNA_STANDARD_FF = "martini_v2.1-dna.itp"
 DNA_POLARIZABLE_FF = "martini_v2.1P-dna.itp"
 STANDARD_WATER_TEMPLATE = "water.gro"
 POLARIZABLE_WATER_TEMPLATE = "polarize-water.gro"
+DNA_RESNAMES = {"DA", "DC", "DG", "DT"}
+PROTEIN_RESNAMES = {
+    "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY",
+    "HIS", "ILE", "LEU", "LYS", "MET", "PHE", "PRO", "SER",
+    "THR", "TRP", "TYR", "VAL",
+}
+ION_MOLTYPES = {"NA", "CL", "K", "CA", "MG", "ZN", "LI", "RB", "CS", "BA", "SR", "F", "BR", "I"}
+DNA_THERMOSTAT_TAU = 0.3
+DNA_THERMOSTAT_REF_T = 300.0
+SURFACE_POSRES_DEFINE = "POSRES"
+DNA_POSRES_DEFINE = "POSRES_DNA"
+DNA_SURFACE_POSRES_FORCE = 5000.0
+DNA_MDP_FILENAMES = (
+    "minimization_dna.mdp",
+    "nvt_dna.mdp",
+    "npt_dna.mdp",
+    "deposition_dna.mdp",
+    "production_dna.mdp",
+)
 
 
 # ======================================================================
@@ -85,12 +104,101 @@ def _polarizable_water_bond_block() -> list[str]:
 
 
 def _polarizable_water_thermostat_block() -> list[str]:
+    return _render_thermostat_block(["System"], tau_t=1.0, ref_t=DNA_THERMOSTAT_REF_T)
+
+
+def _render_thermostat_block(
+    group_names: Sequence[str],
+    tau_t: float = DNA_THERMOSTAT_TAU,
+    ref_t: float = DNA_THERMOSTAT_REF_T,
+) -> list[str]:
+    groups = [str(name).strip() for name in group_names if str(name).strip()]
+    if not groups:
+        groups = ["System"]
+    tau_values = " ".join(f"{float(tau_t):g}" for _ in groups)
+    ref_values = " ".join(f"{float(ref_t):g}" for _ in groups)
     return [
         "tcoupl                   = v-rescale",
-        "tc-grps                  = System",
-        "tau-t                    = 1.0",
-        "ref-t                    = 300",
+        f"tc-grps                  = {' '.join(groups)}",
+        f"tau-t                    = {tau_values}",
+        f"ref-t                    = {ref_values}",
     ]
+
+
+def _format_mdp_define_line(macros: Sequence[str]) -> str:
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for macro in macros:
+        name = str(macro).strip()
+        if not name:
+            continue
+        if name.startswith("-D"):
+            name = name[2:]
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        ordered.append(name)
+    if not ordered:
+        return ""
+    rendered = " ".join(f"-D{name}" for name in ordered)
+    return f"define                   = {rendered}".rstrip()
+
+
+def _dna_required_posres_macros(mdp_name: str) -> list[str]:
+    if Path(mdp_name).name == "minimization_dna.mdp":
+        return []
+    macros = [SURFACE_POSRES_DEFINE]
+    if Path(mdp_name).name == "production_dna.mdp":
+        macros.append(DNA_POSRES_DEFINE)
+    return macros
+
+
+def _rewrite_mdp_define_macros(
+    mdp_path: Path,
+    required_macros: Sequence[str],
+    managed_macros: Sequence[str] = (SURFACE_POSRES_DEFINE, DNA_POSRES_DEFINE),
+) -> None:
+    lines = mdp_path.read_text().splitlines()
+    kept: list[str] = []
+    insert_at: int | None = None
+    preserved_macros: list[str] = []
+    managed = {str(name).strip() for name in managed_macros if str(name).strip()}
+
+    for raw in lines:
+        stripped = raw.strip()
+        key = stripped.split("=", 1)[0].strip().lower() if "=" in stripped else ""
+        if key == "define":
+            if insert_at is None:
+                insert_at = len(kept)
+            value = raw.split("=", 1)[1] if "=" in raw else ""
+            for token in value.split():
+                if not token:
+                    continue
+                macro = token[2:] if token.startswith("-D") else token
+                if not macro or macro in managed:
+                    continue
+                preserved_macros.append(macro)
+            continue
+        kept.append(raw)
+
+    if insert_at is None:
+        insert_at = 0
+
+    define_line = _format_mdp_define_line([*required_macros, *preserved_macros])
+    if not define_line:
+        out = list(kept)
+        while out and not out[0].strip():
+            out.pop(0)
+        mdp_path.write_text("\n".join(out).rstrip() + "\n")
+        return
+
+    out = kept[:insert_at]
+    out.append(define_line)
+    tail = kept[insert_at:]
+    if tail and tail[0].strip():
+        out.append("")
+    out.extend(tail)
+    mdp_path.write_text("\n".join(out).rstrip() + "\n")
 
 
 def _rewrite_mdp_for_polarizable_water(mdp_path: Path) -> None:
@@ -175,6 +283,81 @@ def _rewrite_mdp_for_polarizable_water(mdp_path: Path) -> None:
     out.append("")
     out.extend(_polarizable_water_bond_block())
     mdp_path.write_text("\n".join(out).rstrip() + "\n")
+
+
+def _rewrite_mdp_thermostat_groups(
+    mdp_path: Path,
+    group_names: Sequence[str],
+    tau_t: float = DNA_THERMOSTAT_TAU,
+    ref_t: float = DNA_THERMOSTAT_REF_T,
+) -> None:
+    thermostat_keys = {
+        "tcoupl",
+        "tc-grps",
+        "tau_t",
+        "tau-t",
+        "ref_t",
+        "ref-t",
+    }
+    anchor_keys = {
+        "rvdw",
+        "dispcorr",
+    }
+
+    lines = mdp_path.read_text().splitlines()
+    kept: list[str] = []
+    insert_at: int | None = None
+
+    for raw in lines:
+        stripped = raw.strip()
+        key = stripped.split("=", 1)[0].strip().lower() if "=" in stripped else ""
+        if key in thermostat_keys:
+            if insert_at is None:
+                insert_at = len(kept)
+            continue
+        kept.append(raw)
+        if key in anchor_keys:
+            insert_at = len(kept)
+
+    if insert_at is None:
+        insert_at = len(kept)
+
+    thermostat_block = _render_thermostat_block(group_names, tau_t=tau_t, ref_t=ref_t)
+    out = kept[:insert_at]
+    if out and out[-1].strip():
+        out.append("")
+    out.extend(thermostat_block)
+    tail = kept[insert_at:]
+    if tail and tail[0].strip():
+        out.append("")
+    out.extend(tail)
+    mdp_path.write_text("\n".join(out).rstrip() + "\n")
+
+
+def refresh_dna_mdp_thermostat_groups(
+    mdp_dir: Path,
+    top_path: Path,
+    itp_dir: Path,
+    surface_moltype: str,
+    surface_resname: str,
+) -> list[str]:
+    groups = _build_dna_thermostat_groups_from_top(
+        top_path=top_path,
+        itp_dir=itp_dir,
+        surface_moltype=surface_moltype,
+        surface_resname=surface_resname,
+    )
+    for mdp_name in DNA_MDP_FILENAMES:
+        mdp_path = mdp_dir / mdp_name
+        if not mdp_path.exists():
+            continue
+        _rewrite_mdp_define_macros(
+            mdp_path,
+            _dna_required_posres_macros(mdp_name),
+        )
+        if mdp_name != "minimization_dna.mdp":
+            _rewrite_mdp_thermostat_groups(mdp_path, groups)
+    return groups
 
 
 def parse_anchor_groups(anchor_args: List[List[str]] | None) -> Dict[int, List[int]]:
@@ -346,6 +529,275 @@ def _read_itp_moleculetype_set(itp_path: Path) -> set[str]:
     return moltypes
 
 
+def _parse_molecules_entries(top_path: Path) -> list[tuple[str, int]]:
+    if not top_path.exists():
+        return []
+
+    entries: list[tuple[str, int]] = []
+    in_molecules = False
+    for raw in top_path.read_text().splitlines():
+        line = raw.strip()
+        if line.lower() == "[ molecules ]":
+            in_molecules = True
+            continue
+        if not in_molecules:
+            continue
+        if line.startswith("["):
+            break
+        if not line or line.startswith(";"):
+            continue
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        try:
+            count = int(float(parts[1]))
+        except ValueError:
+            continue
+        entries.append((parts[0], count))
+    return entries
+
+
+def _top_included_itp_paths(top_path: Path, itp_dir: Path) -> list[Path]:
+    if not top_path.exists():
+        return []
+
+    included: list[Path] = []
+    seen: set[Path] = set()
+    include_re = re.compile(r'^\s*#include\s+"([^"]+)"')
+    for raw in top_path.read_text().splitlines():
+        match = include_re.match(raw.strip())
+        if not match:
+            continue
+        include_name = match.group(1).strip()
+        if not include_name:
+            continue
+        candidate = (top_path.parent / include_name).resolve()
+        if not candidate.exists():
+            candidate = (itp_dir / Path(include_name).name).resolve()
+        if candidate.exists() and candidate not in seen:
+            seen.add(candidate)
+            included.append(candidate)
+    return included
+
+
+def _find_itp_for_moltype(
+    itp_dir: Path,
+    moltype: str,
+    preferred_paths: Sequence[Path] | None = None,
+) -> Path | None:
+    candidates: list[Path] = []
+    seen: set[Path] = set()
+
+    for path in preferred_paths or ():
+        resolved = Path(path).resolve()
+        if resolved.exists() and resolved not in seen:
+            seen.add(resolved)
+            candidates.append(resolved)
+
+    direct = (itp_dir / f"{moltype}.itp").resolve()
+    if direct.exists() and direct not in seen:
+        seen.add(direct)
+        candidates.append(direct)
+
+    for candidate in sorted(itp_dir.glob("*.itp")):
+        resolved = candidate.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            candidates.append(resolved)
+
+    for candidate in candidates:
+        if moltype in _read_itp_moleculetype_set(candidate):
+            return candidate
+    return None
+
+
+def _read_itp_atoms_resnames(itp_path: Path, moltype: str | None = None) -> set[str]:
+    if not itp_path.exists():
+        return set()
+
+    resnames: set[str] = set()
+    current_moltype: str | None = None
+    in_moleculetype = False
+    in_atoms = False
+
+    for raw in itp_path.read_text().splitlines():
+        line = raw.split(";", 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith("["):
+            section = line.strip("[]").strip().lower()
+            in_moleculetype = section == "moleculetype"
+            in_atoms = section == "atoms"
+            continue
+        if in_moleculetype:
+            current_moltype = line.split()[0]
+            in_moleculetype = False
+            continue
+        if not in_atoms:
+            continue
+        if moltype is not None and current_moltype != moltype:
+            continue
+        parts = line.split()
+        if len(parts) >= 5:
+            resnames.add(parts[3])
+
+    return {str(name).strip() for name in resnames if str(name).strip()}
+
+
+def _embedded_extra_resnames_for_top_molecule(
+    molecule_name: str,
+    itp_dir: Path,
+    top_path: Path,
+    surface_moltype: str,
+    surface_resname: str,
+) -> list[str]:
+    itp_path = _find_itp_for_moltype(
+        itp_dir,
+        str(molecule_name).strip(),
+        preferred_paths=_top_included_itp_paths(top_path, itp_dir),
+    )
+    if itp_path is None:
+        return []
+
+    ignored = {
+        "",
+        surface_moltype,
+        surface_resname,
+        "W",
+        "WF",
+        "PW",
+        "SOL",
+    } | DNA_RESNAMES | PROTEIN_RESNAMES | ION_MOLTYPES
+
+    return sorted(
+        resname
+        for resname in _read_itp_atoms_resnames(itp_path, moltype=str(molecule_name).strip())
+        if resname not in ignored
+    )
+
+
+def _classify_top_molecule_group(
+    molecule_name: str,
+    itp_dir: Path,
+    surface_moltype: str,
+    surface_resname: str,
+) -> str:
+    name = str(molecule_name).strip()
+    if not name:
+        return ""
+    if name in {"W", "WF", "PW"}:
+        return name
+    if name == "SOL":
+        return "W"
+    if name in ION_MOLTYPES:
+        return "IONS"
+    if name == surface_moltype or name == surface_resname:
+        return surface_moltype
+
+    itp_path = _find_itp_for_moltype(itp_dir, name)
+    resnames = _read_itp_atoms_resnames(itp_path, moltype=name) if itp_path else set()
+    if resnames & DNA_RESNAMES:
+        return "DNA"
+    if resnames and resnames.issubset(PROTEIN_RESNAMES):
+        return "Protein"
+    if surface_moltype in resnames or surface_resname in resnames:
+        return surface_moltype
+    return name
+
+
+def _build_dna_thermostat_groups_from_top(
+    top_path: Path,
+    itp_dir: Path,
+    surface_moltype: str,
+    surface_resname: str,
+) -> list[str]:
+    entries = _parse_molecules_entries(top_path)
+    if not entries:
+        return ["System"]
+
+    surface_present = False
+    dna_present = False
+    water_present = {"W": False, "PW": False, "WF": False}
+    ions_present = False
+    extras: list[str] = []
+    seen_extras: set[str] = set()
+
+    for molecule_name, count in entries:
+        if count <= 0:
+            continue
+        group_name = _classify_top_molecule_group(
+            molecule_name=molecule_name,
+            itp_dir=itp_dir,
+            surface_moltype=surface_moltype,
+            surface_resname=surface_resname,
+        )
+        if not group_name:
+            continue
+        if group_name == surface_moltype:
+            surface_present = True
+        elif group_name == "DNA":
+            dna_present = True
+            for extra_name in _embedded_extra_resnames_for_top_molecule(
+                molecule_name=molecule_name,
+                itp_dir=itp_dir,
+                top_path=top_path,
+                surface_moltype=surface_moltype,
+                surface_resname=surface_resname,
+            ):
+                if extra_name not in seen_extras:
+                    extras.append(extra_name)
+                    seen_extras.add(extra_name)
+        elif group_name in water_present:
+            water_present[group_name] = True
+        elif group_name == "IONS":
+            ions_present = True
+        elif group_name not in seen_extras:
+            extras.append(group_name)
+            seen_extras.add(group_name)
+
+    groups: list[str] = []
+    if surface_present:
+        groups.append(surface_moltype)
+    if dna_present:
+        groups.append("DNA")
+    for water_name in ("W", "PW", "WF"):
+        if water_present[water_name]:
+            groups.append(water_name)
+    if ions_present:
+        groups.append("IONS")
+    groups.extend(extras)
+
+    return groups or ["System"]
+
+
+def _collect_top_molecule_atom_ids(
+    universe: mda.Universe,
+    molecule_name: str,
+    itp_dir: Path,
+    surface_moltype: str,
+    surface_resname: str,
+) -> list[int]:
+    name = str(molecule_name).strip()
+    if not name:
+        return []
+
+    wanted_resnames: set[str] = set()
+    if name == surface_moltype or name == surface_resname:
+        wanted_resnames.update({surface_moltype, surface_resname})
+    else:
+        itp_path = _find_itp_for_moltype(itp_dir, name)
+        if itp_path is not None:
+            wanted_resnames.update(_read_itp_atoms_resnames(itp_path, moltype=name))
+        if not wanted_resnames:
+            wanted_resnames.add(name)
+
+    return [
+        int(atom.index + 1)
+        for atom in universe.atoms
+        if str(atom.resname).strip() in wanted_resnames
+    ]
+
+
 def _read_itp_first_atoms_resname(itp_path: Path) -> str | None:
     if not itp_path.exists():
         return None
@@ -402,6 +854,83 @@ def _write_itp_with_moleculetype(src_itp: Path, dst_itp: Path, new_moltype: str)
         dst_itp.write_text("\n".join(out).rstrip() + "\n")
 
 
+def _read_itp_atomnames_for_moltype(itp_path: Path, moltype: str) -> list[str]:
+    atom_names: list[str] = []
+    if not itp_path.exists():
+        return atom_names
+
+    current_moltype: str | None = None
+    in_moleculetype = False
+    in_atoms = False
+
+    for raw in itp_path.read_text().splitlines():
+        line = raw.split(";", 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith("["):
+            section = line.strip("[]").strip().lower()
+            in_moleculetype = section == "moleculetype"
+            in_atoms = section == "atoms"
+            continue
+        if in_moleculetype:
+            current_moltype = line.split()[0]
+            in_moleculetype = False
+            continue
+        if in_atoms and current_moltype == moltype:
+            parts = line.split()
+            if len(parts) >= 5:
+                atom_names.append(parts[4])
+
+    return atom_names
+
+
+def _find_first_moltype_atomnames(itp_paths: Sequence[Path], moltype: str) -> list[str]:
+    for itp_path in itp_paths:
+        atom_names = _read_itp_atomnames_for_moltype(itp_path, moltype)
+        if atom_names:
+            return atom_names
+    return []
+
+
+def _next_available_moltype(base_name: str, taken_names: set[str]) -> str:
+    candidate = f"{base_name}_LOCAL"
+    suffix = 2
+    while candidate in taken_names:
+        candidate = f"{base_name}_LOCAL{suffix}"
+        suffix += 1
+    return candidate
+
+
+def _resolve_local_moltype_conflict(
+    label: str,
+    itp_path: Path,
+    moltype_name: str | None,
+    ff_moltypes: set[str],
+    ff_itp_paths: Sequence[Path],
+    taken_names: set[str],
+) -> tuple[str | None, bool]:
+    if not moltype_name:
+        return moltype_name, True
+    if moltype_name not in ff_moltypes:
+        taken_names.add(moltype_name)
+        return moltype_name, True
+
+    local_atom_names = _read_itp_atomnames_for_moltype(itp_path, moltype_name)
+    ff_atom_names = _find_first_moltype_atomnames(ff_itp_paths, moltype_name)
+    if local_atom_names and ff_atom_names and local_atom_names == ff_atom_names:
+        print(f"ℹ {moltype_name} detected in Martini FF, skipping {itp_path.name} include.")
+        return moltype_name, False
+
+    replacement = _next_available_moltype(moltype_name, taken_names | ff_moltypes)
+    _write_itp_with_moleculetype(itp_path, itp_path, replacement)
+    taken_names.add(replacement)
+    print(
+        f"ℹ {label} moltype {moltype_name} conflicts with the Martini FF definition. "
+        f"Using local topology as {replacement}."
+    )
+    return replacement, True
+
+
 def _count_itp_atoms(itp_path: Path) -> int:
     if not itp_path.exists():
         return 0
@@ -425,33 +954,71 @@ def _count_itp_atoms(itp_path: Path) -> int:
     return count
 
 
-def _rewrite_itp_with_posres(src_itp: Path, dst_itp: Path, posres_atom_ids: List[int]) -> None:
+def _rewrite_itp_with_posres(
+    src_itp: Path,
+    dst_itp: Path,
+    posres_atom_ids: List[int],
+    force_constants: tuple[float, float, float] = (1000.0, 1000.0, 0.0),
+    macro_name: str = SURFACE_POSRES_DEFINE,
+) -> None:
     """Copy an ITP replacing any existing [ position_restraints ] block with a generated one."""
-    out_lines: list[str] = []
-    in_posres = False
+    lines = src_itp.read_text().splitlines(keepends=True)
+    remove_ranges: list[tuple[int, int]] = []
+    i = 0
+    while i < len(lines):
+        stripped = lines[i].strip().lower()
+        if not (stripped.startswith("[") and "position_restraints" in stripped):
+            i += 1
+            continue
 
-    for raw in src_itp.read_text().splitlines(keepends=True):
-        stripped = raw.strip().lower()
-        if stripped.startswith("[") and "position_restraints" in stripped:
-            in_posres = True
-            continue
-        if in_posres:
-            if raw.strip().startswith("["):
-                in_posres = False
-                out_lines.append(raw)
-            continue
-        out_lines.append(raw)
+        start = i
+        while start > 0:
+            prev = lines[start - 1].strip()
+            if prev and not lines[start - 1].lstrip().startswith("#"):
+                break
+            start -= 1
+
+        end = i + 1
+        while end < len(lines):
+            if lines[end].strip().startswith("["):
+                break
+            end += 1
+
+        remove_ranges.append((start, end))
+        i = end
+
+    out_lines: list[str] = []
+    cursor = 0
+    for start, end in remove_ranges:
+        out_lines.extend(lines[cursor:start])
+        cursor = end
+    out_lines.extend(lines[cursor:])
 
     if posres_atom_ids:
-        if out_lines and not out_lines[-1].endswith("\n"):
+        if out_lines and out_lines[-1].strip():
+            out_lines.append("\n")
+        elif out_lines and not out_lines[-1].endswith("\n"):
             out_lines[-1] = out_lines[-1] + "\n"
-        out_lines.append("\n[ position_restraints ]\n")
-        out_lines.append("#ifdef POSRES\n")
+        out_lines.append("[ position_restraints ]\n")
+        out_lines.append(f"#ifdef {macro_name}\n")
+        fc_x, fc_y, fc_z = force_constants
         for atom_id in sorted(set(posres_atom_ids)):
-            out_lines.append(f"{atom_id} 1 1000 1000 0\n")
+            out_lines.append(f"{atom_id} 1 {fc_x:g} {fc_y:g} {fc_z:g}\n")
         out_lines.append("#endif\n")
 
     dst_itp.write_text("".join(out_lines))
+
+
+def _rewrite_itp_posres_macro(itp_path: Path, macro_name: str) -> bool:
+    if not itp_path.exists():
+        return False
+
+    text = itp_path.read_text()
+    updated = re.sub(r"\bPOSRES\b", macro_name, text)
+    if updated == text:
+        return False
+    itp_path.write_text(updated)
+    return True
 
 
 def _materialize_posres_fc_in_itp(itp_path: Path, default_fc: float = 1000.0) -> bool:
@@ -637,6 +1204,7 @@ def _merge_dna_linker_itp(
     bond_force: float = 1250.0,
     angle_deg: float = 180.0,
     angle_force: float = 20.0,
+    posres_macro_name: str = DNA_POSRES_DEFINE,
 ) -> tuple[int, int]:
     """
     Merge linker atoms/interactions into DNA moleculetype and add DNA-linker bond/angle.
@@ -798,6 +1366,7 @@ def _merge_dna_linker_itp(
         src_itp=dst_itp_path,
         dst_itp=dst_itp_path,
         posres_atom_ids=sorted(tail_posres_local_ids),
+        macro_name=posres_macro_name,
     )
     return dna_linker_bonds, dna_linker_angles
 
@@ -1357,6 +1926,8 @@ def main(argv: Sequence[str] | None = None) -> None:
             "❌ Substrate mode requested but "
             f"0_topology/system_itp/{args.substrate_itp_name} is missing."
         )
+    ff_itp_paths = [dst_itp_dir / fname for fname in required if (dst_itp_dir / fname).exists()]
+    taken_moltypes: set[str] = set(ff_moltypes)
 
     # Normalize martinize POSRES_FC macros into numeric constants for robust grompp parsing.
     posres_fc_replaced = 0
@@ -1395,12 +1966,26 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     include_cofactor_itp = bool(args.cofactor_count > 0 and args.cofactor_itp_name)
     include_substrate_itp = bool(args.substrate_count > 0 and args.substrate_itp_name)
-    if include_cofactor_itp and cofactor_moltype_name in ff_moltypes:
-        include_cofactor_itp = False
-        print(f"ℹ {cofactor_moltype_name} detected in Martini FF, skipping {args.cofactor_itp_name} include.")
-    if include_substrate_itp and substrate_moltype_name in ff_moltypes:
-        include_substrate_itp = False
-        print(f"ℹ {substrate_moltype_name} detected in Martini FF, skipping {args.substrate_itp_name} include.")
+    if include_cofactor_itp:
+        cofactor_itp_path = dst_itp_dir / args.cofactor_itp_name
+        cofactor_moltype_name, include_cofactor_itp = _resolve_local_moltype_conflict(
+            label="Cofactor",
+            itp_path=cofactor_itp_path,
+            moltype_name=cofactor_moltype_name,
+            ff_moltypes=ff_moltypes,
+            ff_itp_paths=ff_itp_paths,
+            taken_names=taken_moltypes,
+        )
+    if include_substrate_itp:
+        substrate_itp_path = dst_itp_dir / args.substrate_itp_name
+        substrate_moltype_name, include_substrate_itp = _resolve_local_moltype_conflict(
+            label="Substrate",
+            itp_path=substrate_itp_path,
+            moltype_name=substrate_moltype_name,
+            ff_moltypes=ff_moltypes,
+            ff_itp_paths=ff_itp_paths,
+            taken_names=taken_moltypes,
+        )
     if args.substrate_count > 0 and not include_substrate_itp:
         if not substrate_moltype_name:
             raise ValueError("❌ Could not determine substrate moleculetype.")
@@ -1426,6 +2011,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             raise FileNotFoundError("❌ No DNA molecule ITP found in system_itp.")
         mol_itp = possible_itps[0]
         moltype = _read_itp_moleculetype(mol_itp) or mol_itp.stem
+        _rewrite_itp_posres_macro(mol_itp, DNA_POSRES_DEFINE)
     else:
         if not args.moltype:
             raise ValueError("❌ --moltype required for protein")
@@ -1465,29 +2051,14 @@ def main(argv: Sequence[str] | None = None) -> None:
     # ===============================================================
     active_anchor = dst_itp_dir / f"{mol_itp.stem}_anchor.itp"
     if not ads_mode:
-        new_lines = []
-        inside_posres = False
-
-        with open(mol_itp) as fin:
-            for line in fin:
-                if "[ position_restraints" in line:
-                    inside_posres = True
-                    continue
-                if inside_posres:
-                    if line.strip().startswith("["):
-                        inside_posres = False
-                        new_lines.append(line)
-                    continue
-                new_lines.append(line)
-
-        new_lines.append("\n[ position_restraints ]\n#ifdef POSRES\n")
-
-        for _, atoms in anchor_atoms.items():
-            for atom in atoms:
-                new_lines.append(f"{atom} 1 1000 1000 0\n")
-
-        new_lines.append("#endif\n")
-        active_anchor.write_text("".join(new_lines))
+        anchor_posres_ids = sorted({int(atom) for atoms in anchor_atoms.values() for atom in atoms})
+        _rewrite_itp_with_posres(
+            src_itp=mol_itp,
+            dst_itp=active_anchor,
+            posres_atom_ids=anchor_posres_ids,
+            force_constants=(1000.0, 1000.0, 0.0),
+            macro_name=DNA_POSRES_DEFINE if is_dna else SURFACE_POSRES_DEFINE,
+        )
 
     # ===============================================================
     # Copy MDP templates
@@ -1559,6 +2130,11 @@ def main(argv: Sequence[str] | None = None) -> None:
             )
             if is_dna and args.polarizable_water:
                 _rewrite_mdp_for_polarizable_water(dst_path)
+            if is_dna:
+                _rewrite_mdp_define_macros(
+                    dst_path,
+                    _dna_required_posres_macros(dst_name),
+                )
             print(f"  ✔ {src_name} → {dst_name}")
         else:
             print(f"⚠ Missing MDP template: {src_name}")
@@ -1594,6 +2170,18 @@ def main(argv: Sequence[str] | None = None) -> None:
     surface_itp_path = dst_itp_dir / "surface.itp"
     surface_moltype = _read_itp_moleculetype(surface_itp_path) or "SRF"
     surface_itp_atoms = _count_itp_atoms(surface_itp_path)
+    if is_dna and surface_itp_path.exists() and surface_itp_atoms > 0:
+        _rewrite_itp_with_posres(
+            src_itp=surface_itp_path,
+            dst_itp=surface_itp_path,
+            posres_atom_ids=list(range(1, surface_itp_atoms + 1)),
+            force_constants=(
+                DNA_SURFACE_POSRES_FORCE,
+                DNA_SURFACE_POSRES_FORCE,
+                DNA_SURFACE_POSRES_FORCE,
+            ),
+        )
+        print("✔ Surface restrained topology generated: surface.itp (all SRF beads)")
     surface_atom_total = sum(
         1 for a in u.atoms if str(a.resname).strip() == surface_moltype
     )
@@ -1629,6 +2217,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             bond_force=1250.0,
             angle_deg=180.0,
             angle_force=20.0,
+            posres_macro_name=DNA_POSRES_DEFINE,
         )
         if n_bonds > 0:
             # DNA+linker becomes one molecule topology; linker no longer appears as separate molecule.
@@ -1671,6 +2260,16 @@ def main(argv: Sequence[str] | None = None) -> None:
         surface_count=surface_count,
         intermolecular_itp_name=intermolecular_itp_name,
     )
+
+    if is_dna:
+        thermo_groups = refresh_dna_mdp_thermostat_groups(
+            mdp_dir=mdp_dir,
+            top_path=topo_dir / "system.top",
+            itp_dir=dst_itp_dir,
+            surface_moltype=surface_moltype,
+            surface_resname=surface_resname,
+        )
+        print(f"✔ DNA thermostat groups written to MDPs: {' '.join(thermo_groups)}")
 
     # ===============================================================
     # INDEX
@@ -1740,6 +2339,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     # Common optional groups used in workflows and useful for downstream grompp calls.
     for group_name, resnames in (
         ("W", ("W",)),
+        ("PW", ("PW",)),
         ("WF", ("WF",)),
         ("IONS", ("NA", "CL", "K", "CA", "MG", "ZN", "LI", "RB", "CS", "BA", "SR", "F", "BR", "I")),
         ("LINKER", (linker_moltype_name,) if linker_mode and linker_moltype_name else ()),
@@ -1766,6 +2366,20 @@ def main(argv: Sequence[str] | None = None) -> None:
         atoms = _collect_resname_group(resname)
         if atoms:
             custom_groups[resname] = atoms
+
+    for molecule_name, _ in _parse_molecules_entries(topo_dir / "system.top"):
+        name = str(molecule_name).strip()
+        if not name or name in custom_groups or name == "system":
+            continue
+        atoms = _collect_top_molecule_atom_ids(
+            universe=u,
+            molecule_name=name,
+            itp_dir=dst_itp_dir,
+            surface_moltype=surface_moltype,
+            surface_resname=surface_resname,
+        )
+        if atoms:
+            custom_groups[name] = atoms
 
     if groups_for_index or custom_groups:
         with open(topo_dir / "index.ndx", "w") as ndx:

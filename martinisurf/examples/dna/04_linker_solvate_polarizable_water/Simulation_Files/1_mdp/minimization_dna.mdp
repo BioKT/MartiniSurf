@@ -1,3 +1,5 @@
+define                   = -DPOSRES
+
 integrator               = steep
 nsteps                   = 10000
 nstxout                  = 0
@@ -11,8 +13,6 @@ nstlist                  = 20
 ns_type                  = grid
 pbc                      = xyz
 verlet-buffer-tolerance  = 0.005
-
-
 
 ; OPTIONS FOR ELECTROSTATICS AND VDW =
 ; Martini 2 DNA polarizable-water setup for Verlet lists =
@@ -28,12 +28,8 @@ DispCorr                 = No
 
 tcoupl                   = v-rescale
 tc-grps                  = System
-tau-t                    = 1.0
+tau-t                    = 1
 ref-t                    = 300
-
-; Freeze groups
-freezegrps = SRF
-freezedim = Y Y Y
 
 ; OPTIONS FOR BONDS     =
 constraints              = none

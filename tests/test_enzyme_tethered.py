@@ -632,6 +632,30 @@ def test_save_full_system(tmp_path):
     assert float(box_vals[2]) >= 5.0
 
 
+def test_save_full_system_dna_uses_5nm_top_padding(tmp_path):
+    out = tmp_path / "dna_system.gro"
+
+    surf_atoms = [(1, "SURF", "C1", 1)]
+    surf_coords = np.array([[0.0, 0.0, 0.0]])
+    enz_atoms = [(1, "DA", "BB1", 1), (2, "DT", "BB1", 2)]
+    enz_coords = np.array([[10.0, 10.0, 10.0], [20.0, 20.0, 20.0]])
+    box_line = "2.00000 2.00000 2.00000"
+
+    enz.save_full_system(
+        out,
+        surf_atoms,
+        surf_coords,
+        enz_atoms,
+        enz_coords,
+        box_line,
+        dna_mode=True,
+    )
+
+    box_vals = out.read_text().splitlines()[-1].split()
+    # Max DNA z = 2.0 nm, so the DNA-mode box top padding should be 5.0 nm.
+    assert float(box_vals[2]) >= 7.0
+
+
 def test_save_full_system_expands_xy_box_when_needed(tmp_path):
     out = tmp_path / "expanded_xy.gro"
 

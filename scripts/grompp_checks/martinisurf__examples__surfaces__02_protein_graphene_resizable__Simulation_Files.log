@@ -1,0 +1,34 @@
+               :-) GROMACS - gmx grompp, 2024-EasyBuild_4.9.0 (-:
+
+Executable:   /scicomp/builds/Rocky/8.7/CascadeLake/software/GROMACS/2024-foss-2023a/bin/gmx_mpi
+Data prefix:  /scicomp/builds/Rocky/8.7/CascadeLake/software/GROMACS/2024-foss-2023a
+Working dir:  /scratch/jcjimenez/martini_surf_test/repo/scripts
+Command line:
+  gmx_mpi grompp -p /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/surfaces/02_protein_graphene_resizable/Simulation_Files/0_topology/system_res.top -f /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/surfaces/02_protein_graphene_resizable/Simulation_Files/1_mdp/minimization.mdp -c /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/surfaces/02_protein_graphene_resizable/Simulation_Files/2_system/immobilized_system.gro -r /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/surfaces/02_protein_graphene_resizable/Simulation_Files/2_system/immobilized_system.gro -o /scratch/jcjimenez/martini_surf_test/repo/scripts/grompp_checks/martinisurf__examples__surfaces__02_protein_graphene_resizable__Simulation_Files.tpr -po /scratch/jcjimenez/martini_surf_test/repo/scripts/grompp_checks/martinisurf__examples__surfaces__02_protein_graphene_resizable__Simulation_Files_mdout.mdp -n /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/surfaces/02_protein_graphene_resizable/Simulation_Files/0_topology/index.ndx -maxwarn 3
+
+Ignoring obsolete mdp entry 'ns_type'
+
+NOTE 1 [file /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/surfaces/02_protein_graphene_resizable/Simulation_Files/1_mdp/minimization.mdp]:
+  There are 4080 atoms that are fully frozen and part of COMM removal
+  group(s), removing these atoms from the COMM removal group(s)
+
+Number of degrees of freedom in T-Coupling group rest is 15.92
+The integrator does not provide a ensemble temperature, there is no system ensemble temperature
+
+There was 1 NOTE
+
+GROMACS reminds you: "Physics is a few rules, and with some handwaving you can make up the rest" (Michael Levitt)
+
+Setting the LD random seed to -286364233
+
+Generated 844 of the 356590 non-bonded parameter combinations
+
+Excluding 1 bonded neighbours molecule type 'Protein'
+
+Excluding 1 bonded neighbours molecule type 'GRA'
+
+Cleaning up constraints and constant bonded interactions with virtual sites
+
+Cleaning up constraints and constant bonded interactions with virtual sites
+
+This run will generate roughly 1 Mb of data

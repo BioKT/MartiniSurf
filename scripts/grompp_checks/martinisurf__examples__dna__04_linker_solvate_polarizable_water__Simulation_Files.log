@@ -1,0 +1,47 @@
+               :-) GROMACS - gmx grompp, 2024-EasyBuild_4.9.0 (-:
+
+Executable:   /scicomp/builds/Rocky/8.7/CascadeLake/software/GROMACS/2024-foss-2023a/bin/gmx_mpi
+Data prefix:  /scicomp/builds/Rocky/8.7/CascadeLake/software/GROMACS/2024-foss-2023a
+Working dir:  /scratch/jcjimenez/martini_surf_test/repo/scripts
+Command line:
+  gmx_mpi grompp -p /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/04_linker_solvate_polarizable_water/Simulation_Files/0_topology/system_final_res.top -f /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/04_linker_solvate_polarizable_water/Simulation_Files/1_mdp/minimization_dna.mdp -c /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/04_linker_solvate_polarizable_water/Simulation_Files/2_system/system_final.gro -r /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/04_linker_solvate_polarizable_water/Simulation_Files/2_system/system_final.gro -o /scratch/jcjimenez/martini_surf_test/repo/scripts/grompp_checks/martinisurf__examples__dna__04_linker_solvate_polarizable_water__Simulation_Files.tpr -po /scratch/jcjimenez/martini_surf_test/repo/scripts/grompp_checks/martinisurf__examples__dna__04_linker_solvate_polarizable_water__Simulation_Files_mdout.mdp -n /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/04_linker_solvate_polarizable_water/Simulation_Files/0_topology/index.ndx -maxwarn 3
+
+Ignoring obsolete mdp entry 'ns_type'
+
+NOTE 1 [file /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/04_linker_solvate_polarizable_water/Simulation_Files/1_mdp/minimization_dna.mdp]:
+  Setting tcoupl from 'V-rescale' to 'no'. Temperature coupling does not
+  apply to steep.
+
+
+NOTE 2 [file /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/04_linker_solvate_polarizable_water/Simulation_Files/1_mdp/minimization_dna.mdp]:
+  There are 2016 atoms that are fully frozen and part of COMM removal
+  group(s), removing these atoms from the COMM removal group(s)
+
+Number of degrees of freedom in T-Coupling group system is 50154.47
+The integrator does not provide a ensemble temperature, there is no system ensemble temperature
+
+NOTE 3 [file /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/04_linker_solvate_polarizable_water/Simulation_Files/1_mdp/minimization_dna.mdp]:
+  You are using a plain Coulomb cut-off, which might produce artifacts.
+  You might want to consider using PME electrostatics.
+
+
+
+There were 3 NOTEs
+
+GROMACS reminds you: "This Doesn't Suck, It's a Black Hole !" (K.A. Feenstra)
+
+Setting the LD random seed to -809986147
+
+Generated 1093 of the 5565 non-bonded parameter combinations
+
+Excluding 1 bonded neighbours molecule type 'Nucleic_A+Nucleic_B'
+
+Excluding 1 bonded neighbours molecule type 'SRF'
+
+Excluding 1 bonded neighbours molecule type 'PW'
+
+Excluding 1 bonded neighbours molecule type 'NA'
+
+Excluding 1 bonded neighbours molecule type 'CL'
+
+This run will generate roughly 2 Mb of data

@@ -1,0 +1,38 @@
+               :-) GROMACS - gmx grompp, 2024-EasyBuild_4.9.0 (-:
+
+Executable:   /scicomp/builds/Rocky/8.7/CascadeLake/software/GROMACS/2024-foss-2023a/bin/gmx_mpi
+Data prefix:  /scicomp/builds/Rocky/8.7/CascadeLake/software/GROMACS/2024-foss-2023a
+Working dir:  /scratch/jcjimenez/martini_surf_test/repo/scripts
+Command line:
+  gmx_mpi grompp -p /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/03_linker_solvate_ionize_freeze/Simulation_Files/0_topology/system_final_res.top -f /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/03_linker_solvate_ionize_freeze/Simulation_Files/1_mdp/minimization_dna.mdp -c /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/03_linker_solvate_ionize_freeze/Simulation_Files/2_system/system_final.gro -r /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/03_linker_solvate_ionize_freeze/Simulation_Files/2_system/system_final.gro -o /scratch/jcjimenez/martini_surf_test/repo/scripts/grompp_checks/martinisurf__examples__dna__03_linker_solvate_ionize_freeze__Simulation_Files.tpr -po /scratch/jcjimenez/martini_surf_test/repo/scripts/grompp_checks/martinisurf__examples__dna__03_linker_solvate_ionize_freeze__Simulation_Files_mdout.mdp -n /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/03_linker_solvate_ionize_freeze/Simulation_Files/0_topology/index.ndx -maxwarn 3
+
+Ignoring obsolete mdp entry 'ns_type'
+
+NOTE 1 [file /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/03_linker_solvate_ionize_freeze/Simulation_Files/1_mdp/minimization_dna.mdp]:
+  There are 1008 atoms that are fully frozen and part of COMM removal
+  group(s), removing these atoms from the COMM removal group(s)
+
+Number of degrees of freedom in T-Coupling group rest is 20905.51
+The integrator does not provide a ensemble temperature, there is no system ensemble temperature
+
+There was 1 NOTE
+
+GROMACS reminds you: "I believe the big bang of self-driving cars is about to come." (Jen-Hsun Huang, CEO NVIDIA)
+
+Setting the LD random seed to -39860609
+
+Generated 1331 of the 6105 non-bonded parameter combinations
+
+Excluding 1 bonded neighbours molecule type 'Nucleic_A+Nucleic_B'
+
+Excluding 1 bonded neighbours molecule type 'SRF'
+
+Excluding 1 bonded neighbours molecule type 'W'
+
+Excluding 1 bonded neighbours molecule type 'WF'
+
+Excluding 1 bonded neighbours molecule type 'NA'
+
+Excluding 1 bonded neighbours molecule type 'CL'
+
+This run will generate roughly 1 Mb of data

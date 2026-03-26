@@ -1,0 +1,11 @@
+;;;;;; Minimal surface topology
+
+[ moleculetype ]
+; molname   nrexcl
+  GRA        1
+
+[ atoms ]
+; id  type  resnr  residu  atom  cgnr  charge
+  1   C1       1   GRA    C     1     0.000
+
+~                                                     

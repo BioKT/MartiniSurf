@@ -139,6 +139,7 @@ echo "===================================================="
   -p "${EQUIL_TOPOLOGY}" \
   -f "${MIN_MDP}" \
   -c "${INPUT_STRUCTURE}" \
+  -r "${INPUT_STRUCTURE}" \
   -o "${MIN_NAME}.tpr" \
   -maxwarn 3
 run_mdrun "${MIN_NAME}"

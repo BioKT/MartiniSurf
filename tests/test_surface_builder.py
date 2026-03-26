@@ -3,6 +3,37 @@ import math
 from martinisurf.surface_builder import SIGMA_SPACING_FACTOR, main
 
 
+def _itp_section_lines(text: str, section_name: str) -> list[str]:
+    target = f"[ {section_name} ]"
+    in_section = False
+    lines: list[str] = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if line.startswith("["):
+            in_section = line.lower() == target
+            continue
+        if in_section and line and not line.startswith(";"):
+            lines.append(line)
+    return lines
+
+
+def _bond_degree_counts(bond_lines: list[str]) -> dict[int, int]:
+    counts: dict[int, int] = {}
+    for line in bond_lines:
+        left, right = (int(value) for value in line.split()[:2])
+        counts[left] = counts.get(left, 0) + 1
+        counts[right] = counts.get(right, 0) + 1
+    return counts
+
+
+def _angle_center_counts(angle_lines: list[str]) -> dict[int, int]:
+    counts: dict[int, int] = {}
+    for line in angle_lines:
+        center = int(line.split()[1])
+        counts[center] = counts.get(center, 0) + 1
+    return counts
+
+
 # ============================================================
 # BASIC BUILD TEST
 # ============================================================
@@ -260,19 +291,84 @@ def test_local_multilayer_surface_cycles_beads_and_writes_full_itp(tmp_path):
     assert "C1" in itp_text
 
     atom_count = int(gro_text.splitlines()[1].strip())
-    atom_lines = []
-    in_atoms = False
-    for raw in itp_text.splitlines():
-        line = raw.strip()
-        if not line:
-            continue
-        if line.lower().startswith("[ atoms ]"):
-            in_atoms = True
-            continue
-        if in_atoms and not line.startswith(";") and not line.startswith("["):
-            atom_lines.append(line)
+    atom_lines = _itp_section_lines(itp_text, "atoms")
 
     assert len(atom_lines) == atom_count
+
+
+def test_local_uniform_surface_writes_expanded_itp_with_bonds_and_angles(tmp_path):
+    out = tmp_path / "uniform_surface"
+
+    main([
+        "--mode", "4-1",
+        "--lx", "3",
+        "--ly", "3",
+        "--bead", "C1",
+        "--output", str(out),
+    ])
+
+    gro_text = (tmp_path / "uniform_surface.gro").read_text()
+    itp_text = (tmp_path / "uniform_surface.itp").read_text()
+
+    atom_count = int(gro_text.splitlines()[1].strip())
+    atom_lines = _itp_section_lines(itp_text, "atoms")
+    bond_lines = _itp_section_lines(itp_text, "bonds")
+    angle_lines = _itp_section_lines(itp_text, "angles")
+
+    assert len(atom_lines) == atom_count
+    assert bond_lines
+    assert angle_lines
+
+
+def test_local_multilayer_surface_bonded_topology_stays_within_layers(tmp_path):
+    out = tmp_path / "layered_surface_local_bonds"
+
+    main([
+        "--mode", "4-1",
+        "--lx", "3",
+        "--ly", "3",
+        "--layers", "2",
+        "--dist-z", "0.4",
+        "--output", str(out),
+    ])
+
+    gro_text = (tmp_path / "layered_surface_local_bonds.gro").read_text()
+    itp_text = (tmp_path / "layered_surface_local_bonds.itp").read_text()
+    total_atoms = int(gro_text.splitlines()[1].strip())
+    atoms_per_layer = total_atoms // 2
+
+    for raw in _itp_section_lines(itp_text, "bonds"):
+        left, right = (int(token) for token in raw.split()[:2])
+        assert (left <= atoms_per_layer and right <= atoms_per_layer) or (
+            left > atoms_per_layer and right > atoms_per_layer
+        )
+
+    for raw in _itp_section_lines(itp_text, "angles"):
+        left, center, right = (int(token) for token in raw.split()[:3])
+        assert (left <= atoms_per_layer and center <= atoms_per_layer and right <= atoms_per_layer) or (
+            left > atoms_per_layer and center > atoms_per_layer and right > atoms_per_layer
+        )
+
+
+def test_local_periodic_xy_makes_edge_connectivity_uniform(tmp_path):
+    out = tmp_path / "periodic_surface"
+
+    main([
+        "--mode", "4-1",
+        "--lx", "3",
+        "--ly", "3",
+        "--output", str(out),
+        "--periodic-xy",
+    ])
+
+    itp_text = (tmp_path / "periodic_surface.itp").read_text()
+    bond_counts = _bond_degree_counts(_itp_section_lines(itp_text, "bonds"))
+    angle_counts = _angle_center_counts(_itp_section_lines(itp_text, "angles"))
+
+    assert bond_counts
+    assert angle_counts
+    assert set(bond_counts.values()) == {3}
+    assert set(angle_counts.values()) == {3}
 
 
 def test_2_1_layers_follow_graphite_like_abab_stacking(tmp_path):

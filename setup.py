@@ -14,7 +14,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/BioKT/MartiniSurf",
     project_urls={
-        "Documentation": "https://github.com/BioKT/MartiniSurf/tree/master/docs",
+        "Documentation": "https://biokt.github.io/MartiniSurf/",
         "Source": "https://github.com/BioKT/MartiniSurf",
         "Issues": "https://github.com/BioKT/MartiniSurf/issues",
     },

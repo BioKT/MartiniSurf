@@ -1,3 +1,5 @@
+define                   = -DPOSRES
+
 integrator               = md
 dt                       = 0.001
 nsteps                   = 10000
@@ -16,8 +18,6 @@ verlet-buffer-tolerance  = 0.001
 
 
 
-
-
 ; OPTIONS FOR ELECTROSTATICS AND VDW =
 ; Martini 2 DNA polarizable-water setup for Verlet lists =
 coulombtype              = Cut-off
@@ -31,13 +31,11 @@ rvdw                     = 1.2
 DispCorr                 = No
 
 tcoupl                   = v-rescale
-tc-grps                  = System
-tau-t                    = 1.0
-ref-t                    = 300
+tc-grps                  = SRF DNA PW IONS MOL1
+tau-t                    = 0.3 0.3 0.3 0.3 0.3
+ref-t                    = 300 300 300 300 300
 
-; Freeze groups
-freezegrps = SRF
-freezedim = Y Y Y
+
 
 refcoord_scaling         = all
 

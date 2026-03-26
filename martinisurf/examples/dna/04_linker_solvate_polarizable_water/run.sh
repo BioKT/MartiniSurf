@@ -22,6 +22,5 @@ python -m martinisurf \
   --solvate \
   --ionize \
   --salt-conc 0.15 \
-  --solvate-surface-clearance 0.2 \
   --polarizable-water \
   --merge A,B

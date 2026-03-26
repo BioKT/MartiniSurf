@@ -462,10 +462,10 @@ def test_substrate_include_is_skipped_when_moltype_exists_in_forcefield(tmp_path
 
     # Simulate ETO already defined in the Martini solvent FF include.
     (sim / "system_itp" / "martini_v3.0.0_solvents_v1.itp").write_text(
-        "[ moleculetype ]\nETO 1\n"
+        "[ moleculetype ]\nETO 1\n\n[ atoms ]\n1 SP1 1 ETO ETO 1 0.0\n"
     )
     (sim / "system_itp" / "ETO.itp").write_text(
-        "[ moleculetype ]\nETO 1\n"
+        "[ moleculetype ]\nETO 1\n\n[ atoms ]\n1 SP1 1 ETO ETO 1 0.0\n"
     )
 
     gms.main([
@@ -478,6 +478,31 @@ def test_substrate_include_is_skipped_when_moltype_exists_in_forcefield(tmp_path
     system_top = (sim / "0_topology" / "system.top").read_text()
     assert '#include "system_itp/ETO.itp"' not in system_top
     assert "ETO 10" in system_top
+
+
+def test_substrate_conflicting_local_moltype_is_renamed_when_atomnames_differ(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    (sim / "system_itp" / "martini_v3.0.0_solvents_v1.itp").write_text(
+        "[ moleculetype ]\nETO 1\n\n[ atoms ]\n1 SP1 1 ETO ETO 1 0.0\n"
+    )
+    (sim / "system_itp" / "ETO.itp").write_text(
+        "[ moleculetype ]\nETO 1\n\n[ atoms ]\n1 C1 1 ETO ETO1 1 0.0\n"
+    )
+
+    gms.main([
+        "--moltype", "ENZ",
+        "--anchor", "1", "1",
+        "--substrate-itp-name", "ETO.itp",
+        "--substrate-count", "10",
+    ])
+
+    system_top = (sim / "0_topology" / "system.top").read_text()
+    local_itp = (sim / "0_topology" / "system_itp" / "ETO.itp").read_text()
+    assert '#include "system_itp/ETO.itp"' in system_top
+    assert "ETO_LOCAL 10" in system_top
+    assert "ETO_LOCAL 1" in local_itp
 
 
 def test_substrate_without_local_itp_uses_forcefield_moltype(tmp_path, monkeypatch):
@@ -779,7 +804,7 @@ def test_dna_linker_mode_uses_bonded_coupling_and_single_surface_pull(tmp_path, 
     assert "[ bonds ]" in text
     assert "[ angles ]" in text
     assert "[ position_restraints ]" in text
-    assert "#ifdef POSRES" in text
+    assert "#ifdef POSRES_DNA" in text
     assert "4 1 1000 1000 0" in text
     assert "0.470 1250.0" in text
     assert "180.0 20.0" in text
@@ -817,22 +842,262 @@ def test_dna_deposition_and_production_templates_keep_expected_protocol_values()
     assert "tc-grps                  = System" in production
     assert "ref-t                    = 300" in deposition
     assert "ref-t                    = 300" in production
-    assert "tau-p" not in deposition
+    assert "Pcoupl                   = Parrinello-Rahman ;parrinello-rahman" in deposition
+    assert "Pcoupltype               = semiisotropic" in deposition
+    assert "tau-p                    = 12.0" in deposition
+    assert "compressibility          = 0 3e-4" in deposition
+    assert "ref-p                    = 1 1" in deposition
     assert "tau-p" not in production
-    assert "compressibility" not in deposition
     assert "compressibility" not in production
-    assert "define                   = -DPOSRES" not in deposition
-    assert "define                   = -DPOSRES" in production
+    assert "define                   = -DPOSRES" in deposition
+    assert "define                   = -DPOSRES -DPOSRES_DNA" in production
+    assert "freezegrps" not in deposition
+    assert "freezegrps" not in production
+    assert "freezedim" not in deposition
+    assert "freezedim" not in production
+    assert "cos-acceleration" not in deposition
+    assert "cos-acceleration" not in production
 
 
 def test_dna_nvt_template_uses_requested_thermostat_settings():
     mdp_dir = Path(gms.__file__).resolve().parent / "mdp_templates"
     nvt = (mdp_dir / "nvt_dna.mdp").read_text()
 
+    assert "define                   = -DPOSRES" in nvt
+    assert "POSRES_DNA" not in nvt
     assert "coulombtype              = reaction-field" in nvt
     assert "vdw-modifier             = Potential-shift-verlet" in nvt
     assert "tc-grps                  = System" in nvt
     assert "ref-t                    = 300" in nvt
+    assert "freezegrps" not in nvt
+    assert "freezedim" not in nvt
+
+
+def test_dna_mdp_templates_omit_epsilon_rf():
+    mdp_dir = Path(gms.__file__).resolve().parent / "mdp_templates"
+
+    for name in (
+        "minimization_dna.mdp",
+        "nvt_dna.mdp",
+        "npt_dna.mdp",
+        "deposition_dna.mdp",
+        "production_dna.mdp",
+    ):
+        text = (mdp_dir / name).read_text()
+        assert "epsilon_rf" not in text
+
+
+def test_dna_minimization_freezes_surface_and_npt_keeps_surface_posres(tmp_path):
+    mdp_dir = Path(gms.__file__).resolve().parent / "mdp_templates"
+    minimization = (mdp_dir / "minimization_dna.mdp").read_text()
+    npt = (mdp_dir / "npt_dna.mdp").read_text()
+
+    assert "define                   = -DPOSRES" not in minimization
+    assert "define                   =" not in minimization
+    assert "define                   = -DPOSRES" in npt
+    assert "POSRES_DNA" not in minimization
+    assert "POSRES_DNA" not in npt
+    assert "freezegrps               = SRF" in minimization
+    assert "freezedim                = Y Y Y" in minimization
+    assert "freezegrps = SRF" in npt
+    assert "freezedim = Y Y Y" in npt
+
+
+def test_dna_surface_itp_gets_xyz_posres(tmp_path, monkeypatch):
+    sim, sys2 = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sys2)
+
+    dna_gro = """DNA surface posres test
+  5
+    1DG     BB1    1   1.000   1.000   1.000
+    1DG     BB2    2   1.100   1.000   1.000
+    2SRF      C    3   1.500   1.500   0.500
+    3SRF      C    4   2.000   1.500   0.500
+    4SRF      C    5   2.500   1.500   0.500
+   4.00000   4.00000   4.00000
+"""
+    (sys2 / "immobilized_system.gro").write_text(dna_gro)
+    (sim / "immobilized_system.gro").write_text(dna_gro)
+
+    itp = sim / "system_itp"
+    (itp / "Active.itp").unlink(missing_ok=True)
+    (itp / "surface.itp").write_text(
+        "[ moleculetype ]\n"
+        "SRF 1\n\n"
+        "[ atoms ]\n"
+        "1 C1 1 SRF C1 1 0.0\n"
+        "2 C1 1 SRF C1 2 0.0\n"
+        "3 C1 1 SRF C1 3 0.0\n\n"
+        "[ bonds ]\n"
+        "1 2 1 0.470 5000\n"
+        "2 3 1 0.470 5000\n\n"
+        "[ angles ]\n"
+        "1 2 3 1 180.0 300\n"
+    )
+    (itp / "Nucleic_A+Nucleic_B.itp").write_text(
+        "[ moleculetype ]\nNucleic_A+Nucleic_B 1\n\n"
+        "[ atoms ]\n"
+        "1 Q0 1 DG BB1 1 -1.0\n"
+        "2 SN0 1 DG BB2 2 0.0\n"
+    )
+    (itp / "martini_v2.1-dna.itp").write_text("; standard dna\n")
+    (itp / "martini_v2.1P-dna.itp").write_text("; polarizable dna\n")
+    (itp / "martini_v2.0_ions.itp").write_text("; ions\n")
+
+    gms.main([
+        "--anchor", "1", "1",
+    ])
+
+    surface_itp = (sim / "0_topology" / "system_itp" / "surface.itp").read_text()
+    dna_anchor_itp = (sim / "0_topology" / "system_itp" / "Nucleic_A+Nucleic_B_anchor.itp").read_text()
+    deposition = (sim / "1_mdp" / "deposition_dna.mdp").read_text()
+    production = (sim / "1_mdp" / "production_dna.mdp").read_text()
+    system_top = (sim / "0_topology" / "system.top").read_text()
+
+    assert "[ position_restraints ]" in surface_itp
+    assert "#ifdef POSRES" in surface_itp
+    assert "1 1 5000 5000 5000" in surface_itp
+    assert "2 1 5000 5000 5000" in surface_itp
+    assert "3 1 5000 5000 5000" in surface_itp
+    assert "[ bonds ]" in surface_itp
+    assert "[ angles ]" in surface_itp
+    assert "[ position_restraints ]" in dna_anchor_itp
+    assert "#ifdef POSRES_DNA" in dna_anchor_itp
+    assert "SRF 1" in system_top
+    assert "tc-grps                  = SRF DNA" in deposition
+    assert "tau-t                    = 0.3 0.3" in deposition
+    assert "ref-t                    = 300 300" in deposition
+    assert "define                   = -DPOSRES" in deposition
+    assert "POSRES_DNA" not in deposition
+    assert "define                   = -DPOSRES -DPOSRES_DNA" in production
+    assert "freezegrps" not in deposition
+
+
+def test_refresh_dna_mdp_thermostat_groups_uses_topology_groups(tmp_path):
+    mdp_dir = tmp_path / "1_mdp"
+    itp_dir = tmp_path / "system_itp"
+    top_path = tmp_path / "system_final.top"
+    mdp_dir.mkdir()
+    itp_dir.mkdir()
+
+    for name in ("nvt_dna.mdp", "npt_dna.mdp", "deposition_dna.mdp", "production_dna.mdp"):
+        (mdp_dir / name).write_text(
+            "integrator = md\n"
+            "rvdw                     = 1.1\n"
+            "tcoupl                   = v-rescale\n"
+            "tc-grps                  = System\n"
+            "tau-t                    = 1.0\n"
+            "ref-t                    = 300\n"
+        )
+    (mdp_dir / "minimization_dna.mdp").write_text(
+        "integrator = steep\n"
+        "define                   = -DPOSRES\n"
+        "freezegrps               = SRF\n"
+        "freezedim                = Y Y Y\n"
+    )
+
+    top_path.write_text(
+        '#include "system_itp/Nucleic_A+Nucleic_B_linker.itp"\n'
+        '#include "system_itp/surface.itp"\n\n'
+        "[ molecules ]\n"
+        "Nucleic_A+Nucleic_B 1\n"
+        "SRF 1\n"
+        "W 10\n"
+        "WF 3\n"
+        "NA 2\n"
+        "NAD 1\n"
+    )
+    (itp_dir / "surface.itp").write_text(
+        "[ moleculetype ]\nSRF 1\n\n[ atoms ]\n1 C1 1 SRF C1 1 0.0\n"
+    )
+    (itp_dir / "Nucleic_A+Nucleic_B.itp").write_text(
+        "[ moleculetype ]\nNucleic_A+Nucleic_B 1\n\n"
+        "[ atoms ]\n"
+        "1 Q0 1 DG BB1 1 -1.0\n"
+        "2 SN0 1 DG BB2 2 0.0\n"
+    )
+    (itp_dir / "Nucleic_A+Nucleic_B_linker.itp").write_text(
+        "[ moleculetype ]\nNucleic_A+Nucleic_B 1\n\n"
+        "[ atoms ]\n"
+        "1 Q0 1 DG BB1 1 -1.0\n"
+        "2 SN0 1 DG BB2 2 0.0\n"
+        "3 C3 2 MOL1 C01 3 0.0\n"
+    )
+    (itp_dir / "NAD.itp").write_text(
+        "[ moleculetype ]\nNAD 1\n\n"
+        "[ atoms ]\n"
+        "1 P5 1 NAD N1 1 0.0\n"
+    )
+
+    groups = gms.refresh_dna_mdp_thermostat_groups(
+        mdp_dir=mdp_dir,
+        top_path=top_path,
+        itp_dir=itp_dir,
+        surface_moltype="SRF",
+        surface_resname="SRF",
+    )
+
+    production = (mdp_dir / "production_dna.mdp").read_text()
+    minimization = (mdp_dir / "minimization_dna.mdp").read_text()
+
+    assert groups == ["SRF", "DNA", "W", "WF", "IONS", "MOL1", "NAD"]
+    assert "define                   = -DPOSRES" in (mdp_dir / "nvt_dna.mdp").read_text()
+    assert "define                   = -DPOSRES -DPOSRES_DNA" in production
+    assert "define                   = -DPOSRES" not in minimization
+    assert "define                   =" not in minimization
+    assert "freezegrps               = SRF" in minimization
+    assert "freezedim                = Y Y Y" in minimization
+    assert "tc-grps                  = SRF DNA W WF IONS MOL1 NAD" in production
+    assert "tau-t                    = 0.3 0.3 0.3 0.3 0.3 0.3 0.3" in production
+    assert "ref-t                    = 300 300 300 300 300 300 300" in production
+
+
+def test_dna_generated_mdps_include_extra_topology_groups_and_index_aliases(tmp_path, monkeypatch):
+    sim, sys2 = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sys2)
+
+    dna_gro = """DNA thermostat groups test
+  7
+    1DG     BB1    1   1.000   1.000   1.000
+    1DG     BB2    2   1.100   1.000   1.000
+    2SRF      C    3   1.500   1.500   0.500
+    3SRF      C    4   2.000   1.500   0.500
+    4SRF      C    5   2.500   1.500   0.500
+    5MOL1   C01    6   1.800   2.200   1.400
+    5MOL1   C02    7   1.900   2.200   1.100
+   4.00000   4.00000   4.00000
+"""
+    (sys2 / "immobilized_system.gro").write_text(dna_gro)
+    (sim / "immobilized_system.gro").write_text(dna_gro)
+
+    itp = sim / "system_itp"
+    (itp / "Active.itp").unlink(missing_ok=True)
+    (itp / "surface.itp").write_text(
+        "[ moleculetype ]\nSRF 1\n\n[ atoms ]\n1 C1 1 SRF C1 1 0.0\n"
+    )
+    (itp / "Nucleic_A+Nucleic_B.itp").write_text(
+        "[ moleculetype ]\nNucleic_A+Nucleic_B 1\n\n"
+        "[ atoms ]\n"
+        "1 Q0 1 DG BB1 1 -1.0\n"
+        "2 SN0 1 DG BB2 2 0.0\n"
+        "3 C3 2 MOL1 C01 3 0.0\n"
+        "4 C3 2 MOL1 C02 4 0.0\n"
+    )
+    (itp / "martini_v2.1-dna.itp").write_text("; standard dna\n")
+    (itp / "martini_v2.1P-dna.itp").write_text("; polarizable dna\n")
+    (itp / "martini_v2.0_ions.itp").write_text("; ions\n")
+
+    gms.main([
+        "--anchor", "1", "1",
+    ])
+
+    production = (sim / "1_mdp" / "production_dna.mdp").read_text()
+    index_text = (sim / "0_topology" / "index.ndx").read_text()
+
+    assert "tc-grps                  = SRF DNA MOL1" in production
+    assert "tau-t                    = 0.3 0.3 0.3" in production
+    assert "ref-t                    = 300 300 300" in production
+    assert "[ MOL1 ]" in index_text
 
 
 def test_write_custom_mdp_skips_pull_rewrite_when_disabled(tmp_path):
@@ -919,6 +1184,38 @@ def test_materialize_posres_fc_in_itp_replaces_macro_with_numeric_value(tmp_path
     assert "POSRES_FC POSRES_FC POSRES_FC" not in text
     assert "1 1 750.0 750.0 750.0" in text
     assert "#define POSRES_FC 750.0" in text
+
+
+def test_rewrite_itp_with_posres_can_replace_legacy_block_and_macro(tmp_path):
+    src = tmp_path / "Nucleic_A+Nucleic_B.itp"
+    dst = tmp_path / "Nucleic_A+Nucleic_B_anchor.itp"
+    src.write_text(
+        "[ moleculetype ]\n"
+        "Nucleic_A+Nucleic_B 1\n\n"
+        "[ atoms ]\n"
+        "1 Q0 1 DG BB1 1 -1.0\n"
+        "2 SN0 1 DG BB2 2 0.0\n"
+        "#ifdef POSRES\n"
+        "#ifndef POSRES_FC\n"
+        "#define POSRES_FC 750.0\n"
+        "#endif\n"
+        "[ position_restraints ]\n"
+        "1 1 POSRES_FC POSRES_FC POSRES_FC\n"
+        "#endif\n"
+    )
+
+    gms._rewrite_itp_with_posres(
+        src_itp=src,
+        dst_itp=dst,
+        posres_atom_ids=[2],
+        macro_name="POSRES_DNA",
+    )
+
+    text = dst.read_text()
+    assert text.count("[ position_restraints ]") == 1
+    assert "#ifdef POSRES_DNA" in text
+    assert "#ifdef POSRES\n" not in text
+    assert "2 1 1000 1000 0" in text
 
 
 def test_dna_topologies_start_with_rubber_bands_define(tmp_path):

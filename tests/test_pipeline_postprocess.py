@@ -18,11 +18,41 @@ def test_parser_accepts_solvate_flags():
         "--salt-conc", "0.20",
         "--solvate-radius", "0.21",
     ])
+    pipeline._validate_args(parser, args)
     assert args.solvate is True
     assert args.ionize is False
     assert args.salt_conc == 0.20
     assert args.solvate_radius == 0.21
     assert args.solvate_surface_clearance == 0.4
+
+
+def test_parser_uses_dna_default_solvate_surface_clearance():
+    parser = pipeline.build_parser()
+    args = parser.parse_args([
+        "--dna",
+        "--pdb", "4C64",
+        "--anchor", "1", "1",
+        "--lx", "10",
+        "--ly", "10",
+        "--solvate",
+    ])
+    pipeline._validate_args(parser, args)
+    assert args.solvate_surface_clearance == 0.4
+
+
+def test_parser_keeps_explicit_dna_solvate_surface_clearance():
+    parser = pipeline.build_parser()
+    args = parser.parse_args([
+        "--dna",
+        "--pdb", "4C64",
+        "--anchor", "1", "1",
+        "--lx", "10",
+        "--ly", "10",
+        "--solvate",
+        "--solvate-surface-clearance", "0.2",
+    ])
+    pipeline._validate_args(parser, args)
+    assert args.solvate_surface_clearance == 0.2
 
 
 def test_parser_accepts_complex_config_without_pdb(tmp_path):
@@ -103,6 +133,106 @@ def test_pipeline_reads_substrate_moltype_from_gro_when_itp_is_missing(tmp_path)
     )
 
     assert pipeline._read_gro_first_resname(str(gro)) == "PPN"
+
+
+def test_normalize_uniform_atom_names_uses_top_includes_not_unincluded_itps(tmp_path):
+    top_dir = tmp_path / "0_topology"
+    itp_dir = top_dir / "system_itp"
+    itp_dir.mkdir(parents=True)
+    top = top_dir / "system_final.top"
+    gro = tmp_path / "system_final.gro"
+
+    (itp_dir / "martini_v3.0.0_solvents_v1.itp").write_text(
+        "[ moleculetype ]\nETO 1\n\n[ atoms ]\n1 SP1 1 ETO ETO 1 0.0\n"
+    )
+    (itp_dir / "ETO.itp").write_text(
+        "[ moleculetype ]\nETO 1\n\n[ atoms ]\n1 C1 1 ETO ETO1 1 0.0\n"
+    )
+    top.write_text(
+        '#include "system_itp/martini_v3.0.0_solvents_v1.itp"\n\n'
+        "[ system ]\nX\n\n"
+        "[ molecules ]\n"
+        "ETO 1\n"
+    )
+    gro.write_text(
+        "ETO test\n"
+        "    1\n"
+        "    1ETO   ETO1    1   0.100   0.100   0.100\n"
+        "   1.00000   1.00000   1.00000\n"
+    )
+
+    changed = pipeline._normalize_uniform_atom_names_from_itp(top_dir=top_dir, top_path=top, gro_path=gro)
+
+    assert changed is True
+    assert "ETO1" not in gro.read_text()
+    assert "ETO" in gro.read_text()
+
+
+def test_normalize_surface_itp_atomnames_matches_uniform_surface_gro_name(tmp_path):
+    surface_gro = tmp_path / "surface.gro"
+    surface_itp = tmp_path / "surface.itp"
+    surface_gro.write_text(
+        "Surface\n"
+        "    2\n"
+        "    1GRA      C    1   0.100   0.100   0.100\n"
+        "    2GRA      C    2   0.200   0.200   0.100\n"
+        "   1.00000   1.00000   1.00000\n"
+    )
+    surface_itp.write_text(
+        "[ moleculetype ]\n"
+        "GRA 1\n\n"
+        "[ atoms ]\n"
+        "1 C1 1 GRA C1 1 0.0\n"
+    )
+
+    changed = pipeline._normalize_surface_itp_atomnames(surface_gro=surface_gro, surface_itp=surface_itp)
+
+    assert changed is True
+    assert "1 C1 1 GRA C 1 0.0" in surface_itp.read_text()
+
+
+def test_normalize_surface_itp_atomnames_matches_first_surface_pattern(tmp_path):
+    surface_gro = tmp_path / "surface.gro"
+    surface_itp = tmp_path / "surface.itp"
+    surface_gro.write_text(
+        "Surface\n"
+        "    4\n"
+        "    1SRF     P4    1   0.100   0.100   0.100\n"
+        "    1SRF     C1    2   0.200   0.100   0.100\n"
+        "    2SRF     P4    3   0.100   0.200   0.100\n"
+        "    2SRF     C1    4   0.200   0.200   0.100\n"
+        "   1.00000   1.00000   1.00000\n"
+    )
+    surface_itp.write_text(
+        "[ moleculetype ]\n"
+        "SRF 1\n\n"
+        "[ atoms ]\n"
+        "1 P4 1 SRF B1 1 0.0\n"
+        "2 C1 1 SRF B2 2 0.0\n"
+    )
+
+    changed = pipeline._normalize_surface_itp_atomnames(surface_gro=surface_gro, surface_itp=surface_itp)
+
+    assert changed is True
+    text = surface_itp.read_text()
+    assert "1 P4 1 SRF P4 1 0.0" in text
+    assert "2 C1 1 SRF C1 2 0.0" in text
+
+
+def test_sanitize_surface_itp_removes_legacy_marker_lines(tmp_path):
+    surface_itp = tmp_path / "surface.itp"
+    surface_itp.write_text(
+        "[ moleculetype ]\n"
+        "GRA 1\n\n"
+        "[ atoms ]\n"
+        "1 C1 1 GRA C 1 0.0\n"
+        "~\n"
+    )
+
+    changed = pipeline._sanitize_surface_itp(surface_itp)
+
+    assert changed is True
+    assert "~" not in surface_itp.read_text()
 
 
 def test_parser_rejects_ionize_without_solvate():
@@ -203,6 +333,23 @@ def test_write_ions_mdp_supports_polarizable_water(tmp_path):
     assert "verlet-buffer-tolerance = -1" in text
 
 
+def test_write_ions_mdp_omits_epsilon_rf_for_standard_dna(tmp_path):
+    mdp = tmp_path / "ions_dna.mdp"
+    pipeline._write_ions_mdp(mdp, is_dna=True)
+    text = mdp.read_text()
+
+    assert "epsilon_r = 15" in text
+    assert "epsilon_rf" not in text
+
+
+def test_write_ions_mdp_keeps_epsilon_rf_for_non_dna(tmp_path):
+    mdp = tmp_path / "ions_protein.mdp"
+    pipeline._write_ions_mdp(mdp, is_dna=False)
+    text = mdp.read_text()
+
+    assert "epsilon_rf = 0" in text
+
+
 def test_parser_accepts_dna_freeze_water_options():
     parser = pipeline.build_parser()
     args = parser.parse_args([
@@ -289,6 +436,49 @@ def test_sync_final_restrained_topology_copies_molecules_block(tmp_path):
     text = out.read_text()
     assert "SRF 3" in text
     assert "W 100" in text
+
+
+def test_refresh_dna_thermostat_groups_rewrites_mdps_from_final_top(tmp_path):
+    simdir = tmp_path / "Simulation"
+    top_dir = simdir / "0_topology"
+    mdp_dir = simdir / "1_mdp"
+    itp_dir = top_dir / "system_itp"
+    top_dir.mkdir(parents=True)
+    mdp_dir.mkdir()
+    itp_dir.mkdir()
+
+    (top_dir / "system_final.top").write_text(
+        "[ molecules ]\n"
+        "Nucleic_A+Nucleic_B 1\n"
+        "SRF 1\n"
+        "W 20\n"
+        "NA 2\n"
+    )
+    (itp_dir / "surface.itp").write_text(
+        "[ moleculetype ]\nSRF 1\n\n[ atoms ]\n1 C1 1 SRF C1 1 0.0\n"
+    )
+    (itp_dir / "Nucleic_A+Nucleic_B.itp").write_text(
+        "[ moleculetype ]\nNucleic_A+Nucleic_B 1\n\n"
+        "[ atoms ]\n"
+        "1 Q0 1 DG BB1 1 -1.0\n"
+        "2 SN0 1 DG BB2 2 0.0\n"
+    )
+    (mdp_dir / "production_dna.mdp").write_text(
+        "integrator = md\n"
+        "rvdw                     = 1.1\n"
+        "tcoupl                   = v-rescale\n"
+        "tc-grps                  = System\n"
+        "tau-t                    = 1.0\n"
+        "ref-t                    = 300\n"
+    )
+
+    pipeline._refresh_dna_thermostat_groups(simdir=simdir, top_path=top_dir / "system_final.top")
+
+    text = (mdp_dir / "production_dna.mdp").read_text()
+    assert "define                   = -DPOSRES -DPOSRES_DNA" in text
+    assert "tc-grps                  = SRF DNA W IONS" in text
+    assert "tau-t                    = 0.3 0.3 0.3 0.3" in text
+    assert "ref-t                    = 300 300 300 300" in text
 
 
 def test_remove_waters_near_surface_updates_top(tmp_path):

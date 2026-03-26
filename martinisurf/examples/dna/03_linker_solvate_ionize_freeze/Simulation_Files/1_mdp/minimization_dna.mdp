@@ -15,13 +15,9 @@ verlet-buffer-tolerance  = 0.005
 coulombtype              = reaction-field
 rcoulomb                 = 1.1
 epsilon_r                = 2.5    ; 2.5 (with polarizable water)
-epsilon_rf               = 0
-
 vdw_type                 = cutoff
 vdw-modifier             = Potential-shift-verlet
 rvdw                     = 1.1
 
-; Freeze groups
-freezegrps = SRF
-freezedim = Y Y Y
-
+freezegrps               = SRF
+freezedim                = Y Y Y

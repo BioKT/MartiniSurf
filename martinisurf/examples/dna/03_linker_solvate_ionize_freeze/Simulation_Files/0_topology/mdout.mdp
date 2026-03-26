@@ -2,7 +2,7 @@
 ;	File 'mdout.mdp' was generated
 ;	By user: jjimenez (1005)
 ;	On host: Loacoon2
-;	At date: Wed Mar 25 10:44:50 2026
+;	At date: Thu Mar 26 17:24:08 2026
 ;
 ;	Created by:
 ;	             :-) GROMACS - gmx grompp, 2020.1-Ubuntu-2020.1-1 (-:
@@ -99,7 +99,7 @@ rcoulomb-switch          = 0
 rcoulomb                 = 1.1
 ; Relative dielectric constant for the medium and the reaction field
 epsilon_r                = 15
-epsilon_rf               = 0
+epsilon-rf               = 0
 ; Method for doing Van der Waals
 vdwtype                  = cutoff
 vdw-modifier             = Potential-shift-verlet

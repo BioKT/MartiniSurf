@@ -81,8 +81,17 @@ if not lines:
 
 z_values = [round(float(line[36:44]), 3) for line in lines]
 counts = Counter(z_values)
-if len(counts) < 2:
-    raise SystemExit("surface.gro does not contain at least two layers")
+if len(counts) == 1:
+    layer_z, atom_count = next(iter(counts.items()))
+    print(
+        f"WARN: surface.gro contains a single layer at z={layer_z:.3f}; "
+        "the charge scan will apply the selected charge to the whole surface.",
+        file=sys.stderr,
+    )
+    print(atom_count)
+    raise SystemExit(0)
+if len(counts) < 1:
+    raise SystemExit("surface.gro does not contain any detectable layer")
 
 layer_z = min(counts)
 print(counts[layer_z])
@@ -226,6 +235,7 @@ for CHARGE in "${CHARGES[@]}"; do
     -p "${EQUIL_TOPOLOGY}" \
     -f "${MIN_MDP}" \
     -c "${INPUT_STRUCTURE}" \
+    -r "${INPUT_STRUCTURE}" \
     -o "${MIN_NAME}.tpr" \
     -maxwarn 3
   run_mdrun "${MIN_NAME}"

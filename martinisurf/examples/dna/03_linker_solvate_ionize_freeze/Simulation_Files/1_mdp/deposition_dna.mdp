@@ -1,3 +1,5 @@
+define                   = -DPOSRES
+
 integrator               = md
 dt                       = 0.01
 nsteps                   = 2000000
@@ -18,22 +20,25 @@ verlet-buffer-tolerance  = 0.005
 coulombtype              = reaction-field
 rcoulomb                 = 1.1
 epsilon_r                = 15   ; 2.5 (with polarizable water)
-epsilon_rf               = 0
-
 vdw_type                 = cutoff
 vdw-modifier             = Potential-shift-verlet
 rvdw                     = 1.1
 
 tcoupl                   = v-rescale
-tc-grps                  = System
-tau-t                    = 1.0
-ref-t                    = 300
+tc-grps                  = SRF DNA W WF IONS MOL1
+tau-t                    = 0.3 0.3 0.3 0.3 0.3 0.3
+ref-t                    = 300 300 300 300 300 300
+
+
+
+
+Pcoupl                   = Parrinello-Rahman ;parrinello-rahman
+Pcoupltype               = semiisotropic
+tau-p                    = 12.0
+compressibility          = 0 3e-4
+ref-p                    = 1 1
 
 continuation = yes
-
-freezegrps               = SRF
-freezedim                = Y Y Y
-cos-acceleration         = 0
 
 refcoord_scaling         = all
 
@@ -54,4 +59,4 @@ pull-coord1-type         = umbrella
 pull-coord1-k            = 500.0
 pull-coord1-rate         = 0
 pull-coord1-dim          = N N Y
-pull-coord1-init         = 0.600
+pull-coord1-init         = 0.564

@@ -11,6 +11,9 @@ import argparse
 import numpy as np
 from typing import Tuple, List
 
+DEFAULT_BOX_TOP_PADDING_NM = 3.0
+DNA_BOX_TOP_PADDING_NM = 5.0
+
 
 def convert_pdb_to_gro(pdb_file: str, gro_file: str) -> None:
     """
@@ -578,13 +581,13 @@ def save_full_system(output_gro,
             dna_resnames = {"DA", "DT", "DG", "DC"}
             dna_idx = [i for i, (_, rn, _, _) in enumerate(enz_atoms) if str(rn).strip() in dna_resnames]
             if dna_idx:
-                z_req_nm = float(np.max(enz_out[dna_idx, 2])) / 10.0 + 3.0
+                z_req_nm = float(np.max(enz_out[dna_idx, 2])) / 10.0 + DNA_BOX_TOP_PADDING_NM
             else:
-                z_req_nm = float(np.max(enz_out[:, 2])) / 10.0 + 3.0
+                z_req_nm = float(np.max(enz_out[:, 2])) / 10.0 + DNA_BOX_TOP_PADDING_NM
         else:
-            z_req_nm = float(np.max(enz_out[:, 2])) / 10.0 + 3.0
+            z_req_nm = float(np.max(enz_out[:, 2])) / 10.0 + DEFAULT_BOX_TOP_PADDING_NM
     else:
-        z_req_nm = 3.0
+        z_req_nm = DNA_BOX_TOP_PADDING_NM if dna_mode else DEFAULT_BOX_TOP_PADDING_NM
     if len(surf_out) > 0:
         z_req_nm = max(z_req_nm, float(np.max(surf_out[:, 2])) / 10.0 + 0.5)
     if dna_mode:

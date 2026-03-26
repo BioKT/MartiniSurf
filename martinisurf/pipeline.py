@@ -27,6 +27,8 @@ from martinisurf.utils.pdb_to_gro import pdb_to_gro
 
 STANDARD_WATER_TEMPLATE = "water.gro"
 POLARIZABLE_WATER_TEMPLATE = "polarize-water.gro"
+DEFAULT_SOLVATE_SURFACE_CLEARANCE = 0.4
+DNA_DEFAULT_SOLVATE_SURFACE_CLEARANCE = 0.4
 
 
 def _read_gro_first_resname(gro_path: str) -> str | None:
@@ -90,6 +92,14 @@ def _default_water_template_name(polarizable_water: bool) -> str:
     return POLARIZABLE_WATER_TEMPLATE if polarizable_water else STANDARD_WATER_TEMPLATE
 
 
+def _apply_dynamic_defaults(args: argparse.Namespace) -> None:
+    if getattr(args, "solvate_surface_clearance", None) is None:
+        args.solvate_surface_clearance = (
+            DNA_DEFAULT_SOLVATE_SURFACE_CLEARANCE if bool(getattr(args, "dna", False))
+            else DEFAULT_SOLVATE_SURFACE_CLEARANCE
+        )
+
+
 def _write_minimal_surface_itp(itp_path: Path, resname: str, bead: str, charge: float = 0.0) -> None:
     clean_res = (resname or "SRF").strip()[:6] or "SRF"
     clean_bead = (bead or "C1").strip()[:6] or "C1"
@@ -102,6 +112,36 @@ def _write_minimal_surface_itp(itp_path: Path, resname: str, bead: str, charge: 
         "[ atoms ]\n"
         f"  1   {clean_bead:<6}   1   {clean_res:<4}   {atom_name:<5} 1     {float(charge):.3f}\n"
     )
+
+
+def _sanitize_surface_itp(surface_itp: Path) -> bool:
+    if not surface_itp.exists():
+        return False
+
+    kept_lines: list[str] = []
+    changed = False
+    for raw in surface_itp.read_text().splitlines(keepends=True):
+        if raw.strip() == "~":
+            changed = True
+            continue
+        kept_lines.append(raw)
+
+    if changed:
+        surface_itp.write_text("".join(kept_lines))
+    return changed
+
+
+def _read_gro_uniform_atomname_for_resname(gro_path: str | Path, resname: str) -> str | None:
+    _, records, _ = _read_gro_records(str(gro_path))
+    wanted = str(resname).strip()
+    atom_names = {
+        str(rec["atomname"]).strip()
+        for rec in records
+        if str(rec["resname"]).strip() == wanted and str(rec["atomname"]).strip()
+    }
+    if len(atom_names) != 1:
+        return None
+    return next(iter(atom_names))
 
 
 def _primary_surface_bead(bead_values: str | list[str] | tuple[str, ...] | None) -> str:
@@ -761,6 +801,7 @@ def _normalize_cli_residue_groups(
 
 
 def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    _apply_dynamic_defaults(args)
     complex_mode = bool(args.complex_config)
     martini3_surface_modes = {"graphene", "graphene-periodic", "graphene-finite", "graphite"}
     cnt_surface_modes = {"cnt", "cnt-m2", "cnt-martini2", "cnt-m3", "cnt-martini3"}
@@ -933,8 +974,9 @@ def _effective_surface_geometry(args: argparse.Namespace) -> str:
 
 
 def _build_generated_surface_args(args: argparse.Namespace, output_path: Path) -> list[str]:
+    mode = _resolve_generated_surface_mode(args)
     builder_args = [
-        "--mode", _resolve_generated_surface_mode(args),
+        "--mode", mode,
         "--lx", str(args.lx),
         "--ly", str(args.ly),
         "--dx", str(args.dx),
@@ -943,6 +985,8 @@ def _build_generated_surface_args(args: argparse.Namespace, output_path: Path) -
         "--charge", str(args.charge),
         "--output", str(output_path),
     ]
+    if args.dna and mode in {"2-1", "4-1"}:
+        builder_args += ["--periodic-xy"]
     if args.surface_layers is not None:
         builder_args += ["--layers", str(args.surface_layers)]
     if args.surface_dist_z is not None:
@@ -1169,7 +1213,15 @@ def build_parser():
         help="DNA-only: use Martini 2 polarizable water (PW) and martini_v2.1P-dna.itp; standard waters are converted to PW after solvation.",
     )
     post_group.add_argument("--solvate-radius", type=float, default=0.21, help="Exclusion radius (nm) for gmx solvate (Martini recommended: 0.21).")
-    post_group.add_argument("--solvate-surface-clearance", type=float, default=0.4, help="Remove water in a symmetric slab around the surface plane: |z - z_surface| <= clearance.")
+    post_group.add_argument(
+        "--solvate-surface-clearance",
+        type=float,
+        default=None,
+        help=(
+            "Remove water in a symmetric slab around the surface plane: "
+            "|z - z_surface| <= clearance. Default: 0.4 for protein and DNA workflows."
+        ),
+    )
     post_group.add_argument("--freeze-water-fraction", type=float, default=0.0, help="DNA-only: convert this fraction of W waters to WF in final outputs.")
     post_group.add_argument("--freeze-water-seed", type=int, default=42, help="Random seed used for DNA water freezing.")
 
@@ -1219,7 +1271,7 @@ def _find_gmx_binary() -> str | None:
     return None
 
 
-def _write_ions_mdp(mdp_path: Path, polarizable_water: bool = False) -> None:
+def _write_ions_mdp(mdp_path: Path, polarizable_water: bool = False, is_dna: bool = False) -> None:
     if polarizable_water:
         mdp_path.write_text(
             "integrator = steep\n"
@@ -1257,22 +1309,24 @@ def _write_ions_mdp(mdp_path: Path, polarizable_water: bool = False) -> None:
         )
         return
 
-    mdp_path.write_text(
-        "integrator = steep\n"
-        "nsteps = 50\n"
-        "emtol = 1000\n"
-        "emstep = 0.01\n"
-        "cutoff-scheme = Verlet\n"
-        "nstlist = 20\n"
-        "coulombtype = reaction-field\n"
-        "rcoulomb = 1.1\n"
-        "epsilon_r = 15\n"
-        "epsilon_rf = 0\n"
-        "vdwtype = cutoff\n"
-        "vdw-modifier = Potential-shift-verlet\n"
-        "rvdw = 1.1\n"
-        "pbc = xyz\n"
-    )
+    lines = [
+        "integrator = steep\n",
+        "nsteps = 50\n",
+        "emtol = 1000\n",
+        "emstep = 0.01\n",
+        "cutoff-scheme = Verlet\n",
+        "nstlist = 20\n",
+        "coulombtype = reaction-field\n",
+        "rcoulomb = 1.1\n",
+        "epsilon_r = 15\n",
+        "vdwtype = cutoff\n",
+        "vdw-modifier = Potential-shift-verlet\n",
+        "rvdw = 1.1\n",
+        "pbc = xyz\n",
+    ]
+    if not is_dna:
+        lines.insert(9, "epsilon_rf = 0\n")
+    mdp_path.write_text("".join(lines))
 
 
 def _read_itp_moleculetype(itp_path: Path) -> str | None:
@@ -1364,6 +1418,81 @@ def _read_itp_uniform_atomname_for_moltype(itp_path: Path, moltype: str) -> str 
     return atom_names[0]
 
 
+def _rewrite_itp_atomnames_for_moltype(itp_path: Path, moltype: str, atomnames: list[str]) -> bool:
+    if not itp_path.exists():
+        return False
+
+    target_moltype = str(moltype).strip()
+    target_atomnames = [str(name).strip()[:5] for name in atomnames if str(name).strip()]
+    if not target_moltype or not target_atomnames:
+        return False
+
+    lines = itp_path.read_text().splitlines()
+    out: list[str] = []
+    current_moltype: str | None = None
+    in_moleculetype = False
+    in_atoms = False
+    changed = False
+    atom_idx = 0
+
+    for raw in lines:
+        data, comment = raw.split(";", 1) if ";" in raw else (raw, "")
+        stripped = data.strip()
+
+        if stripped.startswith("[") and stripped.endswith("]"):
+            section = stripped[1:-1].strip().lower()
+            in_moleculetype = section == "moleculetype"
+            in_atoms = section == "atoms"
+            out.append(raw)
+            continue
+
+        if in_moleculetype:
+            if not stripped:
+                out.append(raw)
+                continue
+            if stripped.startswith(";"):
+                out.append(raw)
+                continue
+            current_moltype = stripped.split()[0]
+            in_moleculetype = False
+            out.append(raw)
+            continue
+
+        if in_atoms and current_moltype == target_moltype and stripped:
+            parts = stripped.split()
+            if len(parts) >= 5 and atom_idx < len(target_atomnames):
+                target_atomname = target_atomnames[atom_idx]
+                atom_idx += 1
+                if parts[4] != target_atomname:
+                    parts[4] = target_atomname
+                    rebuilt = " ".join(parts)
+                    if comment:
+                        rebuilt += f" ;{comment}"
+                    out.append(rebuilt)
+                    changed = True
+                    continue
+
+        out.append(raw)
+
+    if changed:
+        itp_path.write_text("\n".join(out).rstrip() + "\n")
+    return changed
+
+
+def _rewrite_itp_uniform_atomname_for_moltype(itp_path: Path, moltype: str, atomname: str) -> bool:
+    target_atomname = str(atomname).strip()[:5]
+    if not target_atomname:
+        return False
+    atom_template = _load_moltype_atoms_from_itp_file(itp_path).get(str(moltype).strip(), [])
+    if not atom_template:
+        return False
+    return _rewrite_itp_atomnames_for_moltype(
+        itp_path=itp_path,
+        moltype=moltype,
+        atomnames=[target_atomname] * len(atom_template),
+    )
+
+
 def _read_itp_moleculetype_names(itp_path: Path) -> list[str]:
     if not itp_path.exists():
         return []
@@ -1401,8 +1530,8 @@ def _load_moltype_atoms_from_itp_dir(itp_dir: Path) -> dict[str, list[str]]:
                 continue
 
             if line.startswith("["):
-                # Finalize previously collected atoms before switching section.
-                if collecting_atoms is not None and current_moltype and current_moltype not in mol_atoms:
+                # Finalize only when leaving an [ atoms ] block.
+                if in_atoms and collecting_atoms is not None and current_moltype and current_moltype not in mol_atoms:
                     mol_atoms[current_moltype] = collecting_atoms
                     collecting_atoms = None
                 section = line.strip("[]").strip().lower()
@@ -1428,6 +1557,117 @@ def _load_moltype_atoms_from_itp_dir(itp_dir: Path) -> dict[str, list[str]]:
     return mol_atoms
 
 
+def _load_moltype_atoms_from_itp_file(itp_path: Path) -> dict[str, list[str]]:
+    mol_atoms: dict[str, list[str]] = {}
+    if not itp_path.exists():
+        return mol_atoms
+
+    current_moltype: str | None = None
+    in_moleculetype = False
+    in_atoms = False
+    collecting_atoms: list[str] | None = None
+
+    for raw in itp_path.read_text().splitlines():
+        line = raw.split(";", 1)[0].strip()
+        if not line:
+            continue
+
+        if line.startswith("["):
+            if in_atoms and collecting_atoms is not None and current_moltype and current_moltype not in mol_atoms:
+                mol_atoms[current_moltype] = collecting_atoms
+                collecting_atoms = None
+            section = line.strip("[]").strip().lower()
+            in_moleculetype = section == "moleculetype"
+            in_atoms = section == "atoms"
+            continue
+
+        if in_moleculetype:
+            current_moltype = line.split()[0]
+            in_moleculetype = False
+            collecting_atoms = []
+            continue
+
+        if in_atoms and current_moltype:
+            parts = line.split()
+            if len(parts) >= 5 and collecting_atoms is not None:
+                collecting_atoms.append(parts[4])
+
+    if collecting_atoms is not None and current_moltype and current_moltype not in mol_atoms:
+        mol_atoms[current_moltype] = collecting_atoms
+
+    return mol_atoms
+
+
+def _iter_included_itp_paths(top_path: Path) -> list[Path]:
+    include_re = re.compile(r'^\s*#include\s+"([^"]+)"')
+    seen: set[Path] = set()
+    ordered: list[Path] = []
+
+    def _walk(path: Path) -> None:
+        resolved = path.resolve()
+        if resolved in seen or not resolved.exists():
+            return
+        seen.add(resolved)
+        ordered.append(resolved)
+        for raw in resolved.read_text().splitlines():
+            line = raw.split(";", 1)[0].strip()
+            match = include_re.match(line)
+            if not match:
+                continue
+            inc = (resolved.parent / match.group(1)).resolve()
+            _walk(inc)
+
+    _walk(top_path)
+    return [path for path in ordered if path.suffix == ".itp"]
+
+
+def _load_moltype_atoms_from_topology(top_path: Path) -> dict[str, list[str]]:
+    mol_atoms: dict[str, list[str]] = {}
+    for itp_path in _iter_included_itp_paths(top_path):
+        current = _load_moltype_atoms_from_itp_file(itp_path)
+        for moltype, atoms in current.items():
+            if moltype not in mol_atoms:
+                mol_atoms[moltype] = atoms
+    return mol_atoms
+
+
+def _normalize_surface_itp_atomnames(surface_gro: Path, surface_itp: Path) -> bool:
+    if not surface_gro.exists() or not surface_itp.exists():
+        return False
+    surface_moltype = _read_itp_moleculetype(surface_itp) or _read_gro_first_resname(str(surface_gro)) or "SRF"
+    atom_template = _load_moltype_atoms_from_itp_file(surface_itp).get(surface_moltype, [])
+    if not atom_template:
+        return False
+
+    _, records, _ = _read_gro_records(str(surface_gro))
+    grouped: dict[tuple[int, str], list[dict]] = {}
+    for rec in records:
+        if str(rec["resname"]).strip() != surface_moltype:
+            continue
+        key = (int(rec["resid"]), str(rec["resname"]).strip())
+        grouped.setdefault(key, []).append(rec)
+
+    groups = list(grouped.values())
+    if not groups:
+        return False
+
+    first_pattern = [str(rec["atomname"]).strip() for rec in groups[0]]
+    if len(first_pattern) != len(atom_template):
+        return False
+
+    if all(first_pattern) and all(
+        [str(rec["atomname"]).strip() for rec in atoms] == first_pattern
+        for atoms in groups
+        if len(atoms) == len(first_pattern)
+    ):
+        return _rewrite_itp_atomnames_for_moltype(surface_itp, surface_moltype, first_pattern)
+
+    target_atom = _read_gro_uniform_atomname_for_resname(surface_gro, surface_moltype)
+    if not target_atom:
+        return False
+    return _rewrite_itp_uniform_atomname_for_moltype(surface_itp, surface_moltype, target_atom)
+
+
 def _validate_named_molecule_atomnames(top_dir: Path, top_path: Path, gro_path: Path) -> None:
     """
     Validate molecules whose GRO residue name equals their moleculetype
@@ -1440,7 +1680,7 @@ def _validate_named_molecule_atomnames(top_dir: Path, top_path: Path, gro_path: 
     if not molecules:
         return
 
-    mol_atoms = _load_moltype_atoms_from_itp_dir(top_dir / "system_itp")
+    mol_atoms = _load_moltype_atoms_from_topology(top_path)
     _, records, _ = _read_gro_records(str(gro_path))
 
     grouped: dict[tuple[int, str], list[dict]] = {}
@@ -1606,14 +1846,12 @@ def _normalize_uniform_atom_names_from_itp(top_dir: Path, top_path: Path, gro_pa
     if not moltypes:
         return False
 
+    mol_atoms = _load_moltype_atoms_from_topology(top_path)
     uniform_map: dict[str, str] = {}
-    for itp in sorted((top_dir / "system_itp").glob("*.itp")):
-        for mol in moltypes:
-            if mol in uniform_map:
-                continue
-            atom = _read_itp_uniform_atomname_for_moltype(itp, mol)
-            if atom:
-                uniform_map[mol] = atom
+    for mol in moltypes:
+        atom_names = [str(name).strip() for name in mol_atoms.get(mol, []) if str(name).strip()]
+        if atom_names and len(set(atom_names)) == 1:
+            uniform_map[mol] = atom_names[0]
 
     if not uniform_map:
         return False
@@ -2066,6 +2304,7 @@ def _rebuild_merged_index(
 
     for group_name, wanted in (
         ("W", ("W",)),
+        ("PW", ("PW",)),
         ("WF", ("WF",)),
         ("IONS", ("NA", "CL", "K", "CA", "MG", "ZN", "LI", "RB", "CS", "BA", "SR", "F", "BR", "I")),
         ("DNA", ("DA", "DC", "DG", "DT")),
@@ -2118,6 +2357,32 @@ def _rebuild_merged_index(
 
     index_path.write_text(_render_ndx_groups(rebuilt_groups + preserved_groups + anchor_groups))
     return index_path
+
+
+def _refresh_dna_thermostat_groups(simdir: Path, top_path: Path) -> None:
+    if not top_path.exists():
+        return
+
+    top_dir = simdir / "0_topology"
+    mdp_dir = simdir / "1_mdp"
+    itp_dir = top_dir / "system_itp"
+    surface_itp = itp_dir / "surface.itp"
+
+    from martinisurf.gromacs_inputs import (
+        _read_itp_first_atoms_resname,
+        _read_itp_moleculetype,
+        refresh_dna_mdp_thermostat_groups,
+    )
+
+    surface_moltype = _read_itp_moleculetype(surface_itp) or "SRF"
+    surface_resname = _read_itp_first_atoms_resname(surface_itp) or surface_moltype
+    refresh_dna_mdp_thermostat_groups(
+        mdp_dir=mdp_dir,
+        top_path=top_path,
+        itp_dir=itp_dir,
+        surface_moltype=surface_moltype,
+        surface_resname=surface_resname,
+    )
 
 
 def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -> None:
@@ -2193,6 +2458,8 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
                 water_resnames=water_resnames,
             )
         _normalize_molecules_block(final_top=final_top, base_top=base_top, top_dir=top_dir)
+        if args.dna:
+            _refresh_dna_thermostat_groups(simdir=simdir, top_path=final_top)
         shutil.copy(solvated_gro, final_gro)
         _normalize_uniform_atom_names_from_itp(top_dir=top_dir, top_path=final_top, gro_path=final_gro)
         shutil.copy(final_gro, final_alias_gro)
@@ -2208,7 +2475,7 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
 
     ions_mdp = system_dir / "_ions_tmp.mdp"
     ions_tpr = system_dir / "_ions_tmp.tpr"
-    _write_ions_mdp(ions_mdp, polarizable_water=args.polarizable_water)
+    _write_ions_mdp(ions_mdp, polarizable_water=args.polarizable_water, is_dna=bool(args.dna))
 
     _run_with_check([
         gmx_bin, "grompp",
@@ -2242,6 +2509,8 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
     _normalize_uniform_atom_names_from_itp(top_dir=top_dir, top_path=final_top, gro_path=final_gro)
     _normalize_ion_atom_names_from_itp(top_dir=top_dir, gro_path=final_gro)
     _normalize_molecules_block(final_top=final_top, base_top=base_top, top_dir=top_dir)
+    if args.dna:
+        _refresh_dna_thermostat_groups(simdir=simdir, top_path=final_top)
 
     ions_mdp.unlink(missing_ok=True)
     ions_tpr.unlink(missing_ok=True)
@@ -2283,6 +2552,7 @@ def _run_optional_dna_water_freezing(args: argparse.Namespace, simdir: Path) -> 
         alias_gro_path=alias_path,
     )
     _normalize_molecules_block(final_top=top_path, base_top=top_dir / "system.top", top_dir=top_dir)
+    _refresh_dna_thermostat_groups(simdir=simdir, top_path=top_path)
     final_res_top = _sync_final_restrained_topology(top_dir, top_path)
     gmx_bin = _find_gmx_binary()
     if gmx_bin is not None:
@@ -2306,6 +2576,12 @@ def _run_final_topology_structure_validation(simdir: Path) -> None:
     gro_path = system_dir / "system_final.gro"
     if not gro_path.exists():
         gro_path = system_dir / "final_system.gro"
+
+    if not top_path.exists() or not gro_path.exists():
+        top_path = top_dir / "system_res.top"
+        if not top_path.exists():
+            top_path = top_dir / "system.top"
+        gro_path = system_dir / "immobilized_system.gro"
 
     if not top_path.exists() or not gro_path.exists():
         return
@@ -2415,6 +2691,7 @@ def main(argv=None):
 
     parser = build_parser()
     args = parser.parse_args(argv)
+    _apply_dynamic_defaults(args)
     _validate_args(parser, args)
     _print_config_summary(args)
     merge_groups = _normalize_merge_groups(args.merge)
@@ -2593,6 +2870,11 @@ def main(argv=None):
                 f"Generated fallback topology: {fallback_itp}"
             )
 
+        if _sanitize_surface_itp(active_itp_dir / "surface.itp"):
+            print("✔ Removed legacy marker lines from surface.itp")
+        if _normalize_surface_itp_atomnames(surface_gro=surface_gro, surface_itp=active_itp_dir / "surface.itp"):
+            print("✔ Normalized surface atom names in surface.itp to match surface.gro")
+
     else:
         import martinisurf.surface_builder as sb
 
@@ -2609,6 +2891,11 @@ def main(argv=None):
             print("✔ Moved generated surface.itp into topology")
         else:
             print("⚠ surface.itp not generated by surface_builder")
+
+        if _sanitize_surface_itp(active_itp_dir / "surface.itp"):
+            print("✔ Removed legacy marker lines from surface.itp")
+        if _normalize_surface_itp_atomnames(surface_gro=surface_gro, surface_itp=active_itp_dir / "surface.itp"):
+            print("✔ Normalized surface atom names in surface.itp to match surface.gro")
 
 
     # Keep topology includes centralized only in 0_topology/system_itp.

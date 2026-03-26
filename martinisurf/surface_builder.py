@@ -46,6 +46,9 @@ VALID_SURFACE_MODES = (
 
 SIGMA_SPACING_FACTOR = 1.12
 DEFAULT_LAYER_Z0 = 3.0
+LOCAL_BOND_FORCE = 5000.0
+LOCAL_ANGLE_FORCE = 300.0
+LOCAL_BOND_TOLERANCE_FRACTION = 0.05
 _SIGMA_CACHE: dict[str, dict[str, float]] = {}
 
 
@@ -192,37 +195,226 @@ def local_layer_z_positions(
     return z_positions
 
 
+def _minimum_image(delta: float, box_length: float | None) -> float:
+    if not box_length or box_length <= 0:
+        return delta
+    return delta - round(delta / box_length) * box_length
+
+
+def _xy_delta(
+    atoms: list[tuple[float, float, float, str]],
+    left_id: int,
+    right_id: int,
+    box_x: float | None = None,
+    box_y: float | None = None,
+    periodic_xy: bool = False,
+) -> tuple[float, float]:
+    x1, y1, _, _ = atoms[left_id - 1]
+    x2, y2, _, _ = atoms[right_id - 1]
+    dx = x2 - x1
+    dy = y2 - y1
+    if periodic_xy:
+        dx = _minimum_image(dx, box_x)
+        dy = _minimum_image(dy, box_y)
+    return dx, dy
+
+
 def write_local_surface_itp(
     itp_path: Path,
     resname: str,
     atoms: list[tuple[float, float, float, str]],
+    layer_atom_ids: list[list[int]],
+    bond_length: float,
     charge: float,
+    box_x: float | None = None,
+    box_y: float | None = None,
+    periodic_xy: bool = False,
 ) -> None:
+    bonds = build_local_surface_bonds(
+        atoms=atoms,
+        layer_atom_ids=layer_atom_ids,
+        bond_length=bond_length,
+        box_x=box_x,
+        box_y=box_y,
+        periodic_xy=periodic_xy,
+    )
+    angles = build_local_surface_angles(
+        atoms=atoms,
+        bonds=bonds,
+        box_x=box_x,
+        box_y=box_y,
+        periodic_xy=periodic_xy,
+    )
+
     itp_lines = [
-        ";;;;;; Minimal surface topology",
+        ";;;;;; Local bonded surface topology",
         "",
         "[ moleculetype ]",
         "; molname nrexcl",
         f"  {resname}        1",
         "",
         "[ atoms ]",
+        "; nr type resnr residue atom cgnr charge",
     ]
 
-    unique_beads = {bead for _, _, _, bead in atoms}
-    if len(unique_beads) == 1:
-        bead = atoms[0][3] if atoms else "C1"
+    for idx, (_, _, _, bead) in enumerate(atoms, start=1):
+        atom_name = (bead or "C1")[:5] or "C1"
         itp_lines.append(
-            f"  1   {bead:<6}   1   {resname:<4}   {bead:<5} 1     {charge:.3f}"
+            f"  {idx:<5d}{bead:<7}1   {resname:<4}   {atom_name:<5} {idx:<5d} {charge:.3f}"
         )
-    else:
-        itp_lines.append("; nr type resnr residue atom cgnr charge")
-        for idx, (_, _, _, bead) in enumerate(atoms, start=1):
-            atom_name = f"B{idx % 100000}"
+
+    if bonds:
+        itp_lines.extend([
+            "",
+            "[ bonds ]",
+            "; i j funct length kb",
+        ])
+        for left, right, distance in bonds:
             itp_lines.append(
-                f"  {idx:<5d}{bead:<7}1   {resname:<4}   {atom_name:<5} {idx:<5d} {charge:.3f}"
+                f"  {left:<5d}{right:<7d}1   {distance:.5f} {LOCAL_BOND_FORCE:.1f}"
+            )
+
+    if angles:
+        itp_lines.extend([
+            "",
+            "[ angles ]",
+            "; i j k funct angle force_k",
+        ])
+        for left, center, right, angle in angles:
+            itp_lines.append(
+                f"  {left:<5d}{center:<7d}{right:<7d}1   {angle:.3f} {LOCAL_ANGLE_FORCE:.1f}"
             )
 
     itp_path.write_text("\n".join(itp_lines).rstrip() + "\n")
+
+
+def build_local_surface_bonds(
+    atoms: list[tuple[float, float, float, str]],
+    layer_atom_ids: list[list[int]],
+    bond_length: float,
+    box_x: float | None = None,
+    box_y: float | None = None,
+    periodic_xy: bool = False,
+) -> list[tuple[int, int, float]]:
+    if bond_length <= 0:
+        return []
+
+    tolerance = max(1e-6, bond_length * LOCAL_BOND_TOLERANCE_FRACTION)
+    bonds: list[tuple[int, int, float]] = []
+    for atom_ids in layer_atom_ids:
+        for offset, left_id in enumerate(atom_ids):
+            for right_id in atom_ids[offset + 1:]:
+                dx, dy = _xy_delta(
+                    atoms,
+                    left_id,
+                    right_id,
+                    box_x=box_x,
+                    box_y=box_y,
+                    periodic_xy=periodic_xy,
+                )
+                distance = math.hypot(dx, dy)
+                if abs(distance - bond_length) <= tolerance:
+                    bonds.append((left_id, right_id, distance))
+    return bonds
+
+
+def build_local_surface_angles(
+    atoms: list[tuple[float, float, float, str]],
+    bonds: list[tuple[int, int, float]],
+    box_x: float | None = None,
+    box_y: float | None = None,
+    periodic_xy: bool = False,
+) -> list[tuple[int, int, int, float]]:
+    adjacency: dict[int, list[int]] = {}
+    for left, right, _ in bonds:
+        adjacency.setdefault(left, []).append(right)
+        adjacency.setdefault(right, []).append(left)
+
+    angles: list[tuple[int, int, int, float]] = []
+    for center_id, neighbors in sorted(adjacency.items()):
+        if len(neighbors) < 2:
+            continue
+
+        def _neighbor_angle(atom_id: int) -> float:
+            dx, dy = _xy_delta(
+                atoms,
+                center_id,
+                atom_id,
+                box_x=box_x,
+                box_y=box_y,
+                periodic_xy=periodic_xy,
+            )
+            return math.atan2(dy, dx)
+
+        ordered_neighbors = sorted(
+            neighbors,
+            key=_neighbor_angle,
+        )
+
+        seen_pairs: set[tuple[int, int]] = set()
+        if len(ordered_neighbors) == 2:
+            neighbor_pairs = [(ordered_neighbors[0], ordered_neighbors[1])]
+        else:
+            neighbor_pairs = [
+                (ordered_neighbors[idx], ordered_neighbors[(idx + 1) % len(ordered_neighbors)])
+                for idx in range(len(ordered_neighbors))
+            ]
+
+        for left_id, right_id in neighbor_pairs:
+            pair_key = tuple(sorted((left_id, right_id)))
+            if pair_key in seen_pairs:
+                continue
+            seen_pairs.add(pair_key)
+
+            angle = _angle_between_atoms(
+                atoms,
+                left_id,
+                center_id,
+                right_id,
+                box_x=box_x,
+                box_y=box_y,
+                periodic_xy=periodic_xy,
+            )
+            if angle <= 0.0:
+                continue
+            angles.append((left_id, center_id, right_id, angle))
+
+    return angles
+
+
+def _angle_between_atoms(
+    atoms: list[tuple[float, float, float, str]],
+    left_id: int,
+    center_id: int,
+    right_id: int,
+    box_x: float | None = None,
+    box_y: float | None = None,
+    periodic_xy: bool = False,
+) -> float:
+    v1x, v1y = _xy_delta(
+        atoms,
+        center_id,
+        left_id,
+        box_x=box_x,
+        box_y=box_y,
+        periodic_xy=periodic_xy,
+    )
+    v2x, v2y = _xy_delta(
+        atoms,
+        center_id,
+        right_id,
+        box_x=box_x,
+        box_y=box_y,
+        periodic_xy=periodic_xy,
+    )
+    norm1 = math.hypot(v1x, v1y)
+    norm2 = math.hypot(v2x, v2y)
+    if norm1 == 0.0 or norm2 == 0.0:
+        return 0.0
+
+    cosine = ((v1x * v2x) + (v1y * v2y)) / (norm1 * norm2)
+    cosine = max(-1.0, min(1.0, cosine))
+    return math.degrees(math.acos(cosine))
 
 
 def run_cnt_generator(
@@ -452,6 +644,11 @@ def main(argv: Iterable[str] | None = None) -> None:
         default=None,
         help="Optional manual interlayer spacing in nm for local multilayer surfaces. If omitted, spacing is computed as 1.12 x sigma from the layer bead type(s) using the selected Martini version.",
     )
+    parser.add_argument(
+        "--periodic-xy",
+        action="store_true",
+        help="Apply periodic minimum-image connectivity in x/y for local 2-1 / 4-1 surfaces so edge beads bond across the box.",
+    )
     parser.add_argument("--graphite-layers", type=int, default=5, help="Number of layers in graphite mode")
     parser.add_argument("--graphite-spacing", type=float, default=0.382, help="Interlayer spacing in graphite mode (nm)")
     parser.add_argument("--cnt-numrings", type=int, help="Number of CNT rings.")
@@ -509,7 +706,9 @@ def main(argv: Iterable[str] | None = None) -> None:
         args.martini_version,
     )
     atoms: List[Tuple[float, float, float, str]] = []
+    layer_atom_ids: list[list[int]] = []
     final_lx, final_ly = args.lx, args.ly
+    local_bond_length = args.dx
 
     # =========================================================
     # MODE 2-1: STANDARD HEXAGONAL MAPPING
@@ -517,6 +716,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     if mode == "2-1":
         scale = args.dx / 0.142
         a = 0.246 * scale
+        local_bond_length = a
         atoms_unit = [
             (0.0, 0.0, 0.0), (a, 0.0, 0.0), (2 * a, 0.0, 0.0),
             (0.5 * a, (math.sqrt(3) / 2) * a, 0.0),
@@ -534,17 +734,20 @@ def main(argv: Iterable[str] | None = None) -> None:
             shift_x, shift_y = graphite_ab_shift(layer, 0.5 * a, (math.sqrt(3) / 6) * a)
             z_pos = layer_z_positions[layer]
             bead = bead_for_layer(layer_beads, layer)
+            layer_start = len(atoms) + 1
 
             for i in range(nx):
                 for j in range(ny):
                     for x, y, _ in atoms_unit:
                         atoms.append((x + i * lx_cell + shift_x, y + j * ly_cell + shift_y, z_pos, bead))
+            layer_atom_ids.append(list(range(layer_start, len(atoms) + 1)))
 
     # =========================================================
     # MODE 4-1: HONEYCOMB CARBON MAPPING
     # =========================================================
     elif mode == "4-1":
         d_cc = args.dx # In 4-1 mode, dx is treated as C-C distance
+        local_bond_length = d_cc
         lx_cell, ly_cell = math.sqrt(3) * d_cc, 3 * d_cc
         nx, ny = max(1, round(args.lx / lx_cell)), max(1, round(args.ly / ly_cell))
         final_lx, final_ly = nx * lx_cell, ny * ly_cell
@@ -560,11 +763,13 @@ def main(argv: Iterable[str] | None = None) -> None:
             shift_x, shift_y = graphite_ab_shift(layer, 0.0, d_cc)
             z_pos = layer_z_positions[layer]
             bead = bead_for_layer(layer_beads, layer)
+            layer_start = len(atoms) + 1
             
             for i in range(nx):
                 for j in range(ny):
                     for ax, ay, az in base_unit:
                         atoms.append((ax + i * lx_cell + shift_x, ay + j * ly_cell + shift_y, az + z_pos, bead))
+            layer_atom_ids.append(list(range(layer_start, len(atoms) + 1)))
     elif mode in {"cnt-m2", "cnt-m3"}:
         gro_path, itp_path, support_files = run_cnt_generator(
             mode=mode,
@@ -623,7 +828,12 @@ def main(argv: Iterable[str] | None = None) -> None:
         itp_path=itp_path,
         resname=args.resname,
         atoms=atoms,
+        layer_atom_ids=layer_atom_ids,
+        bond_length=local_bond_length,
         charge=args.charge,
+        box_x=final_lx,
+        box_y=final_ly,
+        periodic_xy=args.periodic_xy,
     )
 
     # Backward-compatible copy for standalone tooling/tests.

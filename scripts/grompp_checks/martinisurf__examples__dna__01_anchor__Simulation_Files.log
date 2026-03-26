@@ -1,0 +1,47 @@
+               :-) GROMACS - gmx grompp, 2024-EasyBuild_4.9.0 (-:
+
+Executable:   /scicomp/builds/Rocky/8.7/CascadeLake/software/GROMACS/2024-foss-2023a/bin/gmx_mpi
+Data prefix:  /scicomp/builds/Rocky/8.7/CascadeLake/software/GROMACS/2024-foss-2023a
+Working dir:  /scratch/jcjimenez/martini_surf_test/repo/scripts
+Command line:
+  gmx_mpi grompp -p /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/01_anchor/Simulation_Files/0_topology/system_res.top -f /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/01_anchor/Simulation_Files/1_mdp/minimization_dna.mdp -c /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/01_anchor/Simulation_Files/2_system/immobilized_system.gro -r /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/01_anchor/Simulation_Files/2_system/immobilized_system.gro -o /scratch/jcjimenez/martini_surf_test/repo/scripts/grompp_checks/martinisurf__examples__dna__01_anchor__Simulation_Files.tpr -po /scratch/jcjimenez/martini_surf_test/repo/scripts/grompp_checks/martinisurf__examples__dna__01_anchor__Simulation_Files_mdout.mdp -n /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/01_anchor/Simulation_Files/0_topology/index.ndx -maxwarn 3
+
+Ignoring obsolete mdp entry 'ns_type'
+
+WARNING 1 [file surface.itp, line 11]:
+  Too few parameters on line (source file
+  /dev/shm/easybuild/GROMACS/2024/foss-2023a/gromacs-2024/src/gromacs/gmxpreprocess/toppush.cpp,
+  line 1428)
+
+
+NOTE 1 [file system_res.top, line 13]:
+  System has non-zero total charge: -22.000000
+  Total charge should normally be an integer. See
+  https://manual.gromacs.org/current/user-guide/floating-point.html
+  for discussion on how close it should be to an integer.
+
+
+
+
+NOTE 2 [file /scratch/jcjimenez/martini_surf_test/repo/martinisurf/examples/dna/01_anchor/Simulation_Files/1_mdp/minimization_dna.mdp]:
+  There are 1144 atoms that are fully frozen and part of COMM removal
+  group(s), removing these atoms from the COMM removal group(s)
+
+Number of degrees of freedom in T-Coupling group rest is 44.49
+The integrator does not provide a ensemble temperature, there is no system ensemble temperature
+
+There were 2 NOTEs
+
+There was 1 WARNING
+
+GROMACS reminds you: "I Live the Life They Wish They Did" (Tricky)
+
+Setting the LD random seed to -544932609
+
+Generated 1331 of the 6105 non-bonded parameter combinations
+
+Excluding 1 bonded neighbours molecule type 'Nucleic_A+Nucleic_B'
+
+Excluding 1 bonded neighbours molecule type 'GRA'
+
+This run will generate roughly 0 Mb of data

@@ -6,6 +6,7 @@
 #include "system_itp/Active.itp"
 #include "system_itp/surface.itp"
 #include "system_itp/NAD.itp"
+#include "system_itp/ETO.itp"
 
 [ system ]
 MartiniSurf system
@@ -14,4 +15,4 @@ MartiniSurf system
 Active 1
 NAD 4
 SRF 792
-ETO 10
+ETO_LOCAL 10
