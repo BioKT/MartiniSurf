@@ -15,9 +15,6 @@ Toolkit for automated Martini protein/DNA surface-system setup, including linker
   <a href="https://biokt.github.io/MartiniSurf/">
     <img src="https://img.shields.io/badge/docs-GitHub%20Pages-2ea44f?logo=github" alt="Docs">
   </a>
-  <a href="https://codecov.io/gh/BioKT/MartiniSurf">
-    <img src="https://codecov.io/gh/BioKT/MartiniSurf/branch/master/graph/badge.svg" alt="Coverage">
-  </a>
   <img src="https://img.shields.io/badge/python-3.9%20|%203.10%20|%203.11-blue.svg" alt="Python versions">
   <a href="https://colab.research.google.com/github/BioKT/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_Protein.ipynb">
     <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open MartiniSurf_Protein">
