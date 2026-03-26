@@ -33,8 +33,8 @@ DNA_THERMOSTAT_TAU = 0.3
 DNA_THERMOSTAT_REF_T = 300.0
 SURFACE_POSRES_DEFINE = "POSRES"
 DNA_POSRES_DEFINE = "POSRES_DNA"
-DNA_SURFACE_POSRES_FORCE = 5000.0
-DNA_SURFACE_EDGE_POSRES_FORCE = 20000.0
+DNA_SURFACE_POSRES_FORCE = 50000.0
+DNA_SURFACE_EDGE_POSRES_FORCE = 50000.0
 DNA_MDP_FILENAMES = (
     "minimization_dna.mdp",
     "nvt_dna.mdp",
@@ -1001,6 +1001,8 @@ def _local_surface_posres_force_map(
     base_force: float,
     edge_force: float,
 ) -> Dict[int, tuple[float, float, float]]:
+    if float(base_force) == float(edge_force):
+        return {}
     if not _is_local_bonded_surface_itp(surface_itp_path):
         return {}
 
