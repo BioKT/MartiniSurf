@@ -17,6 +17,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      pages_enabled: ${{ steps.pages_status.outputs.enabled }}
 
     steps:
     - name: Checkout code
@@ -25,7 +27,19 @@ jobs:
         submodules: recursive
 
     - name: Configure GitHub Pages
+      id: configure_pages
+      continue-on-error: true
       uses: actions/configure-pages@v5
+
+    - name: Detect whether GitHub Pages is enabled
+      id: pages_status
+      run: |
+        if [ "${{ steps.configure_pages.outcome }}" = "success" ]; then
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "enabled=false" >> "$GITHUB_OUTPUT"
+          echo "GitHub Pages is not enabled for this repository yet. Documentation was built, but deployment was skipped."
+        fi
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -46,12 +60,14 @@ jobs:
         touch docs/_build/html/.nojekyll
 
     - name: Upload GitHub Pages artifact
+      if: steps.pages_status.outputs.enabled == 'true'
       uses: actions/upload-pages-artifact@v4
       with:
         path: docs/_build/html
 
   deploy:
     needs: build
+    if: needs.build.outputs.pages_enabled == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
