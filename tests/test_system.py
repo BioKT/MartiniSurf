@@ -956,9 +956,9 @@ def test_dna_surface_itp_gets_xyz_posres(tmp_path, monkeypatch):
 
     assert "[ position_restraints ]" in surface_itp
     assert "#ifdef POSRES" in surface_itp
-    assert "1 1 50000 50000 50000" in surface_itp
-    assert "2 1 50000 50000 50000" in surface_itp
-    assert "3 1 50000 50000 50000" in surface_itp
+    assert "1 1 20000 20000 20000" in surface_itp
+    assert "2 1 20000 20000 20000" in surface_itp
+    assert "3 1 20000 20000 20000" in surface_itp
     assert "[ bonds ]" in surface_itp
     assert "[ angles ]" in surface_itp
     assert "[ position_restraints ]" in dna_anchor_itp
@@ -973,7 +973,7 @@ def test_dna_surface_itp_gets_xyz_posres(tmp_path, monkeypatch):
     assert "freezegrps" not in deposition
 
 
-def test_dna_local_surface_itp_uses_uniform_50k_posres(tmp_path, monkeypatch):
+def test_dna_local_surface_itp_uses_70k_edge_posres(tmp_path, monkeypatch):
     sim, sys2 = prepare_simulation_structure(tmp_path)
     monkeypatch.chdir(sys2)
 
@@ -1021,9 +1021,9 @@ def test_dna_local_surface_itp_uses_uniform_50k_posres(tmp_path, monkeypatch):
 
     surface_itp = (sim / "0_topology" / "system_itp" / "surface.itp").read_text()
 
-    assert "1 1 50000 50000 50000" in surface_itp
-    assert "2 1 50000 50000 50000" in surface_itp
-    assert "3 1 50000 50000 50000" in surface_itp
+    assert "1 1 70000 70000 70000" in surface_itp
+    assert "2 1 20000 20000 20000" in surface_itp
+    assert "3 1 70000 70000 70000" in surface_itp
 
 
 def test_refresh_dna_mdp_thermostat_groups_uses_topology_groups(tmp_path):
