@@ -973,6 +973,59 @@ def test_dna_surface_itp_gets_xyz_posres(tmp_path, monkeypatch):
     assert "freezegrps" not in deposition
 
 
+def test_dna_local_surface_itp_scales_edge_posres_by_connectivity(tmp_path, monkeypatch):
+    sim, sys2 = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sys2)
+
+    dna_gro = """DNA local surface posres test
+  5
+    1DG     BB1    1   1.000   1.000   1.000
+    1DG     BB2    2   1.100   1.000   1.000
+    2SRF      C    3   1.500   1.500   0.500
+    3SRF      C    4   2.000   1.500   0.500
+    4SRF      C    5   2.500   1.500   0.500
+   4.00000   4.00000   4.00000
+"""
+    (sys2 / "immobilized_system.gro").write_text(dna_gro)
+    (sim / "immobilized_system.gro").write_text(dna_gro)
+
+    itp = sim / "system_itp"
+    (itp / "Active.itp").unlink(missing_ok=True)
+    (itp / "surface.itp").write_text(
+        ";;;;;; Local bonded surface topology\n\n"
+        "[ moleculetype ]\n"
+        "SRF 1\n\n"
+        "[ atoms ]\n"
+        "1 C1 1 SRF C1 1 0.0\n"
+        "2 C1 1 SRF C1 2 0.0\n"
+        "3 C1 1 SRF C1 3 0.0\n\n"
+        "[ bonds ]\n"
+        "1 2 1 0.470 5000\n"
+        "2 3 1 0.470 5000\n\n"
+        "[ angles ]\n"
+        "1 2 3 1 180.0 300\n"
+    )
+    (itp / "Nucleic_A+Nucleic_B.itp").write_text(
+        "[ moleculetype ]\nNucleic_A+Nucleic_B 1\n\n"
+        "[ atoms ]\n"
+        "1 Q0 1 DG BB1 1 -1.0\n"
+        "2 SN0 1 DG BB2 2 0.0\n"
+    )
+    (itp / "martini_v2.1-dna.itp").write_text("; standard dna\n")
+    (itp / "martini_v2.1P-dna.itp").write_text("; polarizable dna\n")
+    (itp / "martini_v2.0_ions.itp").write_text("; ions\n")
+
+    gms.main([
+        "--anchor", "1", "1",
+    ])
+
+    surface_itp = (sim / "0_topology" / "system_itp" / "surface.itp").read_text()
+
+    assert "1 1 10000 10000 10000" in surface_itp
+    assert "2 1 5000 5000 5000" in surface_itp
+    assert "3 1 10000 10000 10000" in surface_itp
+
+
 def test_refresh_dna_mdp_thermostat_groups_uses_topology_groups(tmp_path):
     mdp_dir = tmp_path / "1_mdp"
     itp_dir = tmp_path / "system_itp"

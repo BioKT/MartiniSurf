@@ -954,11 +954,77 @@ def _count_itp_atoms(itp_path: Path) -> int:
     return count
 
 
+def _is_local_bonded_surface_itp(itp_path: Path) -> bool:
+    if not itp_path.exists():
+        return False
+    for raw in itp_path.read_text().splitlines():
+        stripped = raw.strip()
+        if not stripped:
+            continue
+        return "local bonded surface topology" in stripped.lower()
+    return False
+
+
+def _read_itp_bond_degree_counts(itp_path: Path) -> Dict[int, int]:
+    if not itp_path.exists():
+        return {}
+
+    counts: Dict[int, int] = {}
+    in_bonds = False
+    for raw in itp_path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith(";"):
+            continue
+        if line.startswith("["):
+            in_bonds = "bonds" in line.lower()
+            continue
+        if not in_bonds:
+            continue
+
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        left, right = parts[:2]
+        if not left.isdigit() or not right.isdigit():
+            continue
+        left_id = int(left)
+        right_id = int(right)
+        counts[left_id] = counts.get(left_id, 0) + 1
+        counts[right_id] = counts.get(right_id, 0) + 1
+
+    return counts
+
+
+def _local_surface_posres_force_map(
+    surface_itp_path: Path,
+    base_force: float,
+) -> Dict[int, tuple[float, float, float]]:
+    if not _is_local_bonded_surface_itp(surface_itp_path):
+        return {}
+
+    atom_count = _count_itp_atoms(surface_itp_path)
+    bond_counts = _read_itp_bond_degree_counts(surface_itp_path)
+    if atom_count <= 0 or not bond_counts:
+        return {}
+
+    max_degree = max(bond_counts.values())
+    if max_degree <= 0:
+        return {}
+
+    force_map: Dict[int, tuple[float, float, float]] = {}
+    for atom_id in range(1, atom_count + 1):
+        degree = max(1, bond_counts.get(atom_id, 0))
+        scale = max_degree / degree
+        fc = float(base_force) * scale
+        force_map[atom_id] = (fc, fc, fc)
+    return force_map
+
+
 def _rewrite_itp_with_posres(
     src_itp: Path,
     dst_itp: Path,
     posres_atom_ids: List[int],
-    force_constants: tuple[float, float, float] = (1000.0, 1000.0, 0.0),
+    force_constants: tuple[float, float, float] | Dict[int, tuple[float, float, float]] = (1000.0, 1000.0, 0.0),
     macro_name: str = SURFACE_POSRES_DEFINE,
 ) -> None:
     """Copy an ITP replacing any existing [ position_restraints ] block with a generated one."""
@@ -1001,8 +1067,16 @@ def _rewrite_itp_with_posres(
             out_lines[-1] = out_lines[-1] + "\n"
         out_lines.append("[ position_restraints ]\n")
         out_lines.append(f"#ifdef {macro_name}\n")
-        fc_x, fc_y, fc_z = force_constants
+        default_force_constants = (
+            force_constants
+            if isinstance(force_constants, tuple)
+            else (1000.0, 1000.0, 0.0)
+        )
         for atom_id in sorted(set(posres_atom_ids)):
+            if isinstance(force_constants, dict):
+                fc_x, fc_y, fc_z = force_constants.get(atom_id, default_force_constants)
+            else:
+                fc_x, fc_y, fc_z = force_constants
             out_lines.append(f"{atom_id} 1 {fc_x:g} {fc_y:g} {fc_z:g}\n")
         out_lines.append("#endif\n")
 
@@ -2171,17 +2245,27 @@ def main(argv: Sequence[str] | None = None) -> None:
     surface_moltype = _read_itp_moleculetype(surface_itp_path) or "SRF"
     surface_itp_atoms = _count_itp_atoms(surface_itp_path)
     if is_dna and surface_itp_path.exists() and surface_itp_atoms > 0:
+        surface_force_constants: tuple[float, float, float] | Dict[int, tuple[float, float, float]] = (
+            DNA_SURFACE_POSRES_FORCE,
+            DNA_SURFACE_POSRES_FORCE,
+            DNA_SURFACE_POSRES_FORCE,
+        )
+        local_force_map = _local_surface_posres_force_map(
+            surface_itp_path,
+            base_force=DNA_SURFACE_POSRES_FORCE,
+        )
+        if local_force_map:
+            surface_force_constants = local_force_map
         _rewrite_itp_with_posres(
             src_itp=surface_itp_path,
             dst_itp=surface_itp_path,
             posres_atom_ids=list(range(1, surface_itp_atoms + 1)),
-            force_constants=(
-                DNA_SURFACE_POSRES_FORCE,
-                DNA_SURFACE_POSRES_FORCE,
-                DNA_SURFACE_POSRES_FORCE,
-            ),
+            force_constants=surface_force_constants,
         )
-        print("✔ Surface restrained topology generated: surface.itp (all SRF beads)")
+        if local_force_map:
+            print("✔ Surface restrained topology generated: surface.itp (edge force scaled by local connectivity)")
+        else:
+            print("✔ Surface restrained topology generated: surface.itp (all SRF beads)")
     surface_atom_total = sum(
         1 for a in u.atoms if str(a.resname).strip() == surface_moltype
     )

@@ -985,8 +985,6 @@ def _build_generated_surface_args(args: argparse.Namespace, output_path: Path) -
         "--charge", str(args.charge),
         "--output", str(output_path),
     ]
-    if args.dna and mode in {"2-1", "4-1"}:
-        builder_args += ["--periodic-xy"]
     if args.surface_layers is not None:
         builder_args += ["--layers", str(args.surface_layers)]
     if args.surface_dist_z is not None:
