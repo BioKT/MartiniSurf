@@ -34,6 +34,7 @@ DNA_THERMOSTAT_REF_T = 300.0
 SURFACE_POSRES_DEFINE = "POSRES"
 DNA_POSRES_DEFINE = "POSRES_DNA"
 DNA_SURFACE_POSRES_FORCE = 5000.0
+DNA_SURFACE_EDGE_POSRES_FORCE = 20000.0
 DNA_MDP_FILENAMES = (
     "minimization_dna.mdp",
     "nvt_dna.mdp",
@@ -998,6 +999,7 @@ def _read_itp_bond_degree_counts(itp_path: Path) -> Dict[int, int]:
 def _local_surface_posres_force_map(
     surface_itp_path: Path,
     base_force: float,
+    edge_force: float,
 ) -> Dict[int, tuple[float, float, float]]:
     if not _is_local_bonded_surface_itp(surface_itp_path):
         return {}
@@ -1014,8 +1016,7 @@ def _local_surface_posres_force_map(
     force_map: Dict[int, tuple[float, float, float]] = {}
     for atom_id in range(1, atom_count + 1):
         degree = max(1, bond_counts.get(atom_id, 0))
-        scale = max_degree / degree
-        fc = float(base_force) * scale
+        fc = float(base_force) if degree >= max_degree else float(edge_force)
         force_map[atom_id] = (fc, fc, fc)
     return force_map
 
@@ -2253,6 +2254,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         local_force_map = _local_surface_posres_force_map(
             surface_itp_path,
             base_force=DNA_SURFACE_POSRES_FORCE,
+            edge_force=DNA_SURFACE_EDGE_POSRES_FORCE,
         )
         if local_force_map:
             surface_force_constants = local_force_map
