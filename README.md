@@ -62,7 +62,6 @@ The main ready-to-use workflows are:
 - `martinisurf/examples/protein/04_anchor_solvate_ionize`
 - `martinisurf/examples/dna/03_linker_solvate_ionize_freeze`
 - `martinisurf/examples/protein/05_pre_cg_nad_substrate`
-- `martinisurf/examples/dna/04_linker_solvate_polarizable_water`
 
 Typical run pattern for the full workflow examples (`protein/04`, `dna/03`, `protein/05`):
 ```bash
@@ -71,11 +70,9 @@ bash run.sh
 bash work_flow_gromacs.sh
 ```
 
-Run pattern for the polarizable-water reference (`dna/04`):
-```bash
-cd martinisurf/examples/dna/04_linker_solvate_polarizable_water
-bash run.sh
-```
+DNA workflow note:
+- `dna/03` runs `minimization -> nvt -> deposition (NPT) -> production (NVT)`.
+- The pressure-coupled equilibration is handled in `deposition`; there is no separate DNA `npt.mdp` stage in this example.
 
 ## Google Colab Notebooks
 - Protein workflow + optional linker generation with AutoMartini M3:
