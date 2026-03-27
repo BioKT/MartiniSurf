@@ -265,19 +265,6 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p><code class="docutils literal notranslate"><span class="pre">work_flow_gromacs.sh</span></code> uses non-restrained topology in equilibration stages and restricted topology in production when available.</p></li>
 </ul>
 </section>
-<section id="dna-linker-solvate-polarizable-water">
-<h2>DNA + linker + solvate + polarizable water<a class="headerlink" href="#dna-linker-solvate-polarizable-water" title="Link to this heading">¶</a></h2>
-<p>Path: <code class="docutils literal notranslate"><span class="pre">martinisurf/examples/dna/04_linker_solvate_polarizable_water</span></code></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>martinisurf/examples/dna/04_linker_solvate_polarizable_water
-bash<span class="w"> </span>run.sh
-</pre></div>
-</div>
-<p>Behavior notes:</p>
-<ul class="simple">
-<li><p>Uses <code class="docutils literal notranslate"><span class="pre">--polarizable-water</span></code>, so the final topology includes <code class="docutils literal notranslate"><span class="pre">martini_v2.1P-dna.itp</span></code> and solvent <code class="docutils literal notranslate"><span class="pre">PW</span></code>.</p></li>
-<li><p>This bundled example is generated up to build + solvation. Legacy Martini 2 polarizable-water <code class="docutils literal notranslate"><span class="pre">.mdp</span></code> files may require a compatible GROMACS/MDP stack before ionization or production MD.</p></li>
-</ul>
-</section>
 <section id="pre-cg-protein-cofactor-substrate-solvate-ionize">
 <h2>Pre-CG protein+cofactor + substrate + solvate + ionize<a class="headerlink" href="#pre-cg-protein-cofactor-substrate-solvate-ionize" title="Link to this heading">¶</a></h2>
 <p>Path: <code class="docutils literal notranslate"><span class="pre">martinisurf/examples/protein/05_pre_cg_nad_substrate</span></code></p>
@@ -320,8 +307,9 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <p>For adsorption setups, use the main build command with <code class="docutils literal notranslate"><span class="pre">--ads-mode</span></code> and anchor-based orientation
 (<code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">...</span></code> or <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code> anchor groups). This mode runs:
 <code class="docutils literal notranslate"><span class="pre">minimization</span> <span class="pre">-&gt;</span> <span class="pre">nvt</span> <span class="pre">-&gt;</span> <span class="pre">npt</span> <span class="pre">-&gt;</span> <span class="pre">production</span></code> without deposition pulls/restraints.</p>
-<p>For the current DNA linker workflows (<code class="docutils literal notranslate"><span class="pre">dna/03</span></code>, <code class="docutils literal notranslate"><span class="pre">dna/04</span></code>), the MD protocol is:
-<code class="docutils literal notranslate"><span class="pre">minimization</span> <span class="pre">-&gt;</span> <span class="pre">nvt</span> <span class="pre">-&gt;</span> <span class="pre">deposition</span> <span class="pre">-&gt;</span> <span class="pre">production</span></code> with no intermediate <code class="docutils literal notranslate"><span class="pre">npt</span></code> stage.</p>
+<p>For the current DNA linker workflow example (<code class="docutils literal notranslate"><span class="pre">dna/03</span></code>), the MD protocol is:
+<code class="docutils literal notranslate"><span class="pre">minimization</span> <span class="pre">-&gt;</span> <span class="pre">nvt</span> <span class="pre">-&gt;</span> <span class="pre">deposition</span> <span class="pre">(NPT)</span> <span class="pre">-&gt;</span> <span class="pre">production</span> <span class="pre">(NVT)</span></code>.
+There is no separate <code class="docutils literal notranslate"><span class="pre">npt.mdp</span></code> stage in this workflow; the pressure-coupled step is <code class="docutils literal notranslate"><span class="pre">deposition</span></code>.</p>
 </section>
 </section>
 
@@ -383,7 +371,6 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><a class="reference internal" href="#">Recommended Examples</a><ul>
 <li><a class="reference internal" href="#protein-not-explicit-linker-solvate-ionize">Protein + Not explicit Linker + solvate + ionize</a></li>
 <li><a class="reference internal" href="#dna-linker-solvate-ionize-frozen-water">DNA + linker + solvate + ionize + frozen water</a></li>
-<li><a class="reference internal" href="#dna-linker-solvate-polarizable-water">DNA + linker + solvate + polarizable water</a></li>
 <li><a class="reference internal" href="#pre-cg-protein-cofactor-substrate-solvate-ionize">Pre-CG protein+cofactor + substrate + solvate + ionize</a></li>
 <li><a class="reference internal" href="#protein-build-only-examples">Protein build-only examples</a></li>
 <li><a class="reference internal" href="#dna-build-only-examples">DNA build-only examples</a></li>

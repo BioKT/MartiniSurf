@@ -1,6 +1,6 @@
 # Examples
 
-Curated set of 12 examples, now grouped by topic under `protein/`, `dna/`, and `surfaces/`. Recommended production-oriented workflows are `protein/04`, `dna/03`, and `protein/05`, plus `dna/04` as the polarizable-water build+solvate reference.
+Curated set of 12 examples, now grouped by topic under `protein/`, `dna/`, and `surfaces/`. Recommended production-oriented workflows are `protein/04`, `dna/03`, and `protein/05`.
 
 For examples driven from `--pdb`, the recommended syntax is now chain-based:
 - `--anchor A 8 10 11`
@@ -39,15 +39,11 @@ Run: `bash run.sh` then `bash work_flow_gromacs.sh`
 Path: `martinisurf/examples/protein/05_pre_cg_nad_substrate`
 Run: `bash run.sh` then `bash work_flow_gromacs.sh`
 
-4. DNA linker + solvate + polarizable water  
-Path: `martinisurf/examples/dna/04_linker_solvate_polarizable_water`
-Run: `bash run.sh`
-Note: this example is bundled as build + solvation because legacy Martini 2 polarizable-water MDPs may require a compatible GROMACS/MDP stack for ionization and MD.
-
 Workflow scripts note:
 - `minimization/nvt/npt/deposition` run with non-restrained topology (`system_final.top` when available).
 - `production` runs with restrained topology (`system_final_res.top`) when available.
-- DNA linker workflows (`dna/03`, `dna/04`) currently use `minimization -> nvt -> deposition -> production` with no `npt` stage.
+- DNA linker workflows (`dna/03`, `dna/04`) currently use `minimization -> nvt -> deposition (NPT) -> production (NVT)`.
+- In those DNA workflows, `deposition` is the pressure-coupled step; there is no separate `npt.mdp`.
 
 ## Protein Examples
 1. Protein anchor mode  

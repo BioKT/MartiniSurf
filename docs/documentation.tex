@@ -1,0 +1,769 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% MartiniSurf Documentation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{setspace}
+
+\setstretch{1.15}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Code style
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{gray!5},
+  frame=single,
+  breaklines=true,
+  showstringspaces=false
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Title
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\title{\textbf{MartiniSurf}\\
+User and Technical Documentation}
+
+\author{
+\textbf{Juan Carlos Jiménez-García},Fernando López-Gallego, Xabier López, David De Sancho\\
+\vspace{0.5em}
+\small
+\\
+\small
+\texttt{juanjimenezg92@gmail.com} 
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+\maketitle
+
+\tableofcontents
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Overview}
+
+\textbf{MartiniSurf} is a command-line toolkit designed to automate the preparation of
+surface-immobilized biomolecular systems for coarse-grained molecular dynamics simulations
+using the Martini and G\=oMartini frameworks.
+
+The software provides an end-to-end workflow that integrates:
+\begin{itemize}
+  \item biomolecular structure acquisition and cleaning,
+  \item protein or DNA coarse-graining,
+  \item model surface generation,
+  \item deterministic orientation based on anchoring residues,
+  \item assembly of complete GROMACS-ready simulation systems.
+\end{itemize}
+
+MartiniSurf focuses exclusively on \emph{system construction}. It does not execute molecular
+dynamics simulations nor perform trajectory analysis.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Installation}
+
+\subsection{Requirements}
+
+\begin{itemize}
+  \item Python $\geq$ 3.9
+  \item GROMACS (runtime only)
+  \item \texttt{martinize2} (protein systems)
+  \item \texttt{martinize-dna.py} + Python 2.7 (DNA systems)
+  \item DSSP (optional, for protein secondary structure assignment)
+\end{itemize}
+
+\subsection{Installing MartiniSurf}
+
+\begin{lstlisting}
+git clone https://github.com/BioKT/MartiniSurf.git
+cd MartiniSurf
+pip install -e .
+\end{lstlisting}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{General Workflow}
+
+The MartiniSurf pipeline follows the sequence:
+
+\begin{center}
+\texttt{
+Input Structure $\rightarrow$ Coarse-Graining $\rightarrow$ Surface Generation\\
+$\rightarrow$ Orientation $\rightarrow$ System Assembly
+}
+\end{center}
+
+Each stage of the pipeline is deterministic: identical inputs and parameter sets produce identical simulation systems.
+
+\subsection{Input}
+
+The initial input structure may be provided as a local coordinate file, a
+four-character RCSB Protein Data Bank (PDB) identifier, or a UniProt accession code.
+When a PDB or UniProt identifier is supplied, MartiniSurf automatically retrieves
+the corresponding structure from the appropriate online repository, performs
+structure cleaning, and prepares it for coarse-graining.
+This capability streamlines system preparation and minimizes the need for manual
+preprocessing steps.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Coarse-Graining Options}
+
+Protein systems are coarse-grained using the Martini force field, which preserves
+the overall fold and physicochemical properties of the native structure while
+enabling simulations on extended timescales.
+
+To stabilize the native state, MartiniSurf supports elastic network models as well
+as structure-based G\=oMartini potentials.
+Elastic networks preserve global topology but restrict large-amplitude motions,
+whereas G\=oMartini introduces native-contact interactions that allow collective,
+functionally relevant conformational changes.
+
+DNA systems follow a separate coarse-graining workflow and do not support
+G\=oMartini potentials.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Surface Generation}
+
+MartiniSurf now supports both local lattice surfaces and several
+specialized carbon-surface workflows in the main build pipeline.
+Generated surfaces can be controlled directly with
+\texttt{--surface-mode}, \texttt{--surface-bead}, and geometric flags.
+
+\begin{itemize}
+  \item \textbf{Local 2-1 and 4-1 surfaces}  
+  The main pipeline accepts \texttt{--surface-mode 2-1} and
+  \texttt{--surface-mode 4-1}. In both cases, \texttt{--lx},
+  \texttt{--ly}, and \texttt{--dx} control the generated size and spacing.
+
+  \item \textbf{Graphene family}  
+  Additional generated modes are
+  \texttt{graphene}, \texttt{graphene-periodic},
+  \texttt{graphene-finite}, and \texttt{graphite}.
+
+  \item \textbf{Carbon nanotubes}  
+  CNT generation is exposed through
+  \texttt{--surface-mode cnt}, \texttt{cnt-m2}, and \texttt{cnt-m3}.
+  The shortcut \texttt{cnt} auto-selects \texttt{cnt-m3} in protein
+  workflows and \texttt{cnt-m2} in DNA workflows.
+\end{itemize}
+
+Multilayer local surfaces are controlled in the main pipeline with
+\texttt{--surface-layers} and \texttt{--surface-dist-z}. Graphite slabs
+use \texttt{--graphite-layers} and \texttt{--graphite-spacing}.
+Generated surfaces can also cycle bead types by layer using multiple
+\texttt{--surface-bead} values.
+
+Orientation behavior depends on \texttt{--surface-geometry}:
+\texttt{planar} keeps the standard flat-surface workflow, while
+\texttt{3d} reorients non-planar surfaces such as CNTs before placing
+the biomolecule.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Anchoring and Orientation}
+
+Anchoring residues define the relative orientation of the biomolecule with respect
+to the solid surface. Rather than relying on stochastic adsorption,
+MartiniSurf enforces a deterministic orientation procedure based on
+user-defined attachment sites that represent experimental tethering points.
+
+Anchors may be defined as single residues or as residue groups,
+enabling both monovalent and multivalent immobilization strategies.
+Multivalent anchoring provides increased orientational control and
+a more realistic representation of multivalent surface attachment chemistries.
+
+The orientation engine performs the following operations:
+
+\begin{itemize}
+  \item computes centroids of the anchoring residue groups,
+  \item estimates a best-fit anchoring plane when multiple groups are defined,
+  \item aligns the biomolecule relative to the surface normal,
+  \item translates the system to a controlled separation distance.
+\end{itemize}
+
+All orientation operations are fully deterministic: identical input
+coordinates and parameters produce identical immobilized configurations,
+ensuring strict reproducibility across independent builds.
+
+In addition to restrained immobilization setups, MartiniSurf can also be used to generate purely oriented initial configurations in which the biomolecule is placed relative to the surface without introducing anchoring restraints or explicit linkers. In this mode, the software defines a controlled starting orientation and separation distance, while leaving the subsequent adsorption process fully unconstrained during molecular dynamics simulations.
+
+This functionality is useful for studying enzyme adsorption, surface recognition, and orientation-dependent events, while still retaining the reproducibility of a deterministic initial placement procedure.
+
+\subsubsection*{Anchor Mode vs Linker Mode}
+
+MartiniSurf implements two conceptually distinct immobilization strategies,
+which differ in the level of structural resolution used to model surface attachment.
+
+\paragraph{Anchor Mode (Implicit Immobilization).}
+In anchor mode, immobilization is defined through repeated
+\texttt{--anchor} groups. MartiniSurf accepts both legacy global residue
+ids and chain-based syntax from the cleaned input PDB, for example
+\texttt{--anchor A 8 10 11}. No explicit linker molecule is introduced.
+Instead, the final topology and MDP setup are generated from the chosen
+anchor geometry.
+
+\paragraph{Linker Mode (Explicit Immobilization).}
+In linker mode, a separate linker molecule is introduced explicitly
+via the \texttt{--linker} flag. The linker is positioned between the
+surface and the biomolecule, and its attachment geometry is defined
+using \texttt{--linker-group}. In this case, immobilization is governed
+by explicit bonded or restrained interactions involving the linker,
+allowing representation of linker length, flexibility, and spatial
+constraints. This strategy is appropriate when the physicochemical
+properties of the tether influence conformational dynamics.
+
+For DNA linker workflows, the current code uses bonded linker--DNA
+coupling in topology generation instead of a linker--DNA pull
+coordinate. Linker--surface pull behavior remains active.
+
+The two modes are mutually exclusive and correspond to different
+modeling resolutions. Anchor mode represents an implicit
+surface-attachment model, whereas linker mode introduces an explicit
+molecular bridge that connects the surface to the biomolecule.
+
+MartiniSurf also exposes \texttt{--ads-mode}, which keeps anchor-based
+orientation but skips anchor pull/restraint generation. This produces
+adsorption-oriented setups that use the protein MD sequence
+\texttt{minimization -> nvt -> npt -> production}.
+
+These strategies correspond to different modeling assumptions
+regarding the physicochemical representation of surface attachment.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{System Assembly and Output}
+
+The current default output root is:
+
+\begin{lstlisting}
+Simulation_Files/
+  0_topology/
+  1_mdp/
+  2_system/
+\end{lstlisting}
+
+Typical generated files include:
+\begin{itemize}
+  \item \texttt{0\_topology/system.top},
+  \item \texttt{0\_topology/system\_res.top},
+  \item \texttt{0\_topology/system\_final.top},
+  \item \texttt{0\_topology/system\_final\_res.top},
+  \item \texttt{0\_topology/index.ndx},
+  \item \texttt{2\_system/immobilized\_system.gro},
+  \item optional solvated and ionized coordinate outputs in
+  \texttt{2\_system/}.
+\end{itemize}
+
+If \texttt{--solvate} and \texttt{--ionize} are enabled, the pipeline
+updates both topology and coordinate outputs automatically.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Software Architecture}
+
+MartiniSurf follows a modular architecture designed to separate
+surface construction, biomolecular processing, orientation logic,
+and GROMACS input generation into independent components.
+This separation enhances maintainability, reproducibility,
+and extensibility.
+
+\subsection{Pipeline Modules}
+
+The internal workflow is divided into the following core modules:
+
+\begin{itemize}
+  \item \textbf{Structure Processing Layer}  
+  Handles structure retrieval (PDB/UniProt), cleaning, and
+  coarse-graining via \texttt{martinize2} (proteins)
+  or \texttt{martinize-dna.py} (DNA).
+
+  \item \textbf{Surface Builder}  
+  Generates 2-1 or 4-1 lattice surfaces with customizable
+  bead type, spacing, charge, and multilayer configuration.
+
+  \item \textbf{Orientation Engine}  
+  Applies deterministic alignment rules based on
+  anchor or linker definitions.
+
+  \item \textbf{System Assembly Module}  
+  Combines biomolecule, surface, optional linker,
+  substrate, and solvent into a consistent
+  GROMACS-compatible topology and coordinate system.
+
+  \item \textbf{Validation Layer}  
+  Performs early flag compatibility checks
+  to prevent inconsistent configurations.
+\end{itemize}
+
+This modular separation allows independent extension
+of surface models, orientation strategies, and system assembly logic.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Command-Line Interface}
+
+MartiniSurf is invoked via the \texttt{martinisurf} command. The package
+supports an implicit build mode and explicit module entry points.
+
+\begin{lstlisting}
+martinisurf -h
+martinisurf --full-help
+martinisurf [build flags]
+martinisurf build [build flags]
+martinisurf surface -h
+martinisurf orient -h
+martinisurf system -h
+\end{lstlisting}
+
+\paragraph{Top-level commands.}
+\begin{itemize}
+  \item \texttt{build}: main end-to-end pipeline for protein, DNA,
+  linker, surface, solvation, and pre-CG complex workflows.
+  \item \texttt{surface}: standalone surface generator.
+  \item \texttt{orient}: standalone orientation module.
+  \item \texttt{system}: standalone topology/index generation module.
+\end{itemize}
+
+The forms \texttt{martinisurf --pdb ...} and
+\texttt{martinisurf build --pdb ...} are equivalent for the main pipeline.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Representative Production Workflows}
+
+The following examples correspond to the validated
+production-ready configurations distributed in the
+\texttt{martinisurf/examples} directory, grouped under
+\texttt{protein/}, \texttt{dna/}, and \texttt{surfaces/}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection*{\texttt{protein/04\_anchor\_solvate\_ionize} -- Protein + Anchor + Solvation + Ionization}
+
+\begin{lstlisting}
+martinisurf \
+  --pdb 1RJW \
+  --dssp \
+  --go \
+  --moltype Protein \
+  --surface-mode 4-1 \
+  --surface-bead P4 \
+  --dx 0.47 \
+  --lx 15 --ly 15 \
+  --anchor A 8 10 11 \
+  --anchor D 8 10 11 \
+  --dist 1.0 \
+  --solvate \
+  --ionize \
+  --salt-conc 0.15 \
+  --merge A,B,C,D
+\end{lstlisting}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection*{\texttt{dna/03\_linker\_solvate\_ionize\_freeze} -- DNA + Linker + Solvate + Ionize + Frozen Water}
+
+\begin{lstlisting}
+martinisurf \
+  --dna \
+  --dnatype ds-stiff \
+  --pdb inputs/4C64.pdb \
+  --surface-mode 4-1 \
+  --surface-layers 1 \
+  --lx 10 --ly 10 \
+  --dx 0.27 \
+  --surface-bead C1 \
+  --linker inputs/ALK.gro \
+  --linker-group A 1 \
+  --solvate \
+  --ionize \
+  --salt-conc 0.15 \
+  --freeze-water-fraction 0.2 \
+  --freeze-water-seed 42 \
+  --merge A,B
+\end{lstlisting}
+
+This workflow currently runs the DNA MD sequence
+\texttt{minimization -> nvt -> deposition (NPT) -> production (NVT)}.
+There is no separate DNA \texttt{npt.mdp} stage in this example.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection*{\texttt{protein/05\_pre\_cg\_nad\_substrate} -- Pre-Coarse-Grained Complex + Substrate}
+
+\begin{lstlisting}
+martinisurf \
+  --complex-config input/complex_config.yaml \
+  --surface-mode 4-1 \
+  --surface-bead P4 \
+  --dx 0.47 \
+  --lx 15 --ly 15 \
+  --dist 0.8 \
+  --substrate input/ETO.gro \
+  --substrate-count 10 \
+  --solvate \
+  --ionize \
+  --salt-conc 0.15 \
+  --outdir Simulation_Files
+\end{lstlisting}
+
+\subsubsection*{\texttt{protein/02\_adsorption} -- Protein Adsorption Mode}
+
+\begin{lstlisting}
+martinisurf \
+  --pdb inputs/1RJW.pdb \
+  --dssp \
+  --moltype Protein \
+  --surface-mode 4-1 \
+  --surface-bead P4 \
+  --dx 0.47 \
+  --lx 15 --ly 15 \
+  --anchor A 8 10 11 \
+  --anchor D 8 10 11 \
+  --ads-mode \
+  --dist 1.0 \
+  --merge A,B,C,D
+\end{lstlisting}
+
+\subsection{Using a Pre-generated Surface}
+
+MartiniSurf allows the use of externally generated surfaces, enabling seamless
+integration with custom or previously prepared surface models.
+This is particularly useful for complex, patterned, or chemically heterogeneous
+supports that are not generated within MartiniSurf.
+
+If a surface coordinate file is provided using the \texttt{--surface} flag,
+MartiniSurf skips surface generation and directly incorporates the supplied surface
+into the pipeline. If a corresponding topology file (\texttt{surface.itp}) is found
+in the same directory, it is automatically included in the system topology.
+
+\begin{lstlisting}
+martinisurf \
+  --pdb 1ABC \
+  --moltype ENZ \
+  --anchor A 8 10 11 \
+  --dist 1.0 \
+  --surface prebuilt_surface.gro \
+  --go \
+  --outdir Simulation_Files
+\end{lstlisting}
+
+In this mode, the provided surface is treated identically to internally generated
+surfaces, ensuring full compatibility with orientation, anchoring restraints,
+and final system assembly.
+
+For non-planar external surfaces, use \texttt{--surface-geometry 3d}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Command Options}
+
+MartiniSurf exposes modular control over system preparation,
+including molecule processing, surface generation, orientation,
+optional linker modeling, solvation, ionization, and substrate insertion.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Input and Molecule Options}
+
+\begin{description}[leftmargin=3cm,style=nextline]
+
+\item[\texttt{--pdb}]
+Input structure (local file, RCSB ID, or UniProt ID).
+Required unless \texttt{--complex-config} is provided.
+
+\item[\texttt{--complex-config}]
+YAML configuration file for pre-coarse-grained
+protein–cofactor workflows. Skips martinization.
+
+\item[\texttt{--moltype}]
+Molecule name used for topology generation (protein mode).
+
+\item[\texttt{--go}]
+Enable G\=o model in \texttt{martinize2} protein mode.
+
+\item[\texttt{--ff}]
+Force-field name passed to \texttt{martinize2}
+(default: \texttt{martini3001}).
+
+\item[\texttt{--dna}]
+Enable the DNA workflow using \texttt{martinize-dna.py}.
+
+\item[\texttt{--dnatype}]
+DNA type passed to \texttt{martinize-dna.py}
+(default: \texttt{ds-stiff}).
+
+\item[\texttt{--merge}]
+Chain merging during martinization
+(e.g., \texttt{A,B,C,D} or \texttt{all}).
+
+\end{description}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Coarse-Graining Controls}
+
+\begin{description}[leftmargin=3cm,style=nextline]
+
+\item[\texttt{--p}]
+Position-restraint selection:
+\texttt{none}, \texttt{all}, or \texttt{backbone}.
+
+\item[\texttt{--pf}]
+Position-restraint force constant.
+
+\item[\texttt{--dssp} / \texttt{--no-dssp}]
+Enable or disable DSSP secondary structure assignment.
+
+\item[\texttt{--maxwarn}]
+Allowed \texttt{martinize2} warnings before aborting.
+
+\item[\texttt{--elastic}]
+Enable the elastic network.
+
+\item[\texttt{--ef}]
+Elastic-network force constant.
+
+\item[\texttt{--go-eps}]
+G\=o model epsilon for \texttt{martinize2}.
+
+\item[\texttt{--go-low}, \texttt{--go-up}]
+Lower and upper contact-distance bounds for the G\=o model.
+
+\end{description}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Surface Construction}
+
+\begin{description}[leftmargin=3cm,style=nextline]
+
+\item[\texttt{--surface}]
+Use pre-generated surface coordinate file.
+
+\item[\texttt{--surface-mode}]
+Generated-surface mode:
+\texttt{2-1}, \texttt{4-1}, \texttt{graphene},
+\texttt{graphene-periodic}, \texttt{graphene-finite},
+\texttt{graphite}, \texttt{cnt}, \texttt{cnt-m2},
+\texttt{cnt-martini2}, \texttt{cnt-m3}, or \texttt{cnt-martini3}.
+
+\item[\texttt{--surface-geometry}]
+Surface interpretation during orientation:
+\texttt{planar} or \texttt{3d}.
+
+\item[\texttt{--lx}, \texttt{--ly}]
+Surface lateral dimensions (nm).
+
+\item[\texttt{--dx}]
+Surface spacing parameter. In local 4-1 surfaces it corresponds to
+the C--C distance.
+
+\item[\texttt{--surface-layers}]
+Number of layers for local 2-1 / 4-1 surfaces.
+
+\item[\texttt{--surface-dist-z}]
+Manual interlayer spacing for local multilayer surfaces.
+
+\item[\texttt{--graphite-layers}, \texttt{--graphite-spacing}]
+Graphite slab controls.
+
+\item[\texttt{--cnt-numrings}, \texttt{--cnt-ringsize}]
+CNT size controls.
+
+\item[\texttt{--cnt-bondlength}, \texttt{--cnt-bondforce}, \texttt{--cnt-angleforce}]
+CNT bonded parameters.
+
+\item[\texttt{--cnt-beadtype}, \texttt{--cnt-functype}]
+CNT bead types.
+
+\item[\texttt{--cnt-func-begin}, \texttt{--cnt-func-end}]
+Number of functionalized CNT rings at each end.
+
+\item[\texttt{--cnt-base36}]
+Use base36 atom naming for CNT generation.
+
+\item[\texttt{--surface-bead}]
+Martini bead type(s) for generated surfaces.
+Multiple values can be supplied to cycle bead types by layer.
+
+\item[\texttt{--charge}]
+Surface bead charge.
+
+\end{description}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Orientation Modes}
+
+Two mutually exclusive orientation strategies are supported:
+
+\subsubsection*{Anchor Mode}
+
+\begin{description}[leftmargin=3cm,style=nextline]
+
+\item[\texttt{--anchor}]
+Define anchoring residue groups:
+\texttt{--anchor GROUP\_OR\_CHAIN RESID [RESID ...]}.
+Chain-based syntax is resolved from the cleaned input PDB.
+
+\item[\texttt{--dist}]
+Target anchor-to-surface separation (nm).
+
+\item[\texttt{--ads-mode}]
+Anchor-based adsorption workflow that skips anchor pull/restraint
+topology generation.
+
+\item[\texttt{--balance-low-z}]
+In two-anchor mode, choose the roll angle that flattens the
+lowest-Z reference region.
+
+\item[\texttt{--balance-low-z-fraction}]
+Fraction of lowest-Z beads used by \texttt{--balance-low-z}.
+
+\end{description}
+
+\subsubsection*{Explicit Linker Mode}
+
+\begin{description}[leftmargin=3cm,style=nextline]
+
+\item[\texttt{--linker}]
+Linker coordinate file (.gro).
+
+\item[\texttt{--linker-group}]
+Residue groups where linkers attach:
+\texttt{GROUP\_OR\_CHAIN RESID [RESID ...]}.
+
+\item[\texttt{--linker-prot-dist}]
+Linker-to-protein/DNA distance.
+
+\item[\texttt{--linker-surf-dist}]
+Linker-to-surface distance.
+
+\item[\texttt{--invert-linker}]
+Reverse linker bead order.
+
+\item[\texttt{--surface-linkers}]
+Number of additional random surface linkers.
+
+\end{description}
+
+Anchor mode and linker mode are mutually exclusive. The current code
+also enforces that \texttt{--ads-mode} cannot be combined with linker mode.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Optional Substrate and Complex Insertion}
+
+\begin{description}[leftmargin=3cm,style=nextline]
+
+\item[\texttt{--substrate}]
+Substrate coordinate file.
+
+\item[\texttt{--substrate-itp}]
+Topology file for the substrate
+(optional; inferred from the substrate basename when omitted).
+
+\item[\texttt{--substrate-count}]
+Number of substrate molecules inserted randomly.
+
+\end{description}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Solvation and Ionization}
+
+\begin{description}[leftmargin=3cm,style=nextline]
+
+\item[\texttt{--solvate}]
+Perform GROMACS-based solvation.
+
+\item[\texttt{--ionize}]
+Add ions after solvation.
+
+\item[\texttt{--salt-conc}]
+Target salt concentration (default 0.15 M).
+
+\item[\texttt{--water-gro}]
+Optional custom solvent coordinate file for solvation.
+
+\item[\texttt{--polarizable-water}]
+DNA-only polarizable-water workflow using \texttt{PW} solvent and
+\texttt{martini\_v2.1P-dna.itp}.
+
+\item[\texttt{--solvate-radius}]
+Exclusion radius used by \texttt{gmx solvate}.
+
+\item[\texttt{--solvate-surface-clearance}]
+Symmetric slab clearance around the surface plane during solvation.
+
+\item[\texttt{--freeze-water-fraction}]
+Fraction of water converted to frozen water (DNA workflow).
+
+\item[\texttt{--freeze-water-seed}]
+Seed parameter for freeze-water selection.
+
+\end{description}
+
+\subsection{Output}
+
+\begin{description}[leftmargin=3cm,style=nextline]
+
+\item[\texttt{--outdir}]
+Output directory for generated files
+(default: \texttt{Simulation\_Files}).
+
+\end{description}
+
+\subsection{Standalone Module Flags}
+
+\paragraph{Surface generator (\texttt{martinisurf surface} or \texttt{python -m martinisurf.surface\_builder}).}
+The standalone surface module uses \texttt{--mode}, \texttt{--bead},
+\texttt{--dx}, \texttt{--lx}, \texttt{--ly}, \texttt{--lz},
+\texttt{--resname}, \texttt{--output}, \texttt{--charge},
+\texttt{--martini-version}, \texttt{--layers}, \texttt{--dist-z},
+\texttt{--periodic-xy}, graphite controls, and the full set of CNT flags.
+
+\paragraph{Orientation module (\texttt{martinisurf orient} or \texttt{python -m martinisurf.system\_tethered}).}
+The standalone orientation module uses \texttt{--surface},
+\texttt{--system}, \texttt{--out}, \texttt{--surface-geometry},
+\texttt{--anchor}, \texttt{--anchor-landmark-mode},
+\texttt{--prefilter-anchor-z-consistency}, \texttt{--dist},
+\texttt{--reference-exclude-resname}, linker-placement controls,
+\texttt{--surface-linkers}, \texttt{--surface-min-dist},
+\texttt{--dna-mode}, \texttt{--min-reference-z-dist},
+\texttt{--balance-low-z}, and \texttt{--balance-low-z-fraction}.
+
+\paragraph{Topology/index module (\texttt{martinisurf system} or \texttt{python -m martinisurf.gromacs\_inputs}).}
+The standalone system module exposes low-level flags such as
+\texttt{--anchor}, \texttt{--use-linker}, \texttt{--linker-resid},
+\texttt{--linker-resname}, \texttt{--linker-size},
+\texttt{--linker-itp-name}, linker pull-init distances,
+\texttt{--go-model}, \texttt{--ads-mode}, cofactor controls,
+substrate topology controls, and \texttt{--polarizable-water}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Limitations of MartiniSurf}
+
+\begin{itemize}
+  \item Execution of molecular dynamics simulations is not included.
+  \item Trajectory analysis is not part of the toolkit.
+  \item DNA workflow depends on \texttt{martinize-dna.py} (Python 2.7 environment).
+  \item External tools (\texttt{martinize2}, GROMACS) must be available in the system PATH.
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Citation}
+
+If you use MartiniSurf, please cite:
+
+\begin{quote}
+Jiménez-García \emph{et al.}, \textit{MartiniSurf: An automated framework for surface-immobilized Martini simulations}, 2026.
+\end{quote}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Support and Contributions}
+
+Bug reports, feature requests, and contributions are welcome via the
+GitHub repository:
+
+\begin{center}
+\url{https://github.com/BioKT/MartiniSurf}
+\end{center}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{document}

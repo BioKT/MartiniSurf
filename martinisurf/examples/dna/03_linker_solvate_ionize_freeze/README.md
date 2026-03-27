@@ -25,7 +25,7 @@ Generated outputs are updated automatically:
 - `Simulation_Files/0_topology/system_final_res.top`
 
 Workflow note:
-- `work_flow_gromacs.sh` uses the DNA protocol `minimization -> nvt -> deposition -> production`.
+- `work_flow_gromacs.sh` uses the DNA protocol `minimization -> nvt -> deposition (NPT) -> production (NVT)`.
 - `system_final.top` is used for `minimization`, `nvt`, and `deposition`; `system_final_res.top` is used for production when present.
 
 Notes:

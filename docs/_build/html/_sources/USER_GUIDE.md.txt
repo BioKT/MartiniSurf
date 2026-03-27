@@ -56,11 +56,10 @@ use `--dna` + Not explicit Linker (`--anchor`) or explicit linker (`--linker`).
 - Already CG protein+cofactor complex:
 use `--complex-config`.
 
-Recommended examples: `protein/04`, `dna/03`, and `protein/05` are the most complete solvated/ionized workflows; `dna/04` is the polarizable-water build + solvation reference:
+Recommended examples: `protein/04`, `dna/03`, and `protein/05` are the most complete solvated/ionized workflows:
 - `martinisurf/examples/protein/04_anchor_solvate_ionize`
 - `martinisurf/examples/dna/03_linker_solvate_ionize_freeze`
 - `martinisurf/examples/protein/05_pre_cg_nad_substrate`
-- `martinisurf/examples/dna/04_linker_solvate_polarizable_water`
 
 Typical run pattern for the full workflow examples (`protein/04`, `dna/03`, `protein/05`):
 ```bash
@@ -69,15 +68,13 @@ bash run.sh
 bash work_flow_gromacs.sh
 ```
 
-Run pattern for the polarizable-water reference (`dna/04`):
-```bash
-cd martinisurf/examples/dna/04_linker_solvate_polarizable_water
-bash run.sh
-```
+DNA workflow note:
+- `dna/03` runs `minimization -> nvt -> deposition (NPT) -> production (NVT)`.
+- The pressure-coupled equilibration is done in `deposition`; there is no separate DNA `npt.mdp` stage in this example.
 
 ## 4) Copy-and-run commands
 
-If you want the most complete and production-oriented setups, use examples `protein/04`, `dna/03`, and `protein/05` above. Use `dna/04` when you specifically want the polarizable-water DNA setup.
+If you want the most complete and production-oriented setups, use examples `protein/04`, `dna/03`, and `protein/05` above.
 
 ### A) Example protein/04: Protein + Not explicit Linker (`--anchor`) + solvate + ionize
 
@@ -442,5 +439,5 @@ What to keep in mind:
 ## 12) Colab behavior notes
 
 - In `MartiniSurf_Protein.ipynb` and `MartiniSurf_DNA.ipynb`, Step `6B` runs `grompp` with `-maxwarn 3`.
-- In `MartiniSurf_DNA.ipynb`, Step `6B` uses the DNA short-MD protocol `nvt -> deposition -> production` (no `npt` stage).
+- In `MartiniSurf_DNA.ipynb`, Step `6B` uses the DNA short-MD protocol `nvt -> deposition (NPT) -> production (NVT)`.
 - Step `6C - View MD Result` renders the stages that are actually available for the selected notebook workflow.

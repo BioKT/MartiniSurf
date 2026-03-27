@@ -26,19 +26,6 @@ Behavior notes:
 - In DNA linker mode, linker-DNA is coupled with bonded terms (bond + angle) in topology (no linker-DNA pull coordinate).
 - `work_flow_gromacs.sh` uses non-restrained topology in equilibration stages and restricted topology in production when available.
 
-## DNA + linker + solvate + polarizable water
-
-Path: `martinisurf/examples/dna/04_linker_solvate_polarizable_water`
-
-```bash
-cd martinisurf/examples/dna/04_linker_solvate_polarizable_water
-bash run.sh
-```
-
-Behavior notes:
-- Uses `--polarizable-water`, so the final topology includes `martini_v2.1P-dna.itp` and solvent `PW`.
-- This bundled example is generated up to build + solvation. Legacy Martini 2 polarizable-water `.mdp` files may require a compatible GROMACS/MDP stack before ionization or production MD.
-
 ## Pre-CG protein+cofactor + substrate + solvate + ionize
 
 Path: `martinisurf/examples/protein/05_pre_cg_nad_substrate`
@@ -76,5 +63,6 @@ For adsorption setups, use the main build command with `--ads-mode` and anchor-b
 (`--anchor ...` or `--complex-config` anchor groups). This mode runs:
 `minimization -> nvt -> npt -> production` without deposition pulls/restraints.
 
-For the current DNA linker workflows (`dna/03`, `dna/04`), the MD protocol is:
-`minimization -> nvt -> deposition -> production` with no intermediate `npt` stage.
+For the current DNA linker workflow example (`dna/03`), the MD protocol is:
+`minimization -> nvt -> deposition (NPT) -> production (NVT)`.
+There is no separate `npt.mdp` stage in this workflow; the pressure-coupled step is `deposition`.

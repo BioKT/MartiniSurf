@@ -13,7 +13,7 @@ MartiniSurf builds complete GROMACS-ready systems for:
 - Generated or user-provided surfaces
 - Orientation by residue anchors (Not explicit Linker mode)
 - Explicit linker mode
-- Automatic topology assembly (`system.top`, `system_res.top`, `system_final.top`)
+- Automatic topology assembly
 - Optional solvation, ionization, and DNA water freezing
 
 ## Output structure
