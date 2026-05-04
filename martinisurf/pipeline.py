@@ -11,12 +11,17 @@ Stable architecture:
 """
 
 import argparse
+import importlib.metadata
 import importlib.util
+import json
 import os
+import platform
 import random
 import re
+import shlex
 import shutil
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -292,6 +297,125 @@ def _convert_standard_waters_to_polarizable(
         _replace_molecules_block(top_path, "\n".join(block_lines) + "\n")
 
     return converted_count
+
+
+def _parse_water_mix_spec(spec: str | None) -> dict[str, float]:
+    """Parse Martini 3 water fractions, keeping omitted W as the remainder."""
+    if not spec:
+        return {}
+
+    fractions: dict[str, float] = {}
+    for raw_token in re.split(r"[,\s]+", spec.strip()):
+        token = raw_token.strip()
+        if not token:
+            continue
+        if ":" not in token:
+            raise ValueError("use NAME:FRACTION entries, for example SW:0.10,TW:0.10")
+        name, value = token.split(":", 1)
+        name = name.strip().upper()
+        if name not in {"W", "SW", "TW"}:
+            raise ValueError(f"unsupported Martini 3 water type {name!r}; allowed values are W, SW, and TW")
+        try:
+            fraction = float(value)
+        except ValueError as exc:
+            raise ValueError(f"invalid fraction for {name}: {value!r}") from exc
+        if fraction < 0.0 or fraction > 1.0:
+            raise ValueError(f"fraction for {name} must be in [0, 1]")
+        fractions[name] = fractions.get(name, 0.0) + fraction
+
+    if not fractions:
+        return {}
+
+    total = sum(fractions.values())
+    if "W" in fractions:
+        if abs(total - 1.0) > 1e-6:
+            raise ValueError("when W is included in --water-mix, W+SW+TW fractions must sum to 1.0")
+    elif total > 1.0 + 1e-6:
+        raise ValueError("SW+TW fractions must be <= 1.0 when W is omitted")
+    else:
+        fractions["W"] = max(0.0, 1.0 - total)
+
+    return {name: value for name, value in fractions.items() if value > 0.0}
+
+
+def _apply_martini3_water_mix(
+    gro_path: Path,
+    top_path: Path,
+    fractions: dict[str, float],
+    seed: int = 42,
+    source_resnames: set[str] | None = None,
+) -> dict[str, int]:
+    """Rename a deterministic fraction of single-site waters to W/SW/TW."""
+    mix = {name.upper(): float(value) for name, value in fractions.items() if float(value) > 0.0}
+    if not mix or set(mix) == {"W"}:
+        return {}
+
+    source_names = {str(name).strip() for name in (source_resnames or {"W", "SOL"}) if str(name).strip()}
+    title, records, box = _read_gro_records(str(gro_path))
+    water_indices = [
+        idx
+        for idx, rec in enumerate(records)
+        if str(rec["resname"]).strip() in source_names and str(rec["atomname"]).strip() == "W"
+    ]
+    n_waters = len(water_indices)
+    if n_waters == 0:
+        return {}
+
+    ordered_types = [name for name in ("SW", "TW", "W") if name in mix]
+    assigned_counts: dict[str, int] = {}
+    remaining = n_waters
+    for name in ordered_types[:-1]:
+        count = int(round(n_waters * mix[name]))
+        count = max(0, min(count, remaining))
+        assigned_counts[name] = count
+        remaining -= count
+    assigned_counts[ordered_types[-1]] = remaining
+
+    shuffled = list(water_indices)
+    random.Random(seed).shuffle(shuffled)
+    offset = 0
+    final_counts = {"W": 0, "SW": 0, "TW": 0}
+    for water_type in ordered_types:
+        count = assigned_counts.get(water_type, 0)
+        for idx in shuffled[offset : offset + count]:
+            records[idx]["resname"] = water_type
+            records[idx]["atomname"] = water_type
+            final_counts[water_type] += 1
+        offset += count
+
+    _write_gro_records(str(gro_path), title, records, box)
+
+    entries = _parse_molecules_entries(top_path)
+    if entries:
+        counts: dict[str, int] = {}
+        order: list[str] = []
+        for name, count in entries:
+            if name not in counts:
+                order.append(name)
+            counts[name] = int(count)
+
+        replaced = 0
+        for water_name in source_names:
+            replaced += int(counts.pop(water_name, 0))
+            if water_name in order:
+                order.remove(water_name)
+        for name in ("W", "SW", "TW"):
+            count = final_counts.get(name, 0)
+            if count <= 0:
+                continue
+            counts[name] = count
+            if name not in order:
+                order.append(name)
+        if replaced and sum(final_counts.values()) != replaced:
+            counts["W"] = final_counts.get("W", 0)
+
+        block_lines = ["[ molecules ]"]
+        for name in order:
+            if counts.get(name, 0) > 0:
+                block_lines.append(f"{name} {counts[name]}")
+        _replace_molecules_block(top_path, "\n".join(block_lines) + "\n")
+
+    return {name: count for name, count in final_counts.items() if count > 0}
 
 
 def _resolve_sidecar_itp(gro_path: str, explicit_itp: str | None, label: str) -> Path:
@@ -800,8 +924,58 @@ def _normalize_cli_residue_groups(
     return normalized
 
 
+_MARTINIZE_EXTRA_BLOCKED_FLAGS = {
+    "-h",
+    "--help",
+    "-V",
+    "--version",
+    "-sep",
+    "-f",
+    "-x",
+    "-o",
+    "-name",
+    "-ff",
+    "-merge",
+    "-p",
+    "-pf",
+    "-go",
+    "-go-eps",
+    "-go-low",
+    "-go-up",
+    "-elastic",
+    "-ef",
+    "-dssp",
+    "-maxwarn",
+}
+
+
+def _split_martinize_extra_args(raw_values: list[str] | None) -> list[str]:
+    tokens: list[str] = []
+    for raw in raw_values or []:
+        tokens.extend(shlex.split(raw))
+    return tokens
+
+
+def _validate_martinize_extra_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> list[str]:
+    tokens = _split_martinize_extra_args(getattr(args, "martinize_extra_args", None))
+    blocked = [
+        token
+        for token in tokens
+        if token.split("=", 1)[0] in _MARTINIZE_EXTRA_BLOCKED_FLAGS
+    ]
+    if blocked:
+        parser.error(
+            "--martinize-extra-args cannot override MartiniSurf-managed martinize2 flags: "
+            + ", ".join(sorted(set(blocked)))
+        )
+    if getattr(args, "dna", False) and tokens:
+        parser.error("--martinize-extra-args is only available for protein mode; DNA uses martinize-dna.py.")
+    return tokens
+
+
 def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     _apply_dynamic_defaults(args)
+    args.martinize_extra_tokens = _validate_martinize_extra_args(parser, args)
     complex_mode = bool(args.complex_config)
     martini3_surface_modes = {"graphene", "graphene-periodic", "graphene-finite", "graphite"}
     cnt_surface_modes = {"cnt", "cnt-m2", "cnt-martini2", "cnt-m3", "cnt-martini3"}
@@ -867,8 +1041,27 @@ def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
     if args.ads_mode and not (args.anchor or args.complex_config):
         parser.error("--ads-mode requires anchor-based orientation (--anchor or --complex-config).")
 
-    if (args.go_eps is not None or args.go_low is not None or args.go_up is not None) and not args.go:
-        print("⚠ Go parameters (--go-eps/--go-low/--go-up) were provided without --go. They will be ignored.")
+    go_values = [
+        args.go_eps,
+        args.go_low,
+        args.go_up,
+        args.go_res_dist,
+        args.go_write_file,
+        args.go_backbone,
+        args.go_atomname,
+    ]
+    if any(value is not None for value in go_values) and not args.go:
+        print(
+            "⚠ Go parameters (--go-eps/--go-low/--go-up/--go-res-dist/"
+            "--go-write-file/--go-backbone/--go-atomname) were provided without --go. "
+            "They will be ignored."
+        )
+    elastic_values = [args.el, args.eu, args.ermd, args.ea, args.ep, args.em, args.eb, args.eunit]
+    if any(value is not None for value in elastic_values) and not args.elastic:
+        print(
+            "⚠ Elastic-network parameters (--el/--eu/--ermd/--ea/--ep/--em/--eb/--eunit) "
+            "were provided without --elastic. They will be ignored."
+        )
 
     if args.substrate_count < 0:
         parser.error("--substrate-count must be >= 0.")
@@ -888,6 +1081,18 @@ def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
         parser.error("--balance-low-z-fraction must be in the interval (0, 1].")
     if args.water_gro and not Path(args.water_gro).exists():
         parser.error(f"--water-gro not found: {args.water_gro}")
+    try:
+        args.water_mix_fractions = _parse_water_mix_spec(args.water_mix)
+    except ValueError as exc:
+        parser.error(f"--water-mix: {exc}")
+    if args.water_mix_fractions and not args.solvate:
+        parser.error("--water-mix requires --solvate.")
+    if args.water_mix_fractions and args.dna:
+        parser.error("--water-mix is supported only for Martini 3 protein workflows.")
+    if args.water_mix_fractions and args.polarizable_water:
+        parser.error("--water-mix is incompatible with --polarizable-water.")
+    if args.water_mix_seed < 0:
+        parser.error("--water-mix-seed must be >= 0.")
     if args.polarizable_water and not args.dna:
         parser.error("--polarizable-water is currently supported only with --dna.")
     if args.freeze_water_fraction < 0 or args.freeze_water_fraction > 1:
@@ -987,6 +1192,8 @@ def _build_generated_surface_args(args: argparse.Namespace, output_path: Path) -
     ]
     if args.surface_layers is not None:
         builder_args += ["--layers", str(args.surface_layers)]
+    if args.surface_stacking is not None:
+        builder_args += ["--stacking", str(args.surface_stacking)]
     if args.surface_dist_z is not None:
         builder_args += ["--dist-z", str(args.surface_dist_z)]
     if args.graphite_layers is not None:
@@ -1040,7 +1247,7 @@ def build_parser():
     )
 
     input_group = parser.add_argument_group("Input And Molecule")
-    input_group.add_argument("--pdb", help="Local PDB path, RCSB ID (4 chars), or UniProt ID (6 chars).")
+    input_group.add_argument("--pdb", help="Local PDB/mmCIF path, RCSB ID (4 chars), or UniProt ID (6 chars).")
     input_group.add_argument(
         "--complex-config",
         help=(
@@ -1066,6 +1273,21 @@ def build_parser():
             "(can be repeated). Use --merge all to merge every chain."
         ),
     )
+    input_group.add_argument(
+        "--balance-merged-chains",
+        dest="balance_merged_chains",
+        action="store_true",
+        help=(
+            "Before martinization, trim each explicit merge group down to the residues shared by every chain "
+            "in that group. Example: A=3,4,5 and B=4,5,6 become A=4,5 and B=4,5."
+        ),
+    )
+    input_group.add_argument(
+        "--no-balance-merged-chains",
+        dest="balance_merged_chains",
+        action="store_false",
+        help="Disable automatic residue balancing inside merge groups before martinization.",
+    )
 
     martinize_group = parser.add_argument_group("Martinization Controls")
     martinize_group.add_argument("--p", choices=["none", "all", "backbone"], default="backbone", help="Position restraints selection.")
@@ -1075,10 +1297,39 @@ def build_parser():
     martinize_group.add_argument("--no-dssp", dest="dssp", action="store_false", help="Disable DSSP during protein martinization.")
     martinize_group.add_argument("--elastic", action="store_true", help="Enable elastic network.")
     martinize_group.add_argument("--ef", type=float, default=700, help="Elastic network force constant.")
+    martinize_group.add_argument("--el", type=float, help="Elastic network lower cutoff passed to martinize2.")
+    martinize_group.add_argument("--eu", type=float, help="Elastic network upper cutoff passed to martinize2.")
+    martinize_group.add_argument("--ermd", type=int, help="Minimum residue separation for elastic bonds passed to martinize2.")
+    martinize_group.add_argument("--ea", type=float, help="Elastic bond decay factor passed to martinize2.")
+    martinize_group.add_argument("--ep", type=float, help="Elastic bond decay power passed to martinize2.")
+    martinize_group.add_argument("--em", type=float, help="Minimum elastic bond force constant retained by martinize2.")
+    martinize_group.add_argument("--eb", help="Comma-separated bead names for elastic bonds passed to martinize2.")
+    martinize_group.add_argument("--eunit", help="Structural unit for elastic network construction passed to martinize2.")
     martinize_group.add_argument("--go-eps", type=float, help="Go model epsilon value for martinize2.")
     martinize_group.add_argument("--go-low", type=float, help="Go model minimum contact distance (nm) for martinize2.")
     martinize_group.add_argument("--go-up", type=float, help="Go model maximum contact distance (nm) for martinize2.")
-    parser.set_defaults(dssp=True)
+    martinize_group.add_argument("--go-res-dist", type=int, help="Minimum graph/residue distance for Go contacts passed to martinize2.")
+    martinize_group.add_argument(
+        "--go-write-file",
+        nargs="?",
+        const="go_contacts.out",
+        help="Ask martinize2 to write the automatically calculated Go contact map; optional output filename.",
+    )
+    martinize_group.add_argument("--go-backbone", help="Backbone bead name for Go virtual-site placement passed to martinize2.")
+    martinize_group.add_argument("--go-atomname", help="Virtual Go site atom name passed to martinize2.")
+    martinize_group.add_argument("--ss", help="Manual secondary-structure string passed to martinize2.")
+    martinize_group.add_argument("--collagen", action="store_true", help="Use martinize2 collagen parameters.")
+    martinize_group.add_argument("--ed", action="store_true", help="Use martinize2 extended-region dihedrals rather than elastic bonds.")
+    martinize_group.add_argument(
+        "--martinize-extra-args",
+        action="append",
+        metavar="ARGS",
+        help=(
+            "Advanced protein-mode passthrough to martinize2. Quote as one string; may be repeated. "
+            "MartiniSurf-managed input/output/topology flags are blocked."
+        ),
+    )
+    parser.set_defaults(dssp=True, balance_merged_chains=True)
 
     surface_group = parser.add_argument_group("Surface (Required if --surface is omitted)")
     surface_group.add_argument("--surface", help="Existing surface .gro file. If omitted, a surface is generated.")
@@ -1113,6 +1364,12 @@ def build_parser():
         "--surface-layers",
         type=int,
         help="Number of layers for local 2-1 / 4-1 surfaces. If omitted, graphite mode uses its own default.",
+    )
+    surface_group.add_argument(
+        "--surface-stacking",
+        choices=["hcp", "fcc"],
+        default="hcp",
+        help="Layer stacking for local 2-1 / 4-1 surfaces: hcp=ABAB (default), fcc=ABCABC.",
     )
     surface_group.add_argument(
         "--surface-dist-z",
@@ -1220,6 +1477,14 @@ def build_parser():
             "|z - z_surface| <= clearance. Default: 0.4 for protein and DNA workflows."
         ),
     )
+    post_group.add_argument(
+        "--water-mix",
+        help=(
+            "Martini 3 protein workflows: final water composition as NAME:FRACTION entries "
+            "for W, SW, and TW, e.g. 'SW:0.10,TW:0.10' keeps the remaining waters as W."
+        ),
+    )
+    post_group.add_argument("--water-mix-seed", type=int, default=42, help="Random seed used for Martini 3 W/SW/TW water mixing.")
     post_group.add_argument("--freeze-water-fraction", type=float, default=0.0, help="DNA-only: convert this fraction of W waters to WF in final outputs.")
     post_group.add_argument("--freeze-water-seed", type=int, default=42, help="Random seed used for DNA water freezing.")
 
@@ -2455,6 +2720,19 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
                 top_path=final_top,
                 water_resnames=water_resnames,
             )
+        elif getattr(args, "water_mix_fractions", None):
+            mixed_counts = _apply_martini3_water_mix(
+                gro_path=solvated_gro,
+                top_path=final_top,
+                fractions=args.water_mix_fractions,
+                seed=args.water_mix_seed,
+                source_resnames=water_resnames,
+            )
+            if mixed_counts:
+                print(
+                    "✔ Applied Martini 3 water mix: "
+                    + ", ".join(f"{name}={count}" for name, count in sorted(mixed_counts.items()))
+                )
         _normalize_molecules_block(final_top=final_top, base_top=base_top, top_dir=top_dir)
         if args.dna:
             _refresh_dna_thermostat_groups(simdir=simdir, top_path=final_top)
@@ -2504,6 +2782,19 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
             top_path=final_top,
             water_resnames=water_resnames,
         )
+    elif getattr(args, "water_mix_fractions", None):
+        mixed_counts = _apply_martini3_water_mix(
+            gro_path=final_gro,
+            top_path=final_top,
+            fractions=args.water_mix_fractions,
+            seed=args.water_mix_seed,
+            source_resnames=water_resnames,
+        )
+        if mixed_counts:
+            print(
+                "✔ Applied Martini 3 water mix: "
+                + ", ".join(f"{name}={count}" for name, count in sorted(mixed_counts.items()))
+            )
     _normalize_uniform_atom_names_from_itp(top_dir=top_dir, top_path=final_top, gro_path=final_gro)
     _normalize_ion_atom_names_from_itp(top_dir=top_dir, gro_path=final_gro)
     _normalize_molecules_block(final_top=final_top, base_top=base_top, top_dir=top_dir)
@@ -2681,6 +2972,208 @@ def _backup_existing_output_dir(simdir: Path) -> Path | None:
     return backup
 
 
+def _package_version(package: str) -> str | None:
+    try:
+        return importlib.metadata.version(package)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
+def _safe_command_output(cmd: list[str], timeout: int = 10) -> dict[str, Any]:
+    executable = shutil.which(cmd[0])
+    result: dict[str, Any] = {
+        "command": cmd,
+        "path": executable,
+        "available": executable is not None,
+        "returncode": None,
+        "output": None,
+    }
+    if executable is None:
+        return result
+
+    try:
+        completed = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except Exception as exc:
+        result["error"] = str(exc)
+        return result
+
+    output = "\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
+    result["returncode"] = completed.returncode
+    result["output"] = output[:4000] if output else ""
+    return result
+
+
+def _python_package_versions() -> dict[str, str | None]:
+    return {
+        "martinisurf": _package_version("martinisurf") or _package_version("surfmartini"),
+        "vermouth": _package_version("vermouth"),
+        "mdtraj": _package_version("mdtraj"),
+        "MDAnalysis": _package_version("MDAnalysis"),
+        "numpy": _package_version("numpy"),
+        "scipy": _package_version("scipy"),
+        "pyvista": _package_version("pyvista"),
+    }
+
+
+def _path_or_none(value: Any) -> str | None:
+    return str(Path(value).resolve()) if value else None
+
+
+def _arg(args: argparse.Namespace, name: str, default: Any = None) -> Any:
+    return getattr(args, name, default)
+
+
+def _write_provenance_json(
+    simdir: Path,
+    args: argparse.Namespace,
+    argv: list[str],
+    mol: str,
+    martinize_cmd: list[str] | None,
+    resolved_anchor_groups: list[list[int]] | None,
+    resolved_linker_groups: list[list[int]] | None,
+    protein_go_model: bool,
+    complex_cfg: dict[str, Any] | None,
+) -> Path:
+    provenance = {
+        "schema_version": 1,
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "command": {
+            "argv": argv,
+            "cwd": str(Path.cwd()),
+        },
+        "environment": {
+            "platform": platform.platform(),
+            "python": {
+                "executable": sys.executable,
+                "version": sys.version.replace("\n", " "),
+            },
+            "packages": _python_package_versions(),
+            "executables": {
+                "martinize2": _safe_command_output(["martinize2", "--version"]),
+                "gmx": _safe_command_output(["gmx", "--version"]),
+                "gmx_mpi": _safe_command_output(["gmx_mpi", "--version"]),
+                "python2": _safe_command_output(["python2", "--version"]),
+                "mkdssp": _safe_command_output(["mkdssp", "--version"]),
+            },
+        },
+        "workflow": {
+            "mode": "pre_cg_complex" if args.complex_config else ("dna" if args.dna else "protein"),
+            "molecule_name": mol,
+            "protein_go_model": bool(protein_go_model),
+            "dna": bool(args.dna),
+            "dnatype": args.dnatype if args.dna else None,
+            "force_field": args.ff if not args.dna else "martini2-dna",
+            "complex_config": _path_or_none(args.complex_config),
+        },
+        "inputs": {
+            "pdb": _path_or_none(args.pdb) if args.pdb and Path(str(args.pdb)).exists() else args.pdb,
+            "surface": _path_or_none(_arg(args, "surface")),
+            "linker": _path_or_none(_arg(args, "linker")),
+            "linker_itp_name": _arg(args, "linker_itp_name"),
+            "substrate": _path_or_none(_arg(args, "substrate")),
+            "substrate_itp": _path_or_none(_arg(args, "substrate_itp")),
+            "cofactor_itp": _path_or_none(_arg(args, "cofactor_itp")),
+        },
+        "surface": {
+            "generated": not bool(args.surface),
+            "mode": args.surface_mode,
+            "geometry": _effective_surface_geometry(args),
+            "lx": args.lx,
+            "ly": args.ly,
+            "dx": args.dx,
+            "beads": args.surface_bead,
+            "charge": args.charge,
+            "layers": args.surface_layers,
+            "stacking": args.surface_stacking,
+            "surface_linkers": args.surface_linkers,
+        },
+        "orientation": {
+            "linker_mode": bool(args.linker),
+            "anchor_mode": bool(args.anchor) and not bool(args.linker),
+            "adsorption_mode": bool(args.ads_mode),
+            "dist": args.dist,
+            "anchor_groups_raw": args.anchor,
+            "anchor_groups_resolved": resolved_anchor_groups,
+            "linker_groups_raw": args.linker_group,
+            "linker_groups_resolved": resolved_linker_groups,
+        },
+        "martinization": {
+            "command": martinize_cmd,
+            "merge_groups": args.merge,
+            "position_restraints": args.p,
+            "position_restraint_force_constant": args.pf,
+            "dssp": bool(args.dssp),
+            "elastic": bool(args.elastic),
+            "elastic_parameters": {
+                "ef": args.ef,
+                "el": args.el,
+                "eu": args.eu,
+                "ermd": args.ermd,
+                "ea": args.ea,
+                "ep": args.ep,
+                "em": args.em,
+                "eb": args.eb,
+                "eunit": args.eunit,
+            },
+            "go_parameters": {
+                "enabled": bool(args.go),
+                "go_eps": args.go_eps,
+                "go_low": args.go_low,
+                "go_up": args.go_up,
+                "go_res_dist": args.go_res_dist,
+                "go_write_file": args.go_write_file,
+                "go_backbone": args.go_backbone,
+                "go_atomname": args.go_atomname,
+            },
+            "martinize_extra_args": getattr(args, "martinize_extra_tokens", []),
+        },
+        "postprocessing": {
+            "solvate": bool(args.solvate),
+            "ionize": bool(args.ionize),
+            "salt_conc": args.salt_conc,
+            "polarizable_water": bool(args.polarizable_water),
+            "water_mix": getattr(args, "water_mix", None),
+            "water_mix_fractions": getattr(args, "water_mix_fractions", {}),
+            "water_mix_seed": getattr(args, "water_mix_seed", None),
+            "freeze_water_fraction": args.freeze_water_fraction,
+            "freeze_water_seed": args.freeze_water_seed,
+        },
+        "scope": {
+            "internal": [
+                "structure retrieval/cleaning and local mmCIF conversion",
+                "coarse-graining tool orchestration",
+                "surface generation or import",
+                "orientation by anchor/linker/adsorption modes",
+                "topology/index/MDP assembly",
+                "optional solvation and ionization",
+            ],
+            "external_or_user_provided": [
+                "protein model details from martinize2/Vermouth",
+                "DNA model details from martinize-dna.py",
+                "custom linker, substrate, cofactor, and surface parametrizations",
+                "physical validity of user-provided Martini-compatible ITP files",
+            ],
+        },
+    }
+    if complex_cfg:
+        provenance["workflow"]["complex_config_summary"] = {
+            "protein_molname": complex_cfg.get("protein_molname"),
+            "include_go": bool(complex_cfg.get("include_go")),
+            "go_files": [str(path) for path in complex_cfg.get("go_files", [])],
+        }
+
+    out = simdir / "provenance.json"
+    out.write_text(json.dumps(provenance, indent=2, sort_keys=True))
+    print(f"✔ Wrote provenance metadata: {out}")
+    return out
+
+
 # ======================================================================
 # MAIN
 # ======================================================================
@@ -2689,6 +3182,7 @@ def main(argv=None):
 
     parser = build_parser()
     args = parser.parse_args(argv)
+    cli_argv = list(argv) if argv is not None else sys.argv[1:]
     _apply_dynamic_defaults(args)
     _validate_args(parser, args)
     _print_config_summary(args)
@@ -2706,6 +3200,7 @@ def main(argv=None):
 
     complex_cfg: dict[str, Any] | None = None
     tmpdir: Path | None = None
+    martinize_cmd: list[str] | None = None
     protein_go_model = bool(args.go)
     if args.complex_config:
         complex_cfg = _load_pre_cg_complex_config(Path(args.complex_config).resolve())
@@ -2742,7 +3237,12 @@ def main(argv=None):
         # ===============================================================
         # 1) CLEAN INPUT
         # ===============================================================
-        pdb_abs = load_clean_pdb(args.pdb, workdir=simdir)
+        pdb_abs = load_clean_pdb(
+            args.pdb,
+            workdir=simdir,
+            merge_groups=merge_groups,
+            balance_merged_chains=bool(args.balance_merged_chains),
+        )
         resolved_anchor_groups = _normalize_cli_residue_groups(args.anchor, pdb_abs, "--anchor")
         resolved_linker_groups = _normalize_cli_residue_groups(args.linker_group, pdb_abs, "--linker-group")
 
@@ -2798,6 +3298,19 @@ def main(argv=None):
 
             if args.elastic:
                 martinize_cmd += ["-elastic", "-ef", str(args.ef)]
+                for attr, flag in [
+                    ("el", "-el"),
+                    ("eu", "-eu"),
+                    ("ermd", "-ermd"),
+                    ("ea", "-ea"),
+                    ("ep", "-ep"),
+                    ("em", "-em"),
+                    ("eb", "-eb"),
+                    ("eunit", "-eunit"),
+                ]:
+                    value = getattr(args, attr)
+                    if value is not None:
+                        martinize_cmd += [flag, str(value)]
 
             if args.go:
                 martinize_cmd += ["-go"]
@@ -2807,9 +3320,25 @@ def main(argv=None):
                     martinize_cmd += ["-go-low", str(args.go_low)]
                 if args.go_up is not None:
                     martinize_cmd += ["-go-up", str(args.go_up)]
+                if args.go_res_dist is not None:
+                    martinize_cmd += ["-go-res-dist", str(args.go_res_dist)]
+                if args.go_write_file is not None:
+                    martinize_cmd += ["-go-write-file", str(args.go_write_file)]
+                if args.go_backbone is not None:
+                    martinize_cmd += ["-go-backbone", str(args.go_backbone)]
+                if args.go_atomname is not None:
+                    martinize_cmd += ["-go-atomname", str(args.go_atomname)]
 
-            if args.dssp:
+            if args.ss:
+                martinize_cmd += ["-ss", args.ss]
+            elif args.collagen:
+                martinize_cmd += ["-collagen"]
+            elif args.dssp:
                 martinize_cmd += _select_dssp_flags()
+            if args.ed:
+                martinize_cmd += ["-ed"]
+
+            martinize_cmd += getattr(args, "martinize_extra_tokens", [])
 
         # martinize2 in some Colab/runtime setups fails when DSSP binary is present
         # but not functional. In that case retry once without DSSP.
@@ -2825,12 +3354,21 @@ def main(argv=None):
                 if dssp_idx < len(retry_cmd) and not retry_cmd[dssp_idx].startswith("-"):
                     del retry_cmd[dssp_idx]
                 run(retry_cmd, cwd=tmpdir)
+                martinize_cmd = retry_cmd
             else:
                 raise
 
         # Move ITP files
         for f in tmpdir.glob("*.itp"):
             shutil.move(str(f), active_itp_dir / f.name)
+        if (not args.dna) and args.go_write_file:
+            go_write_path = Path(args.go_write_file)
+            if not go_write_path.is_absolute():
+                src_go_map = tmpdir / go_write_path
+                if src_go_map.exists():
+                    dst_go_map = simdir / "0_topology" / go_write_path
+                    dst_go_map.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(src_go_map), dst_go_map)
 
         shutil.copy(system_cg_out, system_dir / f"{mol}_cg.pdb")
     if args.complex_config:
@@ -3120,6 +3658,17 @@ def main(argv=None):
     _run_optional_dna_water_freezing(args, simdir)
     _run_final_topology_structure_validation(simdir)
     _cleanup_legacy_system_gro_outputs(simdir)
+    _write_provenance_json(
+        simdir=simdir,
+        args=args,
+        argv=cli_argv,
+        mol=mol,
+        martinize_cmd=martinize_cmd,
+        resolved_anchor_groups=resolved_anchor_groups,
+        resolved_linker_groups=resolved_linker_groups,
+        protein_go_model=protein_go_model,
+        complex_cfg=complex_cfg,
+    )
 
     if tmpdir and tmpdir.exists():
         shutil.rmtree(tmpdir)

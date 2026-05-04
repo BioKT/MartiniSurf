@@ -110,6 +110,18 @@ def graphite_ab_shift(layer_index: int, x_shift: float, y_shift: float) -> tuple
     return x_shift, y_shift
 
 
+def local_stacking_shift(
+    layer_index: int,
+    stacking: str,
+    b_shift: tuple[float, float],
+    c_shift: tuple[float, float],
+) -> tuple[float, float]:
+    clean = str(stacking or "hcp").strip().lower()
+    if clean == "fcc":
+        return [(0.0, 0.0), b_shift, c_shift][layer_index % 3]
+    return graphite_ab_shift(layer_index, *b_shift)
+
+
 def _load_self_sigma_map(martini_version: str) -> dict[str, float]:
     version = str(martini_version).strip()
     cached = _SIGMA_CACHE.get(version)
@@ -639,6 +651,12 @@ def main(argv: Iterable[str] | None = None) -> None:
     # Local hexagonal surface parameters
     parser.add_argument("--layers", type=int, default=1, help="Number of layers for local 2-1 / 4-1 surfaces.")
     parser.add_argument(
+        "--stacking",
+        choices=["hcp", "fcc"],
+        default="hcp",
+        help="Layer stacking for local 2-1 / 4-1 surfaces: hcp=ABAB (default), fcc=ABCABC.",
+    )
+    parser.add_argument(
         "--dist-z",
         type=float,
         default=None,
@@ -728,10 +746,13 @@ def main(argv: Iterable[str] | None = None) -> None:
         final_lx, final_ly = nx * lx_cell, ny * ly_cell
 
         for layer in range(args.layers):
-            # Graphite-like ABAB stacking in the coarse-grained 2-1 lattice:
-            # place odd layers over triangular hollow sites instead of directly
-            # on top of occupied sites.
-            shift_x, shift_y = graphite_ab_shift(layer, 0.5 * a, (math.sqrt(3) / 6) * a)
+            # hcp: ABAB; fcc: ABCABC. A single layer is just the planar lattice.
+            shift_x, shift_y = local_stacking_shift(
+                layer,
+                args.stacking,
+                b_shift=(0.5 * a, (math.sqrt(3) / 6) * a),
+                c_shift=(a, (math.sqrt(3) / 3) * a),
+            )
             z_pos = layer_z_positions[layer]
             bead = bead_for_layer(layer_beads, layer)
             layer_start = len(atoms) + 1
@@ -759,8 +780,13 @@ def main(argv: Iterable[str] | None = None) -> None:
         ]
         
         for layer in range(args.layers):
-            # Graphite-like ABAB (Bernal) stacking.
-            shift_x, shift_y = graphite_ab_shift(layer, 0.0, d_cc)
+            # hcp: ABAB graphite-like stacking; fcc: ABCABC stacking.
+            shift_x, shift_y = local_stacking_shift(
+                layer,
+                args.stacking,
+                b_shift=(0.0, d_cc),
+                c_shift=(0.0, 2.0 * d_cc),
+            )
             z_pos = layer_z_positions[layer]
             bead = bead_for_layer(layer_beads, layer)
             layer_start = len(atoms) + 1
@@ -817,7 +843,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     # ---------------------------------------------------------
     gro_path = Path(outdir_path, f"{basename}.gro")
     with gro_path.open("w") as fgro:
-        fgro.write(f"Surface {mode} | {args.lx}x{args.ly} nm | Layers: {args.layers}\n")
+        fgro.write(f"Surface {mode} | {args.lx}x{args.ly} nm | Layers: {args.layers} | Stacking: {args.stacking}\n")
         fgro.write(f"{len(atoms):5d}\n")
         for i, (x, y, z, bead) in enumerate(atoms, start=1):
             fgro.write(f"{1:5d}{args.resname:<4}{bead:>4}{i:6d}{x:8.3f}{y:8.3f}{z:8.3f}\n")

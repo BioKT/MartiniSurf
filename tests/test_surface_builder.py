@@ -398,6 +398,35 @@ def test_2_1_layers_follow_graphite_like_abab_stacking(tmp_path):
     assert coords[2] == (0.0, 0.0, 3.8)
 
 
+def test_2_1_layers_can_use_fcc_abc_stacking(tmp_path):
+    out = tmp_path / "surf_2_1_abc"
+
+    dx = 0.47
+    dist_z = 0.4
+    main([
+        "--mode", "2-1",
+        "--lx", "1",
+        "--ly", "1",
+        "--dx", str(dx),
+        "--layers", "4",
+        "--stacking", "fcc",
+        "--dist-z", str(dist_z),
+        "--output", str(out),
+    ])
+
+    lines = (tmp_path / "surf_2_1_abc.gro").read_text().splitlines()[2:-1]
+    first_four = [lines[0], lines[6], lines[12], lines[18]]
+    coords = [(float(line[20:28]), float(line[28:36]), float(line[36:44])) for line in first_four]
+
+    scale = dx / 0.142
+    a = 0.246 * scale
+
+    assert coords[0] == (0.0, 0.0, 3.0)
+    assert coords[1] == (round(0.5 * a, 3), round((math.sqrt(3) / 6) * a, 3), 3.4)
+    assert coords[2] == (round(a, 3), round((math.sqrt(3) / 3) * a, 3), 3.8)
+    assert coords[3] == (0.0, 0.0, 4.2)
+
+
 def test_4_1_layers_follow_graphite_like_abab_stacking(tmp_path):
     out = tmp_path / "surf_4_1_abab"
 
@@ -420,6 +449,32 @@ def test_4_1_layers_follow_graphite_like_abab_stacking(tmp_path):
     assert coords[0] == (0.0, 0.0, 3.0)
     assert coords[1] == (0.0, round(dx, 3), 3.335)
     assert coords[2] == (0.0, 0.0, 3.67)
+
+
+def test_4_1_layers_can_use_fcc_abc_stacking(tmp_path):
+    out = tmp_path / "surf_4_1_abc"
+
+    dx = 0.47
+    dist_z = 0.335
+    main([
+        "--mode", "4-1",
+        "--lx", "1",
+        "--ly", "1",
+        "--dx", str(dx),
+        "--layers", "4",
+        "--stacking", "fcc",
+        "--dist-z", str(dist_z),
+        "--output", str(out),
+    ])
+
+    lines = (tmp_path / "surf_4_1_abc.gro").read_text().splitlines()[2:-1]
+    first_four = [lines[0], lines[4], lines[8], lines[12]]
+    coords = [(float(line[20:28]), float(line[28:36]), float(line[36:44])) for line in first_four]
+
+    assert coords[0] == (0.0, 0.0, 3.0)
+    assert coords[1] == (0.0, round(dx, 3), 3.335)
+    assert coords[2] == (0.0, round(2 * dx, 3), 3.67)
+    assert coords[3] == (0.0, 0.0, 4.005)
 
 
 def test_local_multilayer_surface_mixed_beads_use_average_sigma_between_layers(tmp_path):

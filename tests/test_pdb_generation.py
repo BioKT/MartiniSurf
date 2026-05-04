@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from martinisurf.utils import pdb_generation
 
 
@@ -53,3 +55,67 @@ def test_fetch_alphafold_pdb_falls_back_to_known_file_patterns(monkeypatch, tmp_
     assert outpath == tmp_path / "P69905_AF.pdb"
     assert outpath.read_text() == "ATOM\n"
     assert seen[0].endswith("AF-P69905-F1-model_v4.pdb")
+
+
+def test_simple_clean_pdb_balances_merge_group_and_preserves_residue_ids(tmp_path):
+    infile = tmp_path / "input.pdb"
+    outfile = tmp_path / "output.pdb"
+    infile.write_text(
+        "ATOM      1  CA  ALA A   3      0.000   0.000   0.000  1.00 20.00           C\n"
+        "ATOM      2  CA  GLY A   4      0.000   0.000   0.000  1.00 20.00           C\n"
+        "ATOM      3  CA  SER A   5      0.000   0.000   0.000  1.00 20.00           C\n"
+        "ATOM      4  CA  GLY B   4      0.000   0.000   0.000  1.00 20.00           C\n"
+        "ATOM      5  CA  SER B   5      0.000   0.000   0.000  1.00 20.00           C\n"
+        "ATOM      6  CA  THR B   6      0.000   0.000   0.000  1.00 20.00           C\n"
+    )
+
+    pdb_generation.simple_clean_pdb(
+        infile,
+        outfile,
+        merge_groups=["A,B"],
+        balance_merged_chains=True,
+    )
+
+    residues = [line[21:27] for line in outfile.read_text().splitlines()]
+    assert residues == ["A   4 ", "A   5 ", "B   4 ", "B   5 "]
+
+
+def test_simple_clean_pdb_fails_when_merge_group_remains_misaligned(tmp_path):
+    infile = tmp_path / "input.pdb"
+    outfile = tmp_path / "output.pdb"
+    infile.write_text(
+        "ATOM      1  CA  ALA A   3      0.000   0.000   0.000  1.00 20.00           C\n"
+        "ATOM      2  CA  GLY A   4      0.000   0.000   0.000  1.00 20.00           C\n"
+        "ATOM      3  CA  SER A   5      0.000   0.000   0.000  1.00 20.00           C\n"
+        "ATOM      4  CA  GLY B   4      0.000   0.000   0.000  1.00 20.00           C\n"
+        "ATOM      5  CA  SER B   5      0.000   0.000   0.000  1.00 20.00           C\n"
+        "ATOM      6  CA  THR B   6      0.000   0.000   0.000  1.00 20.00           C\n"
+    )
+
+    with pytest.raises(ValueError, match="must expose the same ordered residue identities"):
+        pdb_generation.simple_clean_pdb(
+            infile,
+            outfile,
+            merge_groups=["A,B"],
+            balance_merged_chains=False,
+        )
+
+
+def test_load_clean_pdb_converts_local_cif_before_cleaning(monkeypatch, tmp_path):
+    cif = tmp_path / "input.cif"
+    cif.write_text("data_test\n")
+
+    def fake_convert_cif_to_pdb(cif_path, pdb_path):
+        assert cif_path == cif
+        pdb_path.write_text(
+            "ATOM      1  CA  ALA A   1      0.000   0.000   0.000  1.00 20.00           C\n"
+            "ATOM      2  CA  GLY A   2      0.100   0.000   0.000  1.00 20.00           C\n"
+        )
+        return pdb_path
+
+    monkeypatch.setattr(pdb_generation, "convert_cif_to_pdb", fake_convert_cif_to_pdb)
+
+    cleaned = pdb_generation.load_clean_pdb(str(cif), tmp_path)
+
+    assert cleaned == (tmp_path / "2_system" / "cleaned_input.pdb").resolve()
+    assert "ALA A   1" in cleaned.read_text()

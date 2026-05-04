@@ -36,6 +36,8 @@ MartiniSurf builds complete GROMACS-ready simulation folders for:
 
 Main capabilities:
 - Coarse-graining via `martinize2` (protein) or `martinize-dna.py` (DNA)
+- Local structure inputs in PDB or mmCIF/PDBx (`.pdb`, `.cif`, `.mmcif`) formats
+- Tunable `martinize2` protein controls, including GoMartini, elastic-network, secondary-structure, and controlled extra arguments
 - Surface generation or reuse of provided surfaces
 - Not explicit linker (anchor) or linker-based orientation
 - Automatic topology assembly
@@ -95,6 +97,8 @@ DNA workflow note:
   - `--invert-linker`
 - For multiple linker instances, pull/index groups are generated per linker automatically.
 - If not provided manually, linker distances are estimated from Martini bead-size sigma rules.
+- Local `2-1` / `4-1` multilayer surfaces use HCP-like ABAB stacking by default; use `--surface-stacking fcc` to generate ABCABC stacking instead.
+- For Martini 3 protein workflows, `--water-mix` can tune the final solvent composition among `W`, `SW`, and `TW` after solvation; for example, `--water-mix SW:0.10,TW:0.10` keeps 80% `W`, 10% `SW`, and 10% `TW`.
 
 ## CLI Help
 Use:
@@ -113,6 +117,7 @@ The help output is grouped by blocks:
 By default, MartiniSurf writes:
 ```text
 Simulation_Files/
+  provenance.json
   0_topology/
     system.top
     system_res.top

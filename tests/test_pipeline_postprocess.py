@@ -1,4 +1,5 @@
 import subprocess
+import json
 from argparse import Namespace
 from pathlib import Path
 
@@ -24,6 +25,96 @@ def test_parser_accepts_solvate_flags():
     assert args.salt_conc == 0.20
     assert args.solvate_radius == 0.21
     assert args.solvate_surface_clearance == 0.4
+
+
+def test_parser_accepts_advanced_martinize2_bias_flags():
+    parser = pipeline.build_parser()
+    args = parser.parse_args([
+        "--pdb", "1RJW",
+        "--anchor", "1", "1",
+        "--lx", "10",
+        "--ly", "10",
+        "--go",
+        "--go-res-dist", "4",
+        "--go-write-file", "contacts.out",
+        "--go-backbone", "BB",
+        "--go-atomname", "CA",
+        "--elastic",
+        "--el", "0.2",
+        "--eu", "1.2",
+        "--ermd", "3",
+        "--ea", "0.1",
+        "--ep", "2",
+        "--em", "50",
+        "--eb", "BB",
+        "--eunit", "chain",
+        "--ss", "C",
+        "--ed",
+        "--martinize-extra-args", "-resid input -ignh",
+    ])
+    pipeline._validate_args(parser, args)
+
+    assert args.go_res_dist == 4
+    assert args.go_write_file == "contacts.out"
+    assert args.el == 0.2
+    assert args.eunit == "chain"
+    assert args.martinize_extra_tokens == ["-resid", "input", "-ignh"]
+
+
+def test_martinize_extra_args_block_pipeline_managed_flags():
+    parser = pipeline.build_parser()
+    args = parser.parse_args([
+        "--pdb", "1RJW",
+        "--anchor", "1", "1",
+        "--lx", "10",
+        "--ly", "10",
+        "--martinize-extra-args", "-o=custom.top -f input.pdb",
+    ])
+
+    with pytest.raises(SystemExit):
+        pipeline._validate_args(parser, args)
+
+
+def test_write_provenance_json_records_workflow_and_scope(tmp_path, monkeypatch):
+    parser = pipeline.build_parser()
+    args = parser.parse_args([
+        "--pdb", "1RJW",
+        "--moltype", "Protein",
+        "--anchor", "1", "1",
+        "--lx", "10",
+        "--ly", "10",
+        "--go",
+        "--elastic",
+    ])
+    pipeline._validate_args(parser, args)
+    monkeypatch.setattr(
+        pipeline,
+        "_safe_command_output",
+        lambda cmd, timeout=10: {"command": cmd, "available": False, "path": None, "output": ""},
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "_python_package_versions",
+        lambda: {"martinisurf": "1.0.0", "vermouth": "0.15.0"},
+    )
+
+    out = pipeline._write_provenance_json(
+        simdir=tmp_path,
+        args=args,
+        argv=["--pdb", "1RJW"],
+        mol="Protein",
+        martinize_cmd=["martinize2", "-ff", "martini3001", "-go"],
+        resolved_anchor_groups=[[1, 1]],
+        resolved_linker_groups=[],
+        protein_go_model=True,
+        complex_cfg=None,
+    )
+
+    data = json.loads(out.read_text())
+    assert data["workflow"]["mode"] == "protein"
+    assert data["workflow"]["protein_go_model"] is True
+    assert data["martinization"]["command"] == ["martinize2", "-ff", "martini3001", "-go"]
+    assert "custom linker, substrate, cofactor, and surface parametrizations" in data["scope"]["external_or_user_provided"]
 
 
 def test_parser_uses_dna_default_solvate_surface_clearance():
@@ -303,6 +394,95 @@ def test_parser_accepts_polarizable_water_for_dna():
     ])
     pipeline._validate_args(parser, args)
     assert args.polarizable_water is True
+
+
+def test_parser_accepts_martini3_water_mix_for_protein():
+    parser = pipeline.build_parser()
+    args = parser.parse_args([
+        "--pdb",
+        "1RJW",
+        "--moltype",
+        "Protein",
+        "--surface-mode",
+        "4-1",
+        "--lx",
+        "10",
+        "--ly",
+        "10",
+        "--anchor",
+        "A",
+        "1",
+        "--solvate",
+        "--water-mix",
+        "SW:0.10,TW:0.20",
+        "--water-mix-seed",
+        "7",
+    ])
+    pipeline._validate_args(parser, args)
+
+    assert args.water_mix_fractions == {"SW": 0.10, "TW": 0.20, "W": 0.70}
+    assert args.water_mix_seed == 7
+
+
+def test_parser_rejects_water_mix_without_solvate():
+    parser = pipeline.build_parser()
+    args = parser.parse_args([
+        "--pdb",
+        "1RJW",
+        "--moltype",
+        "Protein",
+        "--surface-mode",
+        "4-1",
+        "--lx",
+        "10",
+        "--ly",
+        "10",
+        "--anchor",
+        "A",
+        "1",
+        "--water-mix",
+        "TW:0.10",
+    ])
+    with pytest.raises(SystemExit):
+        pipeline._validate_args(parser, args)
+
+
+def test_apply_martini3_water_mix_updates_gro_and_top(tmp_path):
+    gro = tmp_path / "final_system.gro"
+    top = tmp_path / "system_final.top"
+    gro.write_text(
+        "Test\n"
+        "    6\n"
+        "    1PRO    B1    1   0.100   0.100   1.000\n"
+        "    2W       W    2   0.200   0.200   0.350\n"
+        "    3W       W    3   0.300   0.300   0.350\n"
+        "    4W       W    4   0.400   0.400   0.350\n"
+        "    5W       W    5   0.500   0.500   0.350\n"
+        "    6W       W    6   0.600   0.600   0.350\n"
+        "   2.00000   2.00000   2.00000\n"
+    )
+    top.write_text(
+        "[ molecules ]\n"
+        "Protein 1\n"
+        "W 5\n"
+    )
+
+    counts = pipeline._apply_martini3_water_mix(
+        gro_path=gro,
+        top_path=top,
+        fractions={"W": 0.4, "SW": 0.4, "TW": 0.2},
+        seed=42,
+        source_resnames={"W"},
+    )
+
+    assert counts == {"W": 2, "SW": 2, "TW": 1}
+    text = gro.read_text()
+    assert text.count("SW      SW") == 2
+    assert text.count("TW      TW") == 1
+    top_text = top.read_text()
+    assert "W 2" in top_text
+    assert "SW 2" in top_text
+    assert "TW 1" in top_text
 
 
 def test_parser_rejects_polarizable_water_without_dna():

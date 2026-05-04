@@ -103,11 +103,14 @@ Each stage of the pipeline is deterministic: identical inputs and parameter sets
 
 \subsection{Input}
 
-The initial input structure may be provided as a local coordinate file, a
-four-character RCSB Protein Data Bank (PDB) identifier, or a UniProt accession code.
+The initial input structure may be provided as a local coordinate file in
+PDB or mmCIF/PDBx format, a four-character RCSB Protein Data Bank (PDB)
+identifier, or a UniProt accession code.
 When a PDB or UniProt identifier is supplied, MartiniSurf automatically retrieves
 the corresponding structure from the appropriate online repository, performs
 structure cleaning, and prepares it for coarse-graining.
+Local mmCIF/PDBx files are converted internally to PDB before the standard
+cleaning and martinization steps.
 This capability streamlines system preparation and minimizes the need for manual
 preprocessing steps.
 
@@ -141,6 +144,9 @@ Generated surfaces can be controlled directly with
   The main pipeline accepts \texttt{--surface-mode 2-1} and
   \texttt{--surface-mode 4-1}. In both cases, \texttt{--lx},
   \texttt{--ly}, and \texttt{--dx} control the generated size and spacing.
+  Multilayer local surfaces use HCP-like ABAB stacking by default and
+  can be generated with FCC-like ABCABC stacking using
+  \texttt{--surface-stacking fcc}.
 
   \item \textbf{Graphene family}  
   Additional generated modes are
@@ -155,8 +161,9 @@ Generated surfaces can be controlled directly with
 \end{itemize}
 
 Multilayer local surfaces are controlled in the main pipeline with
-\texttt{--surface-layers} and \texttt{--surface-dist-z}. Graphite slabs
-use \texttt{--graphite-layers} and \texttt{--graphite-spacing}.
+\texttt{--surface-layers}, \texttt{--surface-stacking}, and
+\texttt{--surface-dist-z}. Graphite slabs use \texttt{--graphite-layers}
+and \texttt{--graphite-spacing}.
 Generated surfaces can also cycle bead types by layer using multiple
 \texttt{--surface-bead} values.
 
@@ -241,6 +248,7 @@ The current default output root is:
 
 \begin{lstlisting}
 Simulation_Files/
+  provenance.json
   0_topology/
   1_mdp/
   2_system/
@@ -253,6 +261,9 @@ Typical generated files include:
   \item \texttt{0\_topology/system\_final.top},
   \item \texttt{0\_topology/system\_final\_res.top},
   \item \texttt{0\_topology/index.ndx},
+  \item \texttt{provenance.json}, which records the command, workflow mode,
+  relevant input paths, selected model parameters, and detectable dependency
+  versions,
   \item \texttt{2\_system/immobilized\_system.gro},
   \item optional solvated and ionized coordinate outputs in
   \texttt{2\_system/}.
@@ -276,7 +287,7 @@ The internal workflow is divided into the following core modules:
 
 \begin{itemize}
   \item \textbf{Structure Processing Layer}  
-  Handles structure retrieval (PDB/UniProt), cleaning, and
+  Handles structure retrieval (PDB/UniProt), local PDB/mmCIF input, cleaning, and
   coarse-graining via \texttt{martinize2} (proteins)
   or \texttt{martinize-dna.py} (DNA).
 
@@ -468,7 +479,8 @@ optional linker modeling, solvation, ionization, and substrate insertion.
 \begin{description}[leftmargin=3cm,style=nextline]
 
 \item[\texttt{--pdb}]
-Input structure (local file, RCSB ID, or UniProt ID).
+Input structure (local \texttt{.pdb}, \texttt{.cif}, or \texttt{.mmcif} file,
+RCSB ID, or UniProt ID).
 Required unless \texttt{--complex-config} is provided.
 
 \item[\texttt{--complex-config}]
@@ -522,11 +534,30 @@ Enable the elastic network.
 \item[\texttt{--ef}]
 Elastic-network force constant.
 
+\item[\texttt{--el}, \texttt{--eu}, \texttt{--ermd}, \texttt{--ea}, \texttt{--ep}, \texttt{--em}, \texttt{--eb}, \texttt{--eunit}]
+Advanced elastic-network parameters passed to \texttt{martinize2}, including
+distance cutoffs, minimum residue separation, decay terms, minimum retained
+force constant, bead selection, and elastic-network structural unit.
+
 \item[\texttt{--go-eps}]
 G\=o model epsilon for \texttt{martinize2}.
 
 \item[\texttt{--go-low}, \texttt{--go-up}]
 Lower and upper contact-distance bounds for the G\=o model.
+
+\item[\texttt{--go-res-dist}, \texttt{--go-write-file}, \texttt{--go-backbone}, \texttt{--go-atomname}]
+Advanced G\=o model controls passed to \texttt{martinize2}, including graph
+distance filtering, contact-map output, backbone bead selection, and virtual-site
+atom naming.
+
+\item[\texttt{--ss}, \texttt{--collagen}, \texttt{--ed}]
+Secondary-structure and extended-region controls passed to \texttt{martinize2}.
+
+\item[\texttt{--martinize-extra-args}]
+Controlled passthrough for additional protein-mode \texttt{martinize2} options.
+MartiniSurf-managed input, output, topology, force-field, position-restraint,
+elastic-network, G\=o, DSSP, and warning-control flags are blocked to preserve
+the reproducible output layout.
 
 \end{description}
 
@@ -558,6 +589,10 @@ the C--C distance.
 
 \item[\texttt{--surface-layers}]
 Number of layers for local 2-1 / 4-1 surfaces.
+
+\item[\texttt{--surface-stacking}]
+Layer stacking for local 2-1 / 4-1 surfaces:
+\texttt{hcp} for ABAB stacking (default) or \texttt{fcc} for ABCABC stacking.
 
 \item[\texttt{--surface-dist-z}]
 Manual interlayer spacing for local multilayer surfaces.
@@ -685,6 +720,15 @@ Optional custom solvent coordinate file for solvation.
 DNA-only polarizable-water workflow using \texttt{PW} solvent and
 \texttt{martini\_v2.1P-dna.itp}.
 
+\item[\texttt{--water-mix}]
+Martini~3 protein-workflow option for setting the final \texttt{W}/\texttt{SW}/\texttt{TW}
+water composition after solvation. For example,
+\texttt{--water-mix SW:0.10,TW:0.10} converts 10\% of waters to
+\texttt{SW}, 10\% to \texttt{TW}, and keeps the remaining waters as \texttt{W}.
+
+\item[\texttt{--water-mix-seed}]
+Seed parameter for deterministic W/SW/TW water selection.
+
 \item[\texttt{--solvate-radius}]
 Exclusion radius used by \texttt{gmx solvate}.
 
@@ -715,7 +759,7 @@ Output directory for generated files
 The standalone surface module uses \texttt{--mode}, \texttt{--bead},
 \texttt{--dx}, \texttt{--lx}, \texttt{--ly}, \texttt{--lz},
 \texttt{--resname}, \texttt{--output}, \texttt{--charge},
-\texttt{--martini-version}, \texttt{--layers}, \texttt{--dist-z},
+\texttt{--martini-version}, \texttt{--layers}, \texttt{--stacking}, \texttt{--dist-z},
 \texttt{--periodic-xy}, graphite controls, and the full set of CNT flags.
 
 \paragraph{Orientation module (\texttt{martinisurf orient} or \texttt{python -m martinisurf.system\_tethered}).}

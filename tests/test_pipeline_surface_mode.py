@@ -82,6 +82,26 @@ def test_surface_geometry_accepts_3d():
     assert args.surface_geometry == "3d"
 
 
+def test_surface_stacking_defaults_to_hcp_and_accepts_fcc():
+    parser = build_parser()
+    default_args = parser.parse_args([
+        "--pdb", "1RJW",
+        "--anchor", "1", "1",
+        "--lx", "10",
+        "--ly", "10",
+    ])
+    assert default_args.surface_stacking == "hcp"
+
+    fcc_args = parser.parse_args([
+        "--pdb", "1RJW",
+        "--anchor", "1", "1",
+        "--lx", "10",
+        "--ly", "10",
+        "--surface-stacking", "fcc",
+    ])
+    assert fcc_args.surface_stacking == "fcc"
+
+
 def test_surface_mode_accepts_graphite_parameters():
     parser = build_parser()
     args = parser.parse_args([
@@ -242,3 +262,20 @@ def test_surface_bead_accepts_multiple_values_and_forwards_them():
     mv_index = builder_args.index("--martini-version")
     assert builder_args[mv_index + 1] == "3"
     assert builder_args[bead_index + 1:bead_index + 3] == ["P4", "C1"]
+
+
+def test_generated_surface_args_forward_local_stacking():
+    parser = build_parser()
+    args = parser.parse_args([
+        "--pdb", "1RJW",
+        "--anchor", "1", "1",
+        "--lx", "10",
+        "--ly", "10",
+        "--surface-mode", "2-1",
+        "--surface-layers", "3",
+        "--surface-stacking", "fcc",
+    ])
+
+    builder_args = _build_generated_surface_args(args, Path("surface"))
+    assert "--stacking" in builder_args
+    assert builder_args[builder_args.index("--stacking") + 1] == "fcc"
