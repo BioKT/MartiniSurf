@@ -21,6 +21,7 @@ Goal:
 - In `--complex-config`, low-Z balancing is enabled by default (`protein.balance_low_z=true`), with default `protein.balance_low_z_fraction=0.2`.
 - If you do NOT pass `--surface`, you must pass `--lx` and `--ly`.
 - `--ionize` always requires `--solvate`.
+- `--water-mix` works only with Martini 3 protein workflows and `--solvate`.
 - `--freeze-water-fraction` works only with `--dna` and `--solvate`.
 - If you already have a CG system (protein + cofactor), use `--complex-config`.
 
@@ -142,12 +143,13 @@ martinisurf \
 
 | Flag | What it does | Typical value |
 |---|---|---|
-| `--pdb` | Input structure (local file, RCSB ID, or UniProt ID) | `1RJW` / `4C64.pdb` |
+| `--pdb` | Input structure (local `.pdb`, `.cif`, `.mmcif`, RCSB ID, or UniProt ID) | `1RJW` / `4C64.pdb` / `model.cif` |
 | `--moltype` | Molecule name for protein topology | `Protein` |
 | `--dna` | Enables DNA workflow | no value |
 | `--surface` | Reuses an existing surface file | `surface.gro` |
 | `--surface-mode` | Builds `2-1`, `4-1`, `graphene`, `graphene-finite`, or `graphite` surfaces | `4-1` |
 | `--lx --ly --dx` | Size and spacing for generated surface | `15 15 0.47` |
+| `--surface-stacking` | Local multilayer stacking for `2-1`/`4-1` surfaces | `hcp` / `fcc` |
 | `--anchor ...` | Not explicit Linker orientation (anchor mode) | `--anchor B 8 10 11` |
 | `--ads-mode` | Anchor-like adsorption mode without anchor pull/restraint topology | no value |
 | `--linker` | Linker GRO file | `ALK.gro` |
@@ -155,6 +157,7 @@ martinisurf \
 | `--merge` | Chain merge during martinization | `A,B` / `A,B,C,D` |
 | `--solvate` | Adds water with GROMACS | no value |
 | `--ionize` | Adds ions (requires solvation) | no value |
+| `--water-mix` | Martini 3 W/SW/TW water composition after solvation | `SW:0.10,TW:0.10` |
 | `--outdir` | Output folder | `Simulation_Files` |
 
 ## 6) Full flag reference (`martinisurf` main pipeline)
@@ -163,7 +166,8 @@ This section includes ALL flags from the main pipeline.
 
 ### Input and molecule
 
-- `--pdb` (default: none): local `.pdb`, 4-character RCSB ID, or 6-character UniProt ID.
+- `--pdb` (default: none): local `.pdb`, `.cif`, or `.mmcif`, 4-character RCSB ID, or 6-character UniProt ID.
+  - Local mmCIF/PDBx files are converted internally to PDB before the usual MartiniSurf cleaning and martinization steps.
   - Required if you do NOT use `--complex-config`.
 - `--complex-config` (default: none): YAML for pre-CG workflow (protein + cofactor), skipping martinization.
 - `--moltype` (default: none): molecule name for protein topology.
@@ -182,9 +186,23 @@ This section includes ALL flags from the main pipeline.
 - `--no-dssp`: disables DSSP.
 - `--elastic` (default: false): enables elastic network.
 - `--ef` (default: `700`): elastic network force constant.
+- `--el`, `--eu`: elastic-network lower and upper distance cutoffs passed to `martinize2`.
+- `--ermd`: minimum residue separation for elastic bonds.
+- `--ea`, `--ep`: elastic-network decay factor and decay power.
+- `--em`: minimum retained elastic-bond force constant.
+- `--eb`: comma-separated bead names used for elastic bonds.
+- `--eunit`: structural unit used to construct the elastic network.
 - `--go-eps` (default: none): Go epsilon.
 - `--go-low` (default: none): Go minimum contact distance (nm).
 - `--go-up` (default: none): Go maximum contact distance (nm).
+- `--go-res-dist`: minimum graph/residue distance for Go contacts.
+- `--go-write-file [PATH]`: write the automatically calculated Go contact map.
+- `--go-backbone`: backbone bead name used for Go virtual-site placement.
+- `--go-atomname`: atom name used for Go virtual interaction sites.
+- `--ss`: manual secondary-structure string passed to `martinize2`.
+- `--collagen`: use `martinize2` collagen parameters.
+- `--ed`: use extended-region dihedrals rather than elastic bonds.
+- `--martinize-extra-args "..."`: advanced protein-mode passthrough to `martinize2`; MartiniSurf-managed input/output/topology flags are blocked.
 
 ### Surface
 
@@ -195,6 +213,7 @@ This section includes ALL flags from the main pipeline.
 - `--ly` (default: none): generated surface Y size (nm).
 - `--dx` (default: `0.47`): bead spacing (2-1) or C-C parameter (4-1).
 - `--surface-layers` (default: none): number of layers for `4-1` mode.
+- `--surface-stacking {hcp,fcc}` (default: `hcp`): local multilayer stacking for `2-1` / `4-1` surfaces. `hcp` uses ABAB stacking; `fcc` uses ABCABC stacking.
 - `--surface-dist-z` (default: none): interlayer spacing in nm for `4-1` mode.
 - `--graphite-layers` (default: none): number of stacked graphene layers for `graphite`.
 - `--graphite-spacing` (default: none): interlayer spacing in nm for `graphite`.
@@ -265,6 +284,8 @@ Notes:
 - `--water-gro` (default: none): custom solvent `.gro` for solvation.
 - `--solvate-radius` (default: `0.21` nm): exclusion radius.
 - `--solvate-surface-clearance` (default: `0.4` nm): removes water near surface plane.
+- `--water-mix` (default: none): Martini 3 protein workflows only; converts final `W` waters into a requested `W`/`SW`/`TW` composition. Example: `--water-mix SW:0.10,TW:0.10` converts 10% to `SW`, 10% to `TW`, and keeps the remaining 80% as `W`.
+- `--water-mix-seed` (default: `42`): seed parameter for deterministic W/SW/TW selection.
 - `--freeze-water-fraction` (default: `0.0`): fraction of `W` converted to `WF`.
   - Requires `--dna` and `--solvate`.
 - `--freeze-water-seed` (default: `42`): seed parameter for freeze-water step.
@@ -289,6 +310,7 @@ These commands are usually called by MartiniSurf internally. Most new users do n
 - `--output`
 - `--charge`
 - `--layers` (4-1)
+- `--stacking {hcp,fcc}` for local multilayer `2-1` / `4-1` surfaces
 - `--dist-z` (4-1)
 - `--graphite-layers`
 - `--graphite-spacing`
@@ -371,6 +393,7 @@ Default output:
 
 ```text
 Simulation_Files/
+  provenance.json
   0_topology/
     system.top
     system_res.top
@@ -382,6 +405,10 @@ Simulation_Files/
     system.gro
     (optional) final_system.gro
 ```
+
+`provenance.json` records the command-line arguments, workflow mode, key input paths,
+selected model parameters, dependency versions/paths when detectable, and the boundary
+between MartiniSurf-managed steps and user/external parametrizations.
 
 If you use `--solvate` and `--ionize`, check especially:
 - `0_topology/system_final.top`

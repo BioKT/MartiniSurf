@@ -266,6 +266,7 @@ uses anchor-based orientation but skips anchor pull/restraint topology and uses
 <li><p>In <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>, low-Z balancing is enabled by default (<code class="docutils literal notranslate"><span class="pre">protein.balance_low_z=true</span></code>), with default <code class="docutils literal notranslate"><span class="pre">protein.balance_low_z_fraction=0.2</span></code>.</p></li>
 <li><p>If you do NOT pass <code class="docutils literal notranslate"><span class="pre">--surface</span></code>, you must pass <code class="docutils literal notranslate"><span class="pre">--lx</span></code> and <code class="docutils literal notranslate"><span class="pre">--ly</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--ionize</span></code> always requires <code class="docutils literal notranslate"><span class="pre">--solvate</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--water-mix</span></code> works only with Martini 3 protein workflows and <code class="docutils literal notranslate"><span class="pre">--solvate</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--freeze-water-fraction</span></code> works only with <code class="docutils literal notranslate"><span class="pre">--dna</span></code> and <code class="docutils literal notranslate"><span class="pre">--solvate</span></code>.</p></li>
 <li><p>If you already have a CG system (protein + cofactor), use <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>.</p></li>
 </ul>
@@ -398,8 +399,8 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--pdb</span></code></p></td>
-<td><p>Input structure (local file, RCSB ID, or UniProt ID)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">1RJW</span></code> / <code class="docutils literal notranslate"><span class="pre">4C64.pdb</span></code></p></td>
+<td><p>Input structure (local <code class="docutils literal notranslate"><span class="pre">.pdb</span></code>, <code class="docutils literal notranslate"><span class="pre">.cif</span></code>, <code class="docutils literal notranslate"><span class="pre">.mmcif</span></code>, RCSB ID, or UniProt ID)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">1RJW</span></code> / <code class="docutils literal notranslate"><span class="pre">4C64.pdb</span></code> / <code class="docutils literal notranslate"><span class="pre">model.cif</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--moltype</span></code></p></td>
 <td><p>Molecule name for protein topology</p></td>
@@ -421,33 +422,41 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <td><p>Size and spacing for generated surface</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">15</span> <span class="pre">15</span> <span class="pre">0.47</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">...</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--surface-stacking</span></code></p></td>
+<td><p>Local multilayer stacking for <code class="docutils literal notranslate"><span class="pre">2-1</span></code>/<code class="docutils literal notranslate"><span class="pre">4-1</span></code> surfaces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">hcp</span></code> / <code class="docutils literal notranslate"><span class="pre">fcc</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">...</span></code></p></td>
 <td><p>Not explicit Linker orientation (anchor mode)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">--anchor</span> <span class="pre">B</span> <span class="pre">8</span> <span class="pre">10</span> <span class="pre">11</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--ads-mode</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--ads-mode</span></code></p></td>
 <td><p>Anchor-like adsorption mode without anchor pull/restraint topology</p></td>
 <td><p>no value</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--linker</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--linker</span></code></p></td>
 <td><p>Linker GRO file</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">ALK.gro</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">...</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">...</span></code></p></td>
 <td><p>Residue groups for linker attachment</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">--linker-group</span> <span class="pre">A</span> <span class="pre">1</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--merge</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--merge</span></code></p></td>
 <td><p>Chain merge during martinization</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">A,B</span></code> / <code class="docutils literal notranslate"><span class="pre">A,B,C,D</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--solvate</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--solvate</span></code></p></td>
 <td><p>Adds water with GROMACS</p></td>
 <td><p>no value</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--ionize</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--ionize</span></code></p></td>
 <td><p>Adds ions (requires solvation)</p></td>
 <td><p>no value</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--water-mix</span></code></p></td>
+<td><p>Martini 3 W/SW/TW water composition after solvation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SW:0.10,TW:0.10</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--outdir</span></code></p></td>
 <td><p>Output folder</p></td>
@@ -463,8 +472,9 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <section id="input-and-molecule">
 <h3>Input and molecule<a class="headerlink" href="#input-and-molecule" title="Link to this heading">¶</a></h3>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">--pdb</span></code> (default: none): local <code class="docutils literal notranslate"><span class="pre">.pdb</span></code>, 4-character RCSB ID, or 6-character UniProt ID.</p>
+<li><p><code class="docutils literal notranslate"><span class="pre">--pdb</span></code> (default: none): local <code class="docutils literal notranslate"><span class="pre">.pdb</span></code>, <code class="docutils literal notranslate"><span class="pre">.cif</span></code>, or <code class="docutils literal notranslate"><span class="pre">.mmcif</span></code>, 4-character RCSB ID, or 6-character UniProt ID.</p>
 <ul>
+<li><p>Local mmCIF/PDBx files are converted internally to PDB before the usual MartiniSurf cleaning and martinization steps.</p></li>
 <li><p>Required if you do NOT use <code class="docutils literal notranslate"><span class="pre">--complex-config</span></code>.</p></li>
 </ul>
 </li>
@@ -487,9 +497,23 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p><code class="docutils literal notranslate"><span class="pre">--no-dssp</span></code>: disables DSSP.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--elastic</span></code> (default: false): enables elastic network.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--ef</span></code> (default: <code class="docutils literal notranslate"><span class="pre">700</span></code>): elastic network force constant.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--el</span></code>, <code class="docutils literal notranslate"><span class="pre">--eu</span></code>: elastic-network lower and upper distance cutoffs passed to <code class="docutils literal notranslate"><span class="pre">martinize2</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ermd</span></code>: minimum residue separation for elastic bonds.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ea</span></code>, <code class="docutils literal notranslate"><span class="pre">--ep</span></code>: elastic-network decay factor and decay power.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--em</span></code>: minimum retained elastic-bond force constant.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--eb</span></code>: comma-separated bead names used for elastic bonds.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--eunit</span></code>: structural unit used to construct the elastic network.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--go-eps</span></code> (default: none): Go epsilon.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--go-low</span></code> (default: none): Go minimum contact distance (nm).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--go-up</span></code> (default: none): Go maximum contact distance (nm).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--go-res-dist</span></code>: minimum graph/residue distance for Go contacts.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--go-write-file</span> <span class="pre">[PATH]</span></code>: write the automatically calculated Go contact map.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--go-backbone</span></code>: backbone bead name used for Go virtual-site placement.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--go-atomname</span></code>: atom name used for Go virtual interaction sites.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ss</span></code>: manual secondary-structure string passed to <code class="docutils literal notranslate"><span class="pre">martinize2</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--collagen</span></code>: use <code class="docutils literal notranslate"><span class="pre">martinize2</span></code> collagen parameters.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ed</span></code>: use extended-region dihedrals rather than elastic bonds.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--martinize-extra-args</span> <span class="pre">&quot;...&quot;</span></code>: advanced protein-mode passthrough to <code class="docutils literal notranslate"><span class="pre">martinize2</span></code>; MartiniSurf-managed input/output/topology flags are blocked.</p></li>
 </ul>
 </section>
 <section id="surface">
@@ -502,6 +526,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p><code class="docutils literal notranslate"><span class="pre">--ly</span></code> (default: none): generated surface Y size (nm).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--dx</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.47</span></code>): bead spacing (2-1) or C-C parameter (4-1).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--surface-layers</span></code> (default: none): number of layers for <code class="docutils literal notranslate"><span class="pre">4-1</span></code> mode.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--surface-stacking</span> <span class="pre">{hcp,fcc}</span></code> (default: <code class="docutils literal notranslate"><span class="pre">hcp</span></code>): local multilayer stacking for <code class="docutils literal notranslate"><span class="pre">2-1</span></code> / <code class="docutils literal notranslate"><span class="pre">4-1</span></code> surfaces. <code class="docutils literal notranslate"><span class="pre">hcp</span></code> uses ABAB stacking; <code class="docutils literal notranslate"><span class="pre">fcc</span></code> uses ABCABC stacking.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--surface-dist-z</span></code> (default: none): interlayer spacing in nm for <code class="docutils literal notranslate"><span class="pre">4-1</span></code> mode.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--graphite-layers</span></code> (default: none): number of stacked graphene layers for <code class="docutils literal notranslate"><span class="pre">graphite</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--graphite-spacing</span></code> (default: none): interlayer spacing in nm for <code class="docutils literal notranslate"><span class="pre">graphite</span></code>.</p></li>
@@ -604,6 +629,8 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p><code class="docutils literal notranslate"><span class="pre">--water-gro</span></code> (default: none): custom solvent <code class="docutils literal notranslate"><span class="pre">.gro</span></code> for solvation.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--solvate-radius</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.21</span></code> nm): exclusion radius.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--solvate-surface-clearance</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.4</span></code> nm): removes water near surface plane.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--water-mix</span></code> (default: none): Martini 3 protein workflows only; converts final <code class="docutils literal notranslate"><span class="pre">W</span></code> waters into a requested <code class="docutils literal notranslate"><span class="pre">W</span></code>/<code class="docutils literal notranslate"><span class="pre">SW</span></code>/<code class="docutils literal notranslate"><span class="pre">TW</span></code> composition. Example: <code class="docutils literal notranslate"><span class="pre">--water-mix</span> <span class="pre">SW:0.10,TW:0.10</span></code> converts 10% to <code class="docutils literal notranslate"><span class="pre">SW</span></code>, 10% to <code class="docutils literal notranslate"><span class="pre">TW</span></code>, and keeps the remaining 80% as <code class="docutils literal notranslate"><span class="pre">W</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--water-mix-seed</span></code> (default: <code class="docutils literal notranslate"><span class="pre">42</span></code>): seed parameter for deterministic W/SW/TW selection.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--freeze-water-fraction</span></code> (default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>): fraction of <code class="docutils literal notranslate"><span class="pre">W</span></code> converted to <code class="docutils literal notranslate"><span class="pre">WF</span></code>.</p>
 <ul>
 <li><p>Requires <code class="docutils literal notranslate"><span class="pre">--dna</span></code> and <code class="docutils literal notranslate"><span class="pre">--solvate</span></code>.</p></li>
@@ -635,6 +662,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <li><p><code class="docutils literal notranslate"><span class="pre">--output</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--charge</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--layers</span></code> (4-1)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--stacking</span> <span class="pre">{hcp,fcc}</span></code> for local multilayer <code class="docutils literal notranslate"><span class="pre">2-1</span></code> / <code class="docutils literal notranslate"><span class="pre">4-1</span></code> surfaces</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--dist-z</span></code> (4-1)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--graphite-layers</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--graphite-spacing</span></code></p></li>
@@ -724,6 +752,7 @@ bash<span class="w"> </span>work_flow_gromacs.sh
 <h2>8) Output structure to check<a class="headerlink" href="#output-structure-to-check" title="Link to this heading">¶</a></h2>
 <p>Default output:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Simulation_Files/
+  provenance.json
   0_topology/
     system.top
     system_res.top
@@ -736,6 +765,9 @@ bash<span class="w"> </span>work_flow_gromacs.sh
     (optional) final_system.gro
 </pre></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">provenance.json</span></code> records the command-line arguments, workflow mode, key input paths,
+selected model parameters, dependency versions/paths when detectable, and the boundary
+between MartiniSurf-managed steps and user/external parametrizations.</p>
 <p>If you use <code class="docutils literal notranslate"><span class="pre">--solvate</span></code> and <code class="docutils literal notranslate"><span class="pre">--ionize</span></code>, check especially:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">0_topology/system_final.top</span></code></p></li>
