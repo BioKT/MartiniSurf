@@ -634,7 +634,12 @@ def main(argv: Iterable[str] | None = None) -> None:
         default=["P4"],
         help="Martini bead type(s). Provide multiple values to cycle bead types by layer, e.g. --bead P4 C1.",
     )
-    parser.add_argument("--dx", type=float, default=0.47, help="Bead spacing (2-1) or C-C distance (4-1)")
+    parser.add_argument(
+        "--dx",
+        type=float,
+        default=0.53,
+        help="In-plane nearest-neighbor lattice spacing in nm for local 2-1 / 4-1 surfaces.",
+    )
     parser.add_argument("--lx", type=float, required=True, help="Surface length in X (nm)")
     parser.add_argument("--ly", type=float, required=True, help="Surface length in Y (nm)")
     parser.add_argument("--lz", type=float, default=10.0, help="Box height in Z (nm)")
@@ -732,8 +737,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     # MODE 2-1: STANDARD HEXAGONAL MAPPING
     # =========================================================
     if mode == "2-1":
-        scale = args.dx / 0.142
-        a = 0.246 * scale
+        a = args.dx
         local_bond_length = a
         atoms_unit = [
             (0.0, 0.0, 0.0), (a, 0.0, 0.0), (2 * a, 0.0, 0.0),
@@ -767,7 +771,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     # MODE 4-1: HONEYCOMB CARBON MAPPING
     # =========================================================
     elif mode == "4-1":
-        d_cc = args.dx # In 4-1 mode, dx is treated as C-C distance
+        d_cc = args.dx
         local_bond_length = d_cc
         lx_cell, ly_cell = math.sqrt(3) * d_cc, 3 * d_cc
         nx, ny = max(1, round(args.lx / lx_cell)), max(1, round(args.ly / ly_cell))

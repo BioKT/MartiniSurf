@@ -90,7 +90,7 @@ def main():
     # ================================================================
     p_surface = subparsers.add_parser("surface")
     p_surface.add_argument("--bead", default="P4")
-    p_surface.add_argument("--dx", type=float, default=0.47)
+    p_surface.add_argument("--dx", type=float, default=0.53)
     p_surface.add_argument("--lx", type=float, required=True)
     p_surface.add_argument("--ly", type=float, required=True)
     p_surface.add_argument("--lz", type=float, default=5.0)

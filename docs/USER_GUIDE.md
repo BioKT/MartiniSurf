@@ -87,7 +87,7 @@ martinisurf \
   --moltype Protein \
   --surface-mode 4-1 \
   --surface-bead P4 \
-  --dx 0.47 \
+  --dx 0.53 \
   --lx 15 --ly 15 \
   --anchor A 8 10 11 \
   --anchor D 8 10 11 \
@@ -127,7 +127,7 @@ martinisurf \
   --complex-config input/complex_config.yaml \
   --surface-mode 4-1 \
   --surface-bead P4 \
-  --dx 0.47 \
+  --dx 0.53 \
   --lx 15 \
   --ly 15 \
   --dist 1.0 \
@@ -148,7 +148,7 @@ martinisurf \
 | `--dna` | Enables DNA workflow | no value |
 | `--surface` | Reuses an existing surface file | `surface.gro` |
 | `--surface-mode` | Builds `2-1`, `4-1`, `graphene`, `graphene-finite`, or `graphite` surfaces | `4-1` |
-| `--lx --ly --dx` | Size and spacing for generated surface | `15 15 0.47` |
+| `--lx --ly --dx` | Size and spacing for generated surface | `15 15 0.53` |
 | `--surface-stacking` | Local multilayer stacking for `2-1`/`4-1` surfaces | `hcp` / `fcc` |
 | `--anchor ...` | Not explicit Linker orientation (anchor mode) | `--anchor B 8 10 11` |
 | `--ads-mode` | Anchor-like adsorption mode without anchor pull/restraint topology | no value |
@@ -211,7 +211,7 @@ This section includes ALL flags from the main pipeline.
 - `--surface-geometry {planar,3d}` (default: `planar`): orientation handling for the surface. Use `3d` for nanotubes and other non-planar surfaces.
 - `--lx` (default: none): generated surface X size (nm).
 - `--ly` (default: none): generated surface Y size (nm).
-- `--dx` (default: `0.47`): bead spacing (2-1) or C-C parameter (4-1).
+- `--dx` (default: `0.53`): in-plane nearest-neighbor lattice spacing in nm for local `2-1` / `4-1` surfaces. The generated lattice uses this value directly.
 - `--surface-layers` (default: none): number of layers for `4-1` mode.
 - `--surface-stacking {hcp,fcc}` (default: `hcp`): local multilayer stacking for `2-1` / `4-1` surfaces. `hcp` uses ABAB stacking; `fcc` uses ABCABC stacking.
 - `--surface-dist-z` (default: none): interlayer spacing in nm for `4-1` mode.

@@ -34,6 +34,30 @@ def _angle_center_counts(angle_lines: list[str]) -> dict[int, int]:
     return counts
 
 
+def _gro_coordinates(path):
+    lines = path.read_text().splitlines()
+    atom_count = int(lines[1].strip())
+    return [
+        (
+            float(line[20:28]),
+            float(line[28:36]),
+            float(line[36:44]),
+        )
+        for line in lines[2 : 2 + atom_count]
+    ]
+
+
+def _nearest_xy_spacing(coords):
+    first_z = min(z for _, _, z in coords)
+    layer = [(x, y) for x, y, z in coords if abs(z - first_z) < 1e-6]
+    return min(
+        math.hypot(x1 - x2, y1 - y2)
+        for idx, (x1, y1) in enumerate(layer)
+        for x2, y2 in layer[idx + 1 :]
+        if math.hypot(x1 - x2, y1 - y2) > 1e-6
+    )
+
+
 # ============================================================
 # BASIC BUILD TEST
 # ============================================================
@@ -68,6 +92,24 @@ def test_surface_builder_basic(tmp_path):
     # Box vector line
     box_line = lines[-1].split()
     assert len(box_line) == 3
+
+
+def test_local_lattice_dx_is_final_nearest_neighbor_spacing_for_2_1_and_4_1(tmp_path):
+    dx = 0.53
+
+    for mode in ("2-1", "4-1"):
+        out = tmp_path / f"surf_{mode.replace('-', '_')}"
+
+        main([
+            "--mode", mode,
+            "--lx", "4",
+            "--ly", "4",
+            "--dx", str(dx),
+            "--output", str(out),
+        ])
+
+        spacing = _nearest_xy_spacing(_gro_coordinates(out.with_suffix(".gro")))
+        assert math.isclose(spacing, dx, abs_tol=1e-6)
 
 
 # ============================================================
@@ -120,9 +162,8 @@ def test_lattice_atom_count(tmp_path):
     text = gro_file.read_text()
     n_atoms = int(text.splitlines()[1])
 
-    # Recompute lattice parameters exactly like surface_builder
-    scale = dx / 0.142
-    a = 0.246 * scale
+    # Recompute lattice parameters exactly like surface_builder.
+    a = dx
     Lx_cell = 3.0 * a
     Ly_cell = math.sqrt(3) * a
 
@@ -157,8 +198,7 @@ def test_2_1_layers_scale_atom_count_and_z_levels(tmp_path):
     lines = gro_file.read_text().splitlines()
     n_atoms = int(lines[1])
 
-    scale = dx / 0.142
-    a = 0.246 * scale
+    a = dx
     lx_cell = 3.0 * a
     ly_cell = math.sqrt(3) * a
     nx = max(1, round(lx / lx_cell))
@@ -390,11 +430,8 @@ def test_2_1_layers_follow_graphite_like_abab_stacking(tmp_path):
     first_three = [lines[0], lines[6], lines[12]]
     coords = [(float(line[20:28]), float(line[28:36]), float(line[36:44])) for line in first_three]
 
-    scale = dx / 0.142
-    a = 0.246 * scale
-
     assert coords[0] == (0.0, 0.0, 3.0)
-    assert coords[1] == (round(0.5 * a, 3), round((math.sqrt(3) / 6) * a, 3), 3.4)
+    assert coords[1] == (round(0.5 * dx, 3), round((math.sqrt(3) / 6) * dx, 3), 3.4)
     assert coords[2] == (0.0, 0.0, 3.8)
 
 
@@ -418,12 +455,9 @@ def test_2_1_layers_can_use_fcc_abc_stacking(tmp_path):
     first_four = [lines[0], lines[6], lines[12], lines[18]]
     coords = [(float(line[20:28]), float(line[28:36]), float(line[36:44])) for line in first_four]
 
-    scale = dx / 0.142
-    a = 0.246 * scale
-
     assert coords[0] == (0.0, 0.0, 3.0)
-    assert coords[1] == (round(0.5 * a, 3), round((math.sqrt(3) / 6) * a, 3), 3.4)
-    assert coords[2] == (round(a, 3), round((math.sqrt(3) / 3) * a, 3), 3.8)
+    assert coords[1] == (round(0.5 * dx, 3), round((math.sqrt(3) / 6) * dx, 3), 3.4)
+    assert coords[2] == (round(dx, 3), round((math.sqrt(3) / 3) * dx, 3), 3.8)
     assert coords[3] == (0.0, 0.0, 4.2)
 
 

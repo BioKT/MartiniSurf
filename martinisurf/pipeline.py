@@ -1359,7 +1359,12 @@ def build_parser():
     )
     surface_group.add_argument("--lx", type=float, help="Surface size in X (nm) for generated surface.")
     surface_group.add_argument("--ly", type=float, help="Surface size in Y (nm) for generated surface.")
-    surface_group.add_argument("--dx", type=float, default=0.47, help="Surface bead spacing (nm).")
+    surface_group.add_argument(
+        "--dx",
+        type=float,
+        default=0.53,
+        help="In-plane nearest-neighbor lattice spacing in nm for local generated surfaces.",
+    )
     surface_group.add_argument(
         "--surface-layers",
         type=int,

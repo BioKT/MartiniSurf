@@ -361,7 +361,7 @@ martinisurf \
   --moltype Protein \
   --surface-mode 4-1 \
   --surface-bead P4 \
-  --dx 0.47 \
+  --dx 0.53 \
   --lx 15 --ly 15 \
   --anchor A 8 10 11 \
   --anchor D 8 10 11 \
@@ -407,7 +407,7 @@ martinisurf \
   --complex-config input/complex_config.yaml \
   --surface-mode 4-1 \
   --surface-bead P4 \
-  --dx 0.47 \
+  --dx 0.53 \
   --lx 15 --ly 15 \
   --dist 0.8 \
   --substrate input/ETO.gro \
@@ -427,7 +427,7 @@ martinisurf \
   --moltype Protein \
   --surface-mode 4-1 \
   --surface-bead P4 \
-  --dx 0.47 \
+  --dx 0.53 \
   --lx 15 --ly 15 \
   --anchor A 8 10 11 \
   --anchor D 8 10 11 \
@@ -584,8 +584,8 @@ Surface interpretation during orientation:
 Surface lateral dimensions (nm).
 
 \item[\texttt{--dx}]
-Surface spacing parameter. In local 4-1 surfaces it corresponds to
-the C--C distance.
+In-plane nearest-neighbor lattice spacing for local 2-1 and 4-1
+surfaces. The generated lattice uses this value directly.
 
 \item[\texttt{--surface-layers}]
 Number of layers for local 2-1 / 4-1 surfaces.
