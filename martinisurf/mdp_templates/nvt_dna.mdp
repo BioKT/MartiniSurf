@@ -28,7 +28,7 @@ tc-grps                  = System
 tau-t                    = 1.0
 ref-t                    = 300
 
-refcoord_scaling         = all
+refcoord_scaling         = no
 
 pull                     = yes
 pull-ngroups             = 2                   ; Total number of pull groups

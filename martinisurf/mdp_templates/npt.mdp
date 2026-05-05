@@ -40,4 +40,4 @@ freezegrps = SRF
 freezedim = Y Y Y
 cos-acceleration         = 0
 
-refcoord_scaling         = all
+refcoord_scaling         = no

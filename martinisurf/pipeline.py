@@ -1196,6 +1196,8 @@ def _build_generated_surface_args(args: argparse.Namespace, output_path: Path) -
         builder_args += ["--stacking", str(args.surface_stacking)]
     if args.surface_dist_z is not None:
         builder_args += ["--dist-z", str(args.surface_dist_z)]
+    if args.surface_periodic_xy and mode in {"2-1", "4-1"}:
+        builder_args += ["--periodic-xy"]
     if args.graphite_layers is not None:
         builder_args += ["--graphite-layers", str(args.graphite_layers)]
     if args.graphite_spacing is not None:
@@ -1379,7 +1381,13 @@ def build_parser():
     surface_group.add_argument(
         "--surface-dist-z",
         type=float,
-        help="Optional manual interlayer spacing in nm for local 2-1 / 4-1 surfaces. If omitted, spacing is derived from the layer bead sigma.",
+        help="Optional manual interlayer spacing in nm for local 2-1 / 4-1 surfaces. If omitted, HCP/FCC close-packed spacing sqrt(2/3) x --dx is used.",
+    )
+    surface_group.add_argument(
+        "--surface-periodic-xy",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Connect local 2-1 / 4-1 surface lattice bonds across periodic X/Y boundaries (default: enabled).",
     )
     surface_group.add_argument(
         "--graphite-layers",
@@ -1478,8 +1486,9 @@ def build_parser():
         type=float,
         default=None,
         help=(
-            "Remove water in a symmetric slab around the surface plane: "
-            "|z - z_surface| <= clearance. Default: 0.4 for protein and DNA workflows."
+            "Remove water in a slab around the full surface thickness: "
+            "z_min(surface)-clearance <= z_water <= z_max(surface)+clearance. "
+            "Default: 0.4 for protein and DNA workflows."
         ),
     )
     post_group.add_argument(
@@ -2201,8 +2210,10 @@ def _remove_waters_below_surface(
     surf_coords = [float(r["z"]) for r in records if str(r["resname"]).strip() == surface_resname]
     if not surf_coords:
         return
-    # Use the surface plane center and remove water in a symmetric slab around it.
-    z_surface = sum(surf_coords) / len(surf_coords)
+    # Remove water throughout the full surface slab. For multilayer surfaces,
+    # using only the mean surface plane can leave waters trapped between layers.
+    z_surface_min = min(surf_coords)
+    z_surface_max = max(surf_coords)
     clearance = float(clearance_nm)
 
     # Build molecule-level groups to evaluate water COM against the slab,
@@ -2218,7 +2229,7 @@ def _remove_waters_below_surface(
         if resname not in water_resnames:
             continue
         z_center = sum(float(a["z"]) for a in atoms) / len(atoms)
-        if abs(z_center - z_surface) <= clearance:
+        if (z_surface_min - clearance) <= z_center <= (z_surface_max + clearance):
             removed_keys.add(key)
 
     removed_water_res = len(removed_keys)
@@ -3096,6 +3107,7 @@ def _write_provenance_json(
             "charge": args.charge,
             "layers": args.surface_layers,
             "stacking": args.surface_stacking,
+            "periodic_xy": args.surface_periodic_xy,
             "surface_linkers": args.surface_linkers,
         },
         "orientation": {

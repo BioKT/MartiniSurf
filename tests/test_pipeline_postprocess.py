@@ -694,6 +694,44 @@ def test_remove_waters_near_surface_updates_top(tmp_path):
     assert "W               1" in t
 
 
+def test_remove_waters_near_surface_clears_multilayer_slab(tmp_path):
+    gro = tmp_path / "solvated_system.gro"
+    top = tmp_path / "system_final.top"
+    gro.write_text(
+        "Test\n"
+        "    8\n"
+        "    1PRO    B1    1   0.100   0.100   1.500\n"
+        "    2SRF    C1    2   0.500   0.500   0.300\n"
+        "    2SRF    C1    3   0.500   0.500   1.000\n"
+        "    3W       W    4   0.200   0.200   0.650\n"
+        "    3W       W    5   0.200   0.200   0.650\n"
+        "    4W       W    6   0.800   0.800   1.500\n"
+        "    4W       W    7   0.800   0.800   1.500\n"
+        "    5W       W    8   0.800   0.800   0.050\n"
+        "   2.00000   2.00000   2.00000\n"
+    )
+    top.write_text(
+        "[ molecules ]\n"
+        "Protein 1\n"
+        "SRF 1\n"
+        "W 3\n"
+    )
+
+    pipeline._remove_waters_below_surface(
+        gro_path=gro,
+        top_path=top,
+        surface_resname="SRF",
+        clearance_nm=0.05,
+        water_resnames={"W"},
+        water_molname="W",
+    )
+
+    _, records, _ = pipeline._read_gro_records(str(gro))
+    water_z = [round(float(rec["z"]), 3) for rec in records if rec["resname"] == "W"]
+    assert water_z == [1.5, 1.5, 0.05]
+    assert "W               2" in top.read_text()
+
+
 def test_convert_standard_waters_to_polarizable_updates_gro_and_top(tmp_path):
     gro = tmp_path / "solvated_system.gro"
     top = tmp_path / "system_final.top"

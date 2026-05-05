@@ -212,9 +212,10 @@ This section includes ALL flags from the main pipeline.
 - `--lx` (default: none): generated surface X size (nm).
 - `--ly` (default: none): generated surface Y size (nm).
 - `--dx` (default: `0.53`): in-plane nearest-neighbor lattice spacing in nm for local `2-1` / `4-1` surfaces. The generated lattice uses this value directly.
-- `--surface-layers` (default: none): number of layers for `4-1` mode.
+- `--surface-layers` (default: none): number of layers for local `2-1` / `4-1` modes.
 - `--surface-stacking {hcp,fcc}` (default: `hcp`): local multilayer stacking for `2-1` / `4-1` surfaces. `hcp` uses ABAB stacking; `fcc` uses ABCABC stacking.
-- `--surface-dist-z` (default: none): interlayer spacing in nm for `4-1` mode.
+- `--surface-dist-z` (default: none): manual interlayer spacing in nm for local `2-1` / `4-1` surfaces. If omitted, MartiniSurf uses the close-packed HCP/FCC spacing `sqrt(2/3) * --dx`.
+- `--surface-periodic-xy` / `--no-surface-periodic-xy` (default: enabled): connect local `2-1` / `4-1` surface lattice bonds across periodic X/Y boundaries.
 - `--graphite-layers` (default: none): number of stacked graphene layers for `graphite`.
 - `--graphite-spacing` (default: none): interlayer spacing in nm for `graphite`.
 - `--surface-bead` (default: `C1`): bead type for generated surface.
@@ -309,9 +310,10 @@ These commands are usually called by MartiniSurf internally. Most new users do n
 - `--resname`
 - `--output`
 - `--charge`
-- `--layers` (4-1)
+- `--layers` for local multilayer `2-1` / `4-1` surfaces
 - `--stacking {hcp,fcc}` for local multilayer `2-1` / `4-1` surfaces
-- `--dist-z` (4-1)
+- `--dist-z` manual interlayer spacing for local multilayer `2-1` / `4-1` surfaces
+- `--periodic-xy` to connect local lattice bonds across periodic X/Y boundaries
 - `--graphite-layers`
 - `--graphite-spacing`
 - `--cnt-numrings`

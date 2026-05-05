@@ -213,7 +213,7 @@ def test_generated_surface_args_forward_cnt_flags():
     assert "--cnt-base36" in builder_args
 
 
-def test_dna_local_surface_args_do_not_enable_periodic_xy_by_default():
+def test_dna_local_surface_args_enable_periodic_xy_by_default():
     parser = build_parser()
     args = parser.parse_args([
         "--dna",
@@ -226,10 +226,10 @@ def test_dna_local_surface_args_do_not_enable_periodic_xy_by_default():
 
     builder_args = _build_generated_surface_args(args, Path("surface"))
 
-    assert "--periodic-xy" not in builder_args
+    assert "--periodic-xy" in builder_args
 
 
-def test_protein_local_surface_args_do_not_enable_periodic_xy_by_default():
+def test_protein_local_surface_args_enable_periodic_xy_by_default():
     parser = build_parser()
     args = parser.parse_args([
         "--pdb", "1RJW",
@@ -237,6 +237,22 @@ def test_protein_local_surface_args_do_not_enable_periodic_xy_by_default():
         "--lx", "10",
         "--ly", "10",
         "--surface-mode", "2-1",
+    ])
+
+    builder_args = _build_generated_surface_args(args, Path("surface"))
+
+    assert "--periodic-xy" in builder_args
+
+
+def test_local_surface_periodic_xy_can_be_disabled():
+    parser = build_parser()
+    args = parser.parse_args([
+        "--pdb", "1RJW",
+        "--anchor", "1", "1",
+        "--lx", "10",
+        "--ly", "10",
+        "--surface-mode", "2-1",
+        "--no-surface-periodic-xy",
     ])
 
     builder_args = _build_generated_surface_args(args, Path("surface"))

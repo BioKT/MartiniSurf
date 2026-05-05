@@ -817,6 +817,8 @@ def test_protein_deposition_and_production_templates_only_differ_in_nsteps():
 
     assert "compressibility          = 0 4e-5" in deposition
     assert "compressibility          = 0 4e-5" in production
+    assert "refcoord_scaling         = no" in deposition
+    assert "refcoord_scaling         = no" in production
     assert "define                   = -DPOSRES" not in deposition
     assert "define                   = -DPOSRES" in production
 
@@ -847,6 +849,8 @@ def test_dna_deposition_and_production_templates_keep_expected_protocol_values()
     assert "tau-p                    = 12.0" in deposition
     assert "compressibility          = 0 3e-4" in deposition
     assert "ref-p                    = 1 1" in deposition
+    assert "refcoord_scaling         = no" in deposition
+    assert "refcoord_scaling         = no" in production
     assert "tau-p" not in production
     assert "compressibility" not in production
     assert "define                   = -DPOSRES" in deposition
@@ -901,6 +905,7 @@ def test_dna_minimization_freezes_surface_and_npt_keeps_surface_posres(tmp_path)
     assert "freezedim                = Y Y Y" in minimization
     assert "freezegrps = SRF" in npt
     assert "freezedim = Y Y Y" in npt
+    assert "refcoord_scaling         = no" in npt
 
 
 def test_dna_surface_itp_gets_xyz_posres(tmp_path, monkeypatch):

@@ -164,6 +164,12 @@ Multilayer local surfaces are controlled in the main pipeline with
 \texttt{--surface-layers}, \texttt{--surface-stacking}, and
 \texttt{--surface-dist-z}. Graphite slabs use \texttt{--graphite-layers}
 and \texttt{--graphite-spacing}.
+If \texttt{--surface-dist-z} is not provided, local HCP/FCC multilayer
+surfaces use the close-packed spacing \(\sqrt{2/3}\,a\), where
+\(a\) is the in-plane nearest-neighbor spacing set by \texttt{--dx}.
+For local lattice surfaces, MartiniSurf also connects lattice bonds across
+periodic X/Y boundaries by default; this can be disabled with
+\texttt{--no-surface-periodic-xy}.
 Generated surfaces can also cycle bead types by layer using multiple
 \texttt{--surface-bead} values.
 
@@ -595,7 +601,14 @@ Layer stacking for local 2-1 / 4-1 surfaces:
 \texttt{hcp} for ABAB stacking (default) or \texttt{fcc} for ABCABC stacking.
 
 \item[\texttt{--surface-dist-z}]
-Manual interlayer spacing for local multilayer surfaces.
+Manual interlayer spacing for local multilayer surfaces. If omitted,
+the default is the close-packed HCP/FCC spacing
+\(\sqrt{2/3}\times\texttt{--dx}\).
+
+\item[\texttt{--surface-periodic-xy}]
+Connect local 2-1 / 4-1 surface lattice bonds across periodic X/Y
+boundaries. Enabled by default; use \texttt{--no-surface-periodic-xy}
+to disable it.
 
 \item[\texttt{--graphite-layers}, \texttt{--graphite-spacing}]
 Graphite slab controls.

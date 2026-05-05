@@ -44,6 +44,7 @@ VALID_SURFACE_MODES = (
     "cnt-martini3",
 )
 
+CLOSE_PACKED_LAYER_SPACING_FACTOR = math.sqrt(2.0 / 3.0)
 SIGMA_SPACING_FACTOR = 1.12
 DEFAULT_LAYER_Z0 = 3.0
 LOCAL_BOND_FORCE = 5000.0
@@ -183,6 +184,7 @@ def local_layer_z_positions(
     layers: int,
     dist_z: float | None,
     martini_version: str,
+    lattice_spacing: float | None = None,
 ) -> list[float]:
     if layers <= 0:
         return []
@@ -194,6 +196,12 @@ def local_layer_z_positions(
     if dist_z is not None:
         for _ in range(1, layers):
             z_positions.append(z_positions[-1] + dist_z)
+        return z_positions
+
+    if lattice_spacing is not None:
+        close_packed_dist = lattice_spacing * CLOSE_PACKED_LAYER_SPACING_FACTOR
+        for _ in range(1, layers):
+            z_positions.append(z_positions[-1] + close_packed_dist)
         return z_positions
 
     for layer in range(1, layers):
@@ -650,7 +658,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         "--martini-version",
         choices=["2", "3"],
         default="3",
-        help="Martini version used to derive local multilayer sigma spacing. Use 2 for DNA and 3 for protein workflows.",
+        help="Martini version used for Martini-specific surface presets. Use 2 for DNA and 3 for protein workflows.",
     )
 
     # Local hexagonal surface parameters
@@ -665,7 +673,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         "--dist-z",
         type=float,
         default=None,
-        help="Optional manual interlayer spacing in nm for local multilayer surfaces. If omitted, spacing is computed as 1.12 x sigma from the layer bead type(s) using the selected Martini version.",
+        help="Optional manual interlayer spacing in nm for local multilayer surfaces. If omitted, HCP/FCC close-packed spacing sqrt(2/3) x dx is used.",
     )
     parser.add_argument(
         "--periodic-xy",
@@ -727,6 +735,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         args.layers,
         args.dist_z,
         args.martini_version,
+        args.dx,
     )
     atoms: List[Tuple[float, float, float, str]] = []
     layer_atom_ids: list[list[int]] = []
@@ -845,6 +854,12 @@ def main(argv: Iterable[str] | None = None) -> None:
     # ---------------------------------------------------------
     # File Writing
     # ---------------------------------------------------------
+    if mode in LOCAL_SURFACE_MODES:
+        atoms = [
+            (x % final_lx, y % final_ly, z, bead)
+            for x, y, z, bead in atoms
+        ]
+
     gro_path = Path(outdir_path, f"{basename}.gro")
     with gro_path.open("w") as fgro:
         fgro.write(f"Surface {mode} | {args.lx}x{args.ly} nm | Layers: {args.layers} | Stacking: {args.stacking}\n")

@@ -1,6 +1,5 @@
-import os
 import math
-from martinisurf.surface_builder import SIGMA_SPACING_FACTOR, main
+from martinisurf.surface_builder import CLOSE_PACKED_LAYER_SPACING_FACTOR, main
 
 
 def _itp_section_lines(text: str, section_name: str) -> list[str]:
@@ -211,60 +210,66 @@ def test_2_1_layers_scale_atom_count_and_z_levels(tmp_path):
     assert z_values == [3.0, 3.4]
 
 
-def test_2_1_layers_default_to_sigma_based_spacing_for_regular_beads(tmp_path):
-    out = tmp_path / "surf_sigma_regular"
+def test_2_1_layers_default_to_close_packed_spacing(tmp_path):
+    out = tmp_path / "surf_close_packed_2_1"
+    dx = 0.53
 
     main([
         "--mode", "2-1",
         "--lx", "2",
         "--ly", "2",
+        "--dx", str(dx),
         "--layers", "2",
         "--bead", "P4",
         "--output", str(out),
     ])
 
-    lines = (tmp_path / "surf_sigma_regular.gro").read_text().splitlines()
+    lines = (tmp_path / "surf_close_packed_2_1.gro").read_text().splitlines()
     z_values = sorted({round(float(line[36:44]), 3) for line in lines[2:-1]})
-    expected_spacing = round(0.47 * SIGMA_SPACING_FACTOR, 3)
+    expected_spacing = round(dx * CLOSE_PACKED_LAYER_SPACING_FACTOR, 3)
 
     assert z_values == [3.0, round(3.0 + expected_spacing, 3)]
 
 
-def test_4_1_layers_default_to_martini3_sigma_for_small_beads(tmp_path):
-    out = tmp_path / "surf_sigma_small_m3"
+def test_4_1_layers_default_to_close_packed_spacing_for_small_beads(tmp_path):
+    out = tmp_path / "surf_close_packed_4_1"
+    dx = 0.53
 
     main([
         "--mode", "4-1",
         "--lx", "2",
         "--ly", "2",
+        "--dx", str(dx),
         "--layers", "2",
         "--bead", "SC5",
         "--output", str(out),
     ])
 
-    lines = (tmp_path / "surf_sigma_small_m3.gro").read_text().splitlines()
+    lines = (tmp_path / "surf_close_packed_4_1.gro").read_text().splitlines()
     z_values = sorted({round(float(line[36:44]), 3) for line in lines[2:-1]})
-    expected_spacing = round(0.41 * SIGMA_SPACING_FACTOR, 3)
+    expected_spacing = round(dx * CLOSE_PACKED_LAYER_SPACING_FACTOR, 3)
 
     assert z_values == [3.0, round(3.0 + expected_spacing, 3)]
 
 
-def test_4_1_layers_can_use_martini2_sigma_for_dna_small_beads(tmp_path):
-    out = tmp_path / "surf_sigma_small_m2"
+def test_4_1_layers_close_packed_spacing_is_independent_of_martini_version(tmp_path):
+    out = tmp_path / "surf_close_packed_m2"
+    dx = 0.53
 
     main([
         "--mode", "4-1",
         "--lx", "2",
         "--ly", "2",
+        "--dx", str(dx),
         "--layers", "2",
         "--bead", "SC5",
         "--martini-version", "2",
         "--output", str(out),
     ])
 
-    lines = (tmp_path / "surf_sigma_small_m2.gro").read_text().splitlines()
+    lines = (tmp_path / "surf_close_packed_m2.gro").read_text().splitlines()
     z_values = sorted({round(float(line[36:44]), 3) for line in lines[2:-1]})
-    expected_spacing = round(0.43 * SIGMA_SPACING_FACTOR, 3)
+    expected_spacing = round(dx * CLOSE_PACKED_LAYER_SPACING_FACTOR, 3)
 
     assert z_values == [3.0, round(3.0 + expected_spacing, 3)]
 
@@ -511,21 +516,23 @@ def test_4_1_layers_can_use_fcc_abc_stacking(tmp_path):
     assert coords[3] == (0.0, 0.0, 4.005)
 
 
-def test_local_multilayer_surface_mixed_beads_use_average_sigma_between_layers(tmp_path):
-    out = tmp_path / "surf_sigma_mixed"
+def test_local_multilayer_surface_mixed_beads_use_close_packed_spacing(tmp_path):
+    out = tmp_path / "surf_close_packed_mixed"
+    dx = 0.53
 
     main([
         "--mode", "2-1",
         "--lx", "1",
         "--ly", "1",
+        "--dx", str(dx),
         "--layers", "2",
         "--bead", "P4", "SC5",
         "--output", str(out),
     ])
 
-    lines = (tmp_path / "surf_sigma_mixed.gro").read_text().splitlines()
+    lines = (tmp_path / "surf_close_packed_mixed.gro").read_text().splitlines()
     z_values = sorted({round(float(line[36:44]), 3) for line in lines[2:-1]})
-    expected_spacing = round(((0.47 + 0.41) / 2.0) * SIGMA_SPACING_FACTOR, 3)
+    expected_spacing = round(dx * CLOSE_PACKED_LAYER_SPACING_FACTOR, 3)
 
     assert z_values == [3.0, round(3.0 + expected_spacing, 3)]
 
