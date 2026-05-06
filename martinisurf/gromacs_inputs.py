@@ -2712,7 +2712,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     top_mol_itp_name = mol_itp.name
     top_anchor_itp_name = restrained_mol_itp_name
     top_linker_count = max(0, linker_total - surface_linkers_merged)
-    top_use_linker = top_linker_count > 0
+    # Keep linker topology includes enabled for legacy linker-aware workflows
+    # even when the linker does not appear as a separate molecule count.
+    top_use_linker = linker_mode
     top_restrained_linker_itp_name = restrained_linker_itp_name
 
     can_merge_biomolecule_linker = _linker_merge_inputs_available(mol_itp, dst_itp_dir / args.linker_itp_name)
@@ -2737,7 +2739,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             top_mol_itp_name = merged_name
             top_anchor_itp_name = merged_name
             top_linker_count = 0
-            top_use_linker = top_linker_count > 0
+            top_use_linker = False
             top_restrained_linker_itp_name = None
             print(
                 "✔ Protein-linker bonded coupling generated in merged topology: "
@@ -2767,7 +2769,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             top_mol_itp_name = merged_name
             top_anchor_itp_name = merged_name
             top_linker_count = 0
-            top_use_linker = top_linker_count > 0
+            top_use_linker = False
             top_restrained_linker_itp_name = None
             print(
                 "✔ DNA-linker bonded coupling generated in merged topology: "
