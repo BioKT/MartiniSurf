@@ -1439,7 +1439,7 @@ def test_protein_topology_avoids_duplicate_defaults_includes(tmp_path):
     assert '#include "system_itp/martini_v3.0.0_Active.itp"' not in system_top
 
 
-def test_interactions_itp_is_included_before_molecules_block(tmp_path):
+def test_interactions_itp_is_included_after_molecules_block(tmp_path):
     topo_dir = tmp_path / "0_topology"
     itp_dir = topo_dir / "system_itp"
     topo_dir.mkdir(parents=True)
@@ -1474,7 +1474,7 @@ def test_interactions_itp_is_included_before_molecules_block(tmp_path):
     system_top = (topo_dir / "system.top").read_text()
     include_pos = system_top.index('#include "system_itp/surface_linker_bonds.itp"')
     molecules_pos = system_top.index("[ molecules ]")
-    assert include_pos < molecules_pos
+    assert include_pos > molecules_pos
 
 
 def test_surface_molecule_count_tracks_surface_atoms_for_single_atom_surface_itp(tmp_path, monkeypatch):

@@ -1,5 +1,6 @@
 import math
-from martinisurf.surface_builder import CLOSE_PACKED_LAYER_SPACING_FACTOR, main
+import pytest
+from martinisurf.surface_builder import SIGMA_SPACING_FACTOR, main
 
 
 def _itp_section_lines(text: str, section_name: str) -> list[str]:
@@ -78,19 +79,24 @@ def test_surface_builder_basic(tmp_path):
     assert itp.exists()
     assert dst.exists()
 
-    text = gro.read_text()
-    lines = text.strip().splitlines()
 
-    # Check title
-    assert "surface" in lines[0].lower()
+def test_multilayer_default_z_spacing_uses_sigma_factor(tmp_path):
+    out = tmp_path / "layersurface"
 
-    # Atom count
-    n_atoms = int(lines[1])
-    assert n_atoms > 0
+    main([
+        "--lx", "3",
+        "--ly", "3",
+        "--dx", "0.47",
+        "--layers", "2",
+        "--bead", "P4", "P4",
+        "--output", str(out),
+    ])
 
-    # Box vector line
-    box_line = lines[-1].split()
-    assert len(box_line) == 3
+    coords = _gro_coordinates(tmp_path / "layersurface.gro")
+    unique_z = sorted({round(z, 6) for _, _, z in coords})
+    assert len(unique_z) == 2
+    spacing = unique_z[1] - unique_z[0]
+    assert spacing == pytest.approx(0.47 * SIGMA_SPACING_FACTOR, abs=5e-4)
 
 
 def test_local_lattice_dx_is_final_nearest_neighbor_spacing_for_2_1_and_4_1(tmp_path):

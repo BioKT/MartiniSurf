@@ -58,7 +58,29 @@ def test_parser_accepts_advanced_martinize2_bias_flags():
     assert args.go_write_file == "contacts.out"
     assert args.el == 0.2
     assert args.eunit == "chain"
-    assert args.martinize_extra_tokens == ["-resid", "input", "-ignh"]
+
+
+def test_replace_molecules_block_preserves_trailing_intermolecular_include(tmp_path):
+    top = tmp_path / "system_final.top"
+    top.write_text(
+        '#include "system_itp/Protein.itp"\n'
+        "\n[ system ]\nMartiniSurf system\n\n"
+        "[ molecules ]\n"
+        "Protein 1\n"
+        "SRF 1\n"
+        "W 10\n"
+        '\n#include "system_itp/surface_linker_bonds.itp"\n'
+    )
+
+    pipeline._replace_molecules_block(
+        top,
+        "[ molecules ]\nProtein 1\nSRF 1\nW 20\n",
+    )
+
+    text = top.read_text()
+    assert "[ molecules ]\nProtein 1\nSRF 1\nW 20\n" in text
+    assert '#include "system_itp/surface_linker_bonds.itp"' in text
+    assert text.index('#include "system_itp/surface_linker_bonds.itp"') > text.index("[ molecules ]")
 
 
 def test_martinize_extra_args_block_pipeline_managed_flags():

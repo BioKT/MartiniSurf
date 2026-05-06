@@ -1391,7 +1391,7 @@ def build_parser():
     surface_group.add_argument(
         "--surface-dist-z",
         type=float,
-        help="Optional manual interlayer spacing in nm for local 2-1 / 4-1 surfaces. If omitted, HCP/FCC close-packed spacing sqrt(2/3) x --dx is used.",
+        help="Optional manual interlayer spacing in nm for local 2-1 / 4-1 surfaces. If omitted, MartiniSurf uses the mean bead sigma multiplied by 1.24.",
     )
     surface_group.add_argument(
         "--surface-periodic-xy",
@@ -2331,13 +2331,21 @@ def _extract_molecules_block(top_path: Path) -> str:
     text = top_path.read_text()
     lines = text.splitlines()
     start = None
+    end = None
     for i, line in enumerate(lines):
         if line.strip().lower() == "[ molecules ]":
             start = i
             break
     if start is None:
         raise RuntimeError(f"[ molecules ] block not found in {top_path}")
-    block = "\n".join(lines[start:]).rstrip() + "\n"
+    for i in range(start + 1, len(lines)):
+        stripped = lines[i].strip()
+        if stripped.startswith("[") or stripped.startswith("#include"):
+            end = i
+            break
+    if end is None:
+        end = len(lines)
+    block = "\n".join(lines[start:end]).rstrip() + "\n"
     return block
 
 
@@ -2352,7 +2360,7 @@ def _parse_molecules_entries(top_path: Path) -> list[tuple[str, int]]:
             continue
         if not in_molecules:
             continue
-        if s.startswith("["):
+        if s.startswith("[") or s.startswith("#include"):
             break
         if not s or s.startswith(";"):
             continue
@@ -2463,6 +2471,7 @@ def _replace_molecules_block(top_path: Path, molecules_block: str) -> None:
     text = top_path.read_text()
     lines = text.splitlines()
     start = None
+    end = None
     for i, line in enumerate(lines):
         if line.strip().lower() == "[ molecules ]":
             start = i
@@ -2470,8 +2479,19 @@ def _replace_molecules_block(top_path: Path, molecules_block: str) -> None:
     if start is None:
         top_path.write_text(text.rstrip() + "\n\n" + molecules_block)
         return
+    for i in range(start + 1, len(lines)):
+        stripped = lines[i].strip()
+        if stripped.startswith("[") or stripped.startswith("#include"):
+            end = i
+            break
+    if end is None:
+        end = len(lines)
     head = "\n".join(lines[:start]).rstrip() + "\n\n"
-    top_path.write_text(head + molecules_block)
+    tail = "\n".join(lines[end:]).rstrip()
+    out = head + molecules_block.rstrip() + "\n"
+    if tail:
+        out += "\n" + tail + "\n"
+    top_path.write_text(out)
 
 
 def _sync_final_restrained_topology(top_dir: Path, final_top: Path) -> Path | None:

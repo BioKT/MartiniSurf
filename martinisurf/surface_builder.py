@@ -45,7 +45,7 @@ VALID_SURFACE_MODES = (
 )
 
 CLOSE_PACKED_LAYER_SPACING_FACTOR = math.sqrt(2.0 / 3.0)
-SIGMA_SPACING_FACTOR = 1.12
+SIGMA_SPACING_FACTOR = 1.24
 DEFAULT_LAYER_Z0 = 3.0
 LOCAL_BOND_FORCE = 5000.0
 LOCAL_ANGLE_FORCE = 300.0
@@ -196,12 +196,6 @@ def local_layer_z_positions(
     if dist_z is not None:
         for _ in range(1, layers):
             z_positions.append(z_positions[-1] + dist_z)
-        return z_positions
-
-    if lattice_spacing is not None:
-        close_packed_dist = lattice_spacing * CLOSE_PACKED_LAYER_SPACING_FACTOR
-        for _ in range(1, layers):
-            z_positions.append(z_positions[-1] + close_packed_dist)
         return z_positions
 
     for layer in range(1, layers):
@@ -673,7 +667,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         "--dist-z",
         type=float,
         default=None,
-        help="Optional manual interlayer spacing in nm for local multilayer surfaces. If omitted, HCP/FCC close-packed spacing sqrt(2/3) x dx is used.",
+        help="Optional manual interlayer spacing in nm for local multilayer surfaces. If omitted, MartiniSurf uses the mean bead sigma multiplied by 1.24.",
     )
     parser.add_argument(
         "--periodic-xy",
