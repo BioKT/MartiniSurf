@@ -168,8 +168,7 @@ If \texttt{--surface-dist-z} is not provided, local HCP/FCC multilayer
 surfaces use the close-packed spacing \(\sqrt{2/3}\,a\), where
 \(a\) is the in-plane nearest-neighbor spacing set by \texttt{--dx}.
 For local lattice surfaces, MartiniSurf also connects lattice bonds across
-periodic X/Y boundaries by default; this can be disabled with
-\texttt{--no-surface-periodic-xy}.
+periodic X/Y boundaries by default.
 Generated surfaces can also cycle bead types by layer using multiple
 \texttt{--surface-bead} values.
 
@@ -605,10 +604,10 @@ Manual interlayer spacing for local multilayer surfaces. If omitted,
 the default is the close-packed HCP/FCC spacing
 \(\sqrt{2/3}\times\texttt{--dx}\).
 
-\item[\texttt{--surface-periodic-xy}]
-Connect local 2-1 / 4-1 surface lattice bonds across periodic X/Y
-boundaries. Enabled by default; use \texttt{--no-surface-periodic-xy}
-to disable it.
+\item[Periodic local surface connectivity]
+Local 2-1 / 4-1 surface lattices include periodic X/Y edge
+connectivity by default, so the generated surface remains continuous
+under periodic boundary conditions.
 
 \item[\texttt{--graphite-layers}, \texttt{--graphite-spacing}]
 Graphite slab controls.
@@ -773,7 +772,7 @@ The standalone surface module uses \texttt{--mode}, \texttt{--bead},
 \texttt{--dx}, \texttt{--lx}, \texttt{--ly}, \texttt{--lz},
 \texttt{--resname}, \texttt{--output}, \texttt{--charge},
 \texttt{--martini-version}, \texttt{--layers}, \texttt{--stacking}, \texttt{--dist-z},
-\texttt{--periodic-xy}, graphite controls, and the full set of CNT flags.
+graphite controls, and the full set of CNT flags.
 
 \paragraph{Orientation module (\texttt{martinisurf orient} or \texttt{python -m martinisurf.system\_tethered}).}
 The standalone orientation module uses \texttt{--surface},

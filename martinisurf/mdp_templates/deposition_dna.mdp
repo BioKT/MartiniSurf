@@ -37,7 +37,7 @@ ref-p                    = 1 1
 
 continuation = yes
 
-refcoord_scaling         = no
+refcoord_scaling         = all
 
 pull                     = yes
 pull-ngroups             = 2                     ; Total number of pull groups

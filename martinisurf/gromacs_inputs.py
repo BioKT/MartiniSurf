@@ -447,8 +447,6 @@ def write_top_files(
             lines.append(f'#include "system_itp/{cofactor_itp_name}"')
         if substrate_itp_name and substrate_count > 0:
             lines.append(f'#include "system_itp/{substrate_itp_name}"')
-        if intermolecular_itp_name:
-            lines.append(f'#include "system_itp/{intermolecular_itp_name}"')
         return "\n".join(lines)
 
     system_top = topo_dir / "system.top"
@@ -473,6 +471,8 @@ def write_top_files(
             + "\n\n[ system ]\nMartiniSurf system\n\n[ molecules ]\n"
             + f"{moltype} 1\n{cofactor_line}{linker_line}{surface_moltype} {surface_count}\n{substrate_line}"
         )
+        if intermolecular_itp_name:
+            fh.write(f'\n#include "system_itp/{intermolecular_itp_name}"\n')
 
     with open(system_res_top, "w") as fh:
         fh.write(
@@ -480,6 +480,8 @@ def write_top_files(
             + "\n\n[ system ]\nMartiniSurf restrained system\n\n[ molecules ]\n"
             + f"{moltype} 1\n{cofactor_line}{linker_line}{surface_moltype} {surface_count}\n{substrate_line}"
         )
+        if intermolecular_itp_name:
+            fh.write(f'\n#include "system_itp/{intermolecular_itp_name}"\n')
 
     # Compatibility alias for legacy workflows/scripts that still expect system_anchor.top.
     shutil.copy(system_res_top, system_anchor_top)
@@ -1169,6 +1171,69 @@ def _infer_linker_restrained_atom_ids(
     return sorted(local_ids) if local_ids else [linker_size]
 
 
+def _write_surface_linker_bond_itp(
+    itp_path: Path,
+    universe: mda.Universe,
+    surface_resname: str,
+    linker_resname: str | None,
+    linker_size: int | None,
+    surface_linker_count: int,
+    bond_length_nm: float | None,
+    bond_force: float = 1250.0,
+) -> int:
+    if surface_linker_count <= 0 or not linker_resname or not linker_size or linker_size <= 0:
+        return 0
+
+    surface_atoms = [a for a in universe.atoms if str(a.resname).strip() == surface_resname]
+    linker_atoms = [a for a in universe.atoms if str(a.resname).strip() == linker_resname]
+    if not surface_atoms or not linker_atoms:
+        return 0
+
+    linker_atom_ids = sorted(int(a.index + 1) for a in linker_atoms)
+    n_instances = len(linker_atom_ids) // linker_size
+    if n_instances <= 0:
+        return 0
+
+    n_surface_instances = min(surface_linker_count, n_instances)
+    start_instance = n_instances - n_surface_instances
+    surface_zmax = max(float(a.position[2]) for a in surface_atoms)
+    top_surface_atoms = [
+        a for a in surface_atoms
+        if abs(float(a.position[2]) - surface_zmax) <= 0.2
+    ] or surface_atoms
+
+    bonds: list[tuple[int, int, float]] = []
+    for inst_idx in range(start_instance, n_instances):
+        ids = linker_atom_ids[inst_idx * linker_size: (inst_idx + 1) * linker_size]
+        if not ids:
+            continue
+        instance_atoms = [universe.atoms[i - 1] for i in ids]
+        tail = min(instance_atoms, key=lambda a: float(a.position[2]))
+        tail_pos = tail.position
+        surface = min(
+            top_surface_atoms,
+            key=lambda a: float((a.position[0] - tail_pos[0]) ** 2 + (a.position[1] - tail_pos[1]) ** 2),
+        )
+        length = (
+            float(bond_length_nm)
+            if bond_length_nm is not None and bond_length_nm > 0
+            else float((((surface.position - tail_pos) ** 2).sum()) ** 0.5) / 10.0
+        )
+        bonds.append((int(surface.index + 1), int(tail.index + 1), length))
+
+    if not bonds:
+        return 0
+
+    with itp_path.open("w") as fh:
+        fh.write("[ intermolecular_interactions ]\n")
+        fh.write("[ bonds ]\n")
+        fh.write("; surface_atom linker_tail funct length force\n")
+        for surface_id, tail_id, length in bonds:
+            fh.write(f"{surface_id:8d} {tail_id:8d} 1 {length:8.4f} {bond_force:8.1f}\n")
+
+    return len(bonds)
+
+
 def _pick_linker_neighbor(
     universe: mda.Universe,
     instance_atom_ids: List[int],
@@ -1237,6 +1302,14 @@ def _parse_itp_section_tokens(itp_path: Path, sections: set[str]) -> dict[str, l
         if tokens:
             out[current].append(tokens)
     return out
+
+
+def _linker_merge_inputs_available(mol_itp_path: Path, linker_itp_path: Path) -> bool:
+    if _count_itp_atoms(mol_itp_path) <= 0:
+        return False
+    if not linker_itp_path.exists():
+        return False
+    return bool(_parse_itp_section_tokens(linker_itp_path, {"atoms"})["atoms"])
 
 
 def _append_itp_entries(lines: list[str], section: str, entries: list[str]) -> list[str]:
@@ -1448,6 +1521,195 @@ def _merge_dna_linker_itp(
     return dna_linker_bonds, dna_linker_angles
 
 
+def _pick_closest_selected_bead(
+    universe: mda.Universe,
+    selected_atom_ids: List[int],
+    linker_head_id: int,
+) -> int | None:
+    if not selected_atom_ids:
+        return None
+    head_pos = universe.atoms[linker_head_id - 1].position
+    return min(
+        selected_atom_ids,
+        key=lambda idx: float(((universe.atoms[idx - 1].position - head_pos) ** 2).sum()),
+    )
+
+
+def _merge_protein_linker_itp(
+    dst_itp_path: Path,
+    protein_itp_path: Path,
+    linker_itp_path: Path,
+    universe: mda.Universe,
+    linker_pairs: List[dict[str, List[int] | int]],
+    linker_resname: str,
+    bond_length_nm: float,
+    bond_force: float = 1250.0,
+    angle_deg: float = 180.0,
+    angle_force: float = 20.0,
+    posres_macro_name: str = SURFACE_POSRES_DEFINE,
+) -> tuple[int, int]:
+    """
+    Merge linker atoms/interactions into the protein moleculetype and add
+    protein-linker bonds. This mirrors the DNA bonded-linker workflow while
+    selecting the protein bead closest to the linker head.
+    """
+    base_lines = protein_itp_path.read_text().splitlines()
+    base_atom_count = _count_itp_atoms(protein_itp_path)
+    if base_atom_count <= 0:
+        raise ValueError(f"Protein topology has no [ atoms ] entries: {protein_itp_path}")
+
+    parsed = _parse_itp_section_tokens(
+        linker_itp_path,
+        {"atoms", "bonds", "angles", "constraints", "dihedrals", "pairs"},
+    )
+    linker_atoms_tpl = parsed["atoms"]
+    if not linker_atoms_tpl:
+        raise ValueError(f"Linker topology has no [ atoms ] entries: {linker_itp_path}")
+
+    protein_atoms_section = _parse_itp_section_tokens(protein_itp_path, {"atoms"})["atoms"]
+    max_resnr = max((int(row[2]) for row in protein_atoms_section if len(row) > 2 and row[2].lstrip("+-").isdigit()), default=1)
+    max_cgnr = max((int(row[5]) for row in protein_atoms_section if len(row) > 5 and row[5].lstrip("+-").isdigit()), default=base_atom_count)
+
+    linker_global_ids = sorted(
+        {
+            int(gid)
+            for pair in linker_pairs
+            for gid in pair["instance_atoms"]  # type: ignore[index]
+        }
+    )
+    global_to_local = {gid: base_atom_count + i + 1 for i, gid in enumerate(linker_global_ids)}
+
+    atom_entries: list[str] = []
+    bonds_entries: list[str] = []
+    angles_entries: list[str] = []
+    constraints_entries: list[str] = []
+    dihedrals_entries: list[str] = []
+    pairs_entries: list[str] = []
+    protein_linker_bonds = 0
+    protein_linker_angles = 0
+    tail_posres_local_ids: set[int] = set()
+
+    next_resnr = max_resnr + 1
+    next_cgnr = max_cgnr + 1
+    template_atoms = linker_atoms_tpl
+    n_tpl = len(template_atoms)
+
+    for pair in linker_pairs:
+        instance_atoms = [int(v) for v in pair["instance_atoms"]]  # type: ignore[index]
+        if len(instance_atoms) != n_tpl:
+            raise ValueError(
+                f"Linker atom count mismatch: topology has {n_tpl}, instance has {len(instance_atoms)}."
+            )
+
+        tpl_to_local = {
+            int(template_atoms[i][0]): global_to_local[instance_atoms[i]]
+            for i in range(n_tpl)
+        }
+        linker_tail_global = int(pair["linker_tail"])  # type: ignore[arg-type]
+        if linker_tail_global in global_to_local:
+            tail_posres_local_ids.add(global_to_local[linker_tail_global])
+
+        for i, row in enumerate(template_atoms):
+            local_id = tpl_to_local[int(row[0])]
+            atom_type = row[1] if len(row) > 1 else "C1"
+            atom_name = row[4] if len(row) > 4 else f"L{i+1}"
+            charge = row[6] if len(row) > 6 else "0.0"
+            mass = row[7] if len(row) > 7 else None
+            entry = f"{local_id:6d} {atom_type:>6} {next_resnr:6d} {linker_resname:<6} {atom_name:>6} {next_cgnr:6d} {charge:>8}"
+            if mass is not None:
+                entry += f" {mass}"
+            atom_entries.append(entry)
+            next_cgnr += 1
+        next_resnr += 1
+
+        for row in parsed["bonds"]:
+            if len(row) < 2:
+                continue
+            i_local = tpl_to_local[int(row[0])]
+            j_local = tpl_to_local[int(row[1])]
+            rest = " ".join(row[2:]) if len(row) > 2 else "1"
+            bonds_entries.append(f"{i_local:6d} {j_local:6d} {rest}")
+
+        for row in parsed["angles"]:
+            if len(row) < 3:
+                continue
+            i_local = tpl_to_local[int(row[0])]
+            j_local = tpl_to_local[int(row[1])]
+            k_local = tpl_to_local[int(row[2])]
+            rest = " ".join(row[3:]) if len(row) > 3 else "1 180.0 20.0"
+            angles_entries.append(f"{i_local:6d} {j_local:6d} {k_local:6d} {rest}")
+
+        for row in parsed["constraints"]:
+            if len(row) < 2:
+                continue
+            i_local = tpl_to_local[int(row[0])]
+            j_local = tpl_to_local[int(row[1])]
+            rest = " ".join(row[2:]) if len(row) > 2 else "1 0.30"
+            constraints_entries.append(f"{i_local:6d} {j_local:6d} {rest}")
+
+        for row in parsed["dihedrals"]:
+            if len(row) < 4:
+                continue
+            i_local = tpl_to_local[int(row[0])]
+            j_local = tpl_to_local[int(row[1])]
+            k_local = tpl_to_local[int(row[2])]
+            l_local = tpl_to_local[int(row[3])]
+            rest = " ".join(row[4:]) if len(row) > 4 else "1 0.0 0.0"
+            dihedrals_entries.append(f"{i_local:6d} {j_local:6d} {k_local:6d} {l_local:6d} {rest}")
+
+        for row in parsed["pairs"]:
+            if len(row) < 2:
+                continue
+            i_local = tpl_to_local[int(row[0])]
+            j_local = tpl_to_local[int(row[1])]
+            rest = " ".join(row[2:]) if len(row) > 2 else "1"
+            pairs_entries.append(f"{i_local:6d} {j_local:6d} {rest}")
+
+        selected_atoms = [int(v) for v in pair["selected_atoms"]]  # type: ignore[index]
+        linker_head = int(pair["linker_head"])  # type: ignore[arg-type]
+        protein_bead = _pick_closest_selected_bead(
+            universe=universe,
+            selected_atom_ids=selected_atoms,
+            linker_head_id=linker_head,
+        )
+        if protein_bead is None:
+            continue
+
+        linker_head_local = global_to_local[linker_head]
+        bonds_entries.append(
+            f"{protein_bead:6d} {linker_head_local:6d} 1 {bond_length_nm:.3f} {bond_force:.1f}"
+        )
+        protein_linker_bonds += 1
+
+        linker_neighbor = _pick_linker_neighbor(
+            universe=universe,
+            instance_atom_ids=instance_atoms,
+            linker_head_id=linker_head,
+        )
+        if linker_neighbor is not None:
+            linker_neighbor_local = global_to_local[linker_neighbor]
+            angles_entries.append(
+                f"{linker_neighbor_local:6d} {linker_head_local:6d} {protein_bead:6d} 1 {angle_deg:.1f} {angle_force:.1f}"
+            )
+            protein_linker_angles += 1
+
+    merged = list(base_lines)
+    merged = _append_itp_entries(merged, "atoms", atom_entries)
+    merged = _append_itp_entries(merged, "bonds", bonds_entries)
+    merged = _append_itp_entries(merged, "angles", angles_entries)
+    merged = _append_itp_entries(merged, "constraints", constraints_entries)
+    merged = _append_itp_entries(merged, "dihedrals", dihedrals_entries)
+    merged = _append_itp_entries(merged, "pairs", pairs_entries)
+    dst_itp_path.write_text("\n".join(merged).rstrip() + "\n")
+    _rewrite_itp_with_posres(
+        src_itp=dst_itp_path,
+        dst_itp=dst_itp_path,
+        posres_atom_ids=sorted(tail_posres_local_ids),
+        macro_name=posres_macro_name,
+    )
+    return protein_linker_bonds, protein_linker_angles
+
+
 def _infer_surface_pull_group(text: str, is_dna: bool, surface_moltype: str | None = None) -> str:
     if surface_moltype:
         return str(surface_moltype).strip()
@@ -1646,6 +1908,8 @@ def _validate_cli_args(parser: argparse.ArgumentParser, args: argparse.Namespace
 
     if linker_mode and args.linker_size is not None and args.linker_size <= 0:
         parser.error("--linker-size must be > 0.")
+    if args.surface_linker_count < 0:
+        parser.error("--surface-linker-count must be >= 0.")
     if args.cofactor_count < 0:
         parser.error("--cofactor-count must be >= 0.")
     if args.cofactor_count > 0 and not args.cofactor_itp_name:
@@ -1658,7 +1922,7 @@ def _validate_cli_args(parser: argparse.ArgumentParser, args: argparse.Namespace
         parser.error("--linker-pull-init-prot must be > 0 when provided.")
     if linker_mode and args.linker_pull_init_surf is not None and args.linker_pull_init_surf <= 0:
         parser.error("--linker-pull-init-surf must be > 0 when provided.")
-    if args.ads_mode and linker_mode:
+    if args.ads_mode and linker_mode and not args.linker_decoration_only:
         parser.error("--ads-mode is incompatible with linker mode.")
 
 
@@ -1680,6 +1944,8 @@ def _normalize_linker_args(args: argparse.Namespace) -> bool:
     args.linker_size = None
     args.linker_pull_init_prot = None
     args.linker_pull_init_surf = None
+    args.linker_decoration_only = False
+    args.surface_linker_count = 0
     return False
 
 
@@ -1712,6 +1978,17 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--linker-resname", help="Residue name used by linker beads in immobilized_system.gro.")
     parser.add_argument("--linker-size", type=int, help="Number of beads per linker instance.")
     parser.add_argument("--linker-itp-name", default="linker.itp", help="Linker topology filename in system_itp.")
+    parser.add_argument(
+        "--surface-linker-count",
+        type=int,
+        default=0,
+        help="Number of linker instances used only as random surface decorations.",
+    )
+    parser.add_argument(
+        "--linker-decoration-only",
+        action="store_true",
+        help="Include/decorate linkers without creating biomolecule-linker pull groups.",
+    )
     parser.add_argument(
         "--linker-pull-init-prot",
         type=float,
@@ -1831,7 +2108,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         for gid, atom_list in anchor_atoms.items():
             print(f"  → Anchor_{gid}: {len(atom_list)} atoms")
 
-    if linker_atom_ids and pull_anchor_atoms:
+    if linker_atom_ids and pull_anchor_atoms and not args.linker_decoration_only:
         selected_items = [(gid, atoms) for gid, atoms in pull_anchor_atoms.items() if atoms]
         linker_ids_sorted = sorted(linker_atom_ids)
 
@@ -2175,6 +2452,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     surface_itp_path = dst_itp_dir / "surface.itp"
     surface_moltype = _read_itp_moleculetype(surface_itp_path) or "SRF"
     surface_resname = _read_itp_first_atoms_resname(surface_itp_path) or surface_moltype
+    linker_itp_path_for_merge = dst_itp_dir / args.linker_itp_name
+    biomolecule_linker_bonded = bool(
+        linker_pull_enabled
+        and _linker_merge_inputs_available(mol_itp, linker_itp_path_for_merge)
+    )
 
     # copy MDPs
     for src_name, dst_name in mdp_files.items():
@@ -2203,7 +2485,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 linker_pull_init_surf_nm=args.linker_pull_init_surf,
                 rewrite_pull=rewrite_pull,
                 include_pull_init=include_pull_init,
-                dna_linker_bonded=bool(is_dna and linker_pull_enabled),
+                dna_linker_bonded=biomolecule_linker_bonded,
             )
             if is_dna and args.polarizable_water:
                 _rewrite_mdp_for_polarizable_water(dst_path)
@@ -2285,13 +2567,60 @@ def main(argv: Sequence[str] | None = None) -> None:
         surface_count = surface_atom_total
 
     intermolecular_itp_name: str | None = None
+    if linker_mode and args.surface_linker_count > 0:
+        candidate_name = "surface_linker_bonds.itp"
+        n_surface_bonds = _write_surface_linker_bond_itp(
+            itp_path=dst_itp_dir / candidate_name,
+            universe=u,
+            surface_resname=surface_moltype,
+            linker_resname=args.linker_resname,
+            linker_size=args.linker_size,
+            surface_linker_count=args.surface_linker_count,
+            bond_length_nm=args.linker_pull_init_surf,
+        )
+        if n_surface_bonds > 0:
+            intermolecular_itp_name = candidate_name
+            print(f"✔ Surface-linker bonded coupling generated: {candidate_name} ({n_surface_bonds} bond(s))")
+        else:
+            print("⚠ Surface-linker bonded coupling skipped: no compatible surface/linker atoms found.")
     top_mol_itp_name = mol_itp.name
     top_anchor_itp_name = restrained_mol_itp_name
     top_use_linker = linker_mode
     top_linker_count = linker_total
     top_restrained_linker_itp_name = restrained_linker_itp_name
 
-    if is_dna and linker_mode and linker_pairs:
+    can_merge_biomolecule_linker = _linker_merge_inputs_available(mol_itp, dst_itp_dir / args.linker_itp_name)
+
+    if (not is_dna) and linker_mode and linker_pairs and can_merge_biomolecule_linker:
+        bond_length_nm = args.linker_pull_init_prot if args.linker_pull_init_prot else 0.47
+        merged_name = f"{mol_itp.stem}_linker.itp"
+        n_bonds, n_angles = _merge_protein_linker_itp(
+            dst_itp_path=dst_itp_dir / merged_name,
+            protein_itp_path=mol_itp,
+            linker_itp_path=dst_itp_dir / args.linker_itp_name,
+            universe=u,
+            linker_pairs=linker_pairs,
+            linker_resname=args.linker_resname or "LNK",
+            bond_length_nm=bond_length_nm,
+            bond_force=1250.0,
+            angle_deg=180.0,
+            angle_force=20.0,
+            posres_macro_name=SURFACE_POSRES_DEFINE,
+        )
+        if n_bonds > 0:
+            top_mol_itp_name = merged_name
+            top_anchor_itp_name = merged_name
+            top_use_linker = args.surface_linker_count > 0
+            top_linker_count = args.surface_linker_count if args.surface_linker_count > 0 else 0
+            top_restrained_linker_itp_name = None
+            print(
+                "✔ Protein-linker bonded coupling generated in merged topology: "
+                f"{merged_name} ({n_bonds} bond(s), {n_angles} angle(s))"
+            )
+        else:
+            print("⚠ Protein-linker bonded coupling skipped: no selected protein bead found.")
+
+    if is_dna and linker_mode and linker_pairs and can_merge_biomolecule_linker:
         bond_length_nm = args.linker_pull_init_prot if args.linker_pull_init_prot else 0.47
         merged_name = f"{mol_itp.stem}_linker.itp"
         n_bonds, n_angles = _merge_dna_linker_itp(
@@ -2311,8 +2640,8 @@ def main(argv: Sequence[str] | None = None) -> None:
             # DNA+linker becomes one molecule topology; linker no longer appears as separate molecule.
             top_mol_itp_name = merged_name
             top_anchor_itp_name = merged_name
-            top_use_linker = False
-            top_linker_count = 0
+            top_use_linker = args.surface_linker_count > 0
+            top_linker_count = args.surface_linker_count if args.surface_linker_count > 0 else 0
             top_restrained_linker_itp_name = None
             print(
                 "✔ DNA-linker bonded coupling generated in merged topology: "

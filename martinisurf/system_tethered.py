@@ -231,6 +231,56 @@ def _rotation_matrix_about_axis(axis, angle):
     ])
 
 
+def _oriented_linker_coords(linker_coords: np.ndarray, target: np.ndarray) -> np.ndarray:
+    axis = linker_coords[-1] - linker_coords[0]
+    axis_norm = np.linalg.norm(axis)
+    if axis_norm < 1e-12:
+        raise ValueError(
+            "Linker has zero-length axis (first and last bead overlap). "
+            "Provide a linker with at least two distinct beads."
+        )
+    R = _rotation_matrix_from_vectors(axis / axis_norm, target)
+    return (R @ (linker_coords - linker_coords[0]).T).T
+
+
+def _append_surface_linkers(
+    merged_coords: np.ndarray,
+    merged_atoms: list,
+    surf_coords: np.ndarray,
+    linker_coords: np.ndarray,
+    linker_atoms: list,
+    count: int,
+    surface_min_dist: float,
+) -> tuple[np.ndarray, list]:
+    if count <= 0:
+        return merged_coords, merged_atoms
+
+    xmin, xmax = surf_coords[:, 0].min(), surf_coords[:, 0].max()
+    ymin, ymax = surf_coords[:, 1].min(), surf_coords[:, 1].max()
+    z_surface = surf_coords[:, 2].max()
+
+    # Same convention as biomolecule linkers: bead 0 is the free/head side,
+    # bead -1 is the surface/tail side. --invert-linker reverses this globally
+    # before this helper is called.
+    template = _oriented_linker_coords(linker_coords, np.array([0.0, 0.0, -1.0]))
+
+    for _ in range(count):
+        vertical_linker = template.copy()
+        rand_x = np.random.uniform(xmin, xmax)
+        rand_y = np.random.uniform(ymin, ymax)
+        tail = vertical_linker[-1]
+        vertical_linker += np.array([
+            rand_x - tail[0],
+            rand_y - tail[1],
+            (z_surface + surface_min_dist) - tail[2],
+        ])
+
+        merged_coords = np.vstack([merged_coords, vertical_linker])
+        merged_atoms = merged_atoms + linker_atoms
+
+    return merged_coords, merged_atoms
+
+
 def _apply_rotation(coords, rotation, center):
     return (rotation @ (coords - center).T).T + center
 
@@ -691,10 +741,22 @@ def main(argv=None):
         if mask.any():
             reference_coords = sys_coords[mask]
 
+    linker_coords = None
+    linker_atoms = None
+    if args.linker_gro:
+        linker_coords, linker_atoms = load_gro_coords(args.linker_gro)
+        if args.invert_linker:
+            linker_coords = linker_coords[::-1].copy()
+            linker_atoms = linker_atoms[::-1]
+    elif args.surface_linkers > 0:
+        raise ValueError("--surface-linkers requires --linker-gro.")
+
+    has_biomolecule_linkers = bool(args.linker_gro and args.linker_group)
+
     # ============================================================
     # CLASSICAL MODE
     # ============================================================
-    if not args.linker_gro:
+    if not has_biomolecule_linkers:
 
         if not args.anchor:
             raise ValueError("No anchors provided.")
@@ -720,21 +782,21 @@ def main(argv=None):
             orient_single_anchor_up=(len(centroids) == 1),
         )
 
-        final_atoms = sys_atoms
+        oriented, final_atoms = _append_surface_linkers(
+            oriented,
+            sys_atoms,
+            surf_coords,
+            linker_coords,
+            linker_atoms,
+            args.surface_linkers,
+            args.surface_min_dist,
+        ) if args.surface_linkers > 0 else (oriented, sys_atoms)
 
 
     # ============================================================
     # MULTI-LINKER MODE
     # ============================================================
     else:
-
-        if not args.linker_group:
-            raise ValueError("Provide --linker-group.")
-
-        linker_coords, linker_atoms = load_gro_coords(args.linker_gro)
-        if args.invert_linker:
-            linker_coords = linker_coords[::-1].copy()
-            linker_atoms = linker_atoms[::-1]
 
         all_res = sorted({int(r) for g in args.linker_group for r in g[1:]})
 
@@ -777,30 +839,7 @@ def main(argv=None):
                 f"linker group {group[0]}"
             ).mean(axis=0)
 
-            axis = linker_coords[-1] - linker_coords[0]
-            axis_norm = np.linalg.norm(axis)
-            if axis_norm < 1e-12:
-                raise ValueError(
-                    "Linker has zero-length axis (first and last bead overlap). "
-                    "Provide a linker with at least two distinct beads."
-                )
-            axis /= axis_norm
-
-            target = np.array([0,0,-1])
-
-            v = np.cross(axis, target)
-            s = np.linalg.norm(v)
-            c = np.dot(axis, target)
-
-            if s < 1e-8:
-                R = np.eye(3)
-            else:
-                vx = np.array([[0,-v[2],v[1]],
-                               [v[2],0,-v[0]],
-                               [-v[1],v[0],0]])
-                R = np.eye(3) + vx + vx@vx*((1-c)/(s*s))
-
-            rotated_linker = (R @ (linker_coords - linker_coords[0]).T).T
+            rotated_linker = _oriented_linker_coords(linker_coords, np.array([0.0, 0.0, -1.0]))
             rotated_linker += group_centroid + np.array([0,0,-args.linker_prot_dist])
 
             linker_tips.append(rotated_linker[-1])
@@ -818,55 +857,15 @@ def main(argv=None):
         merged_coords[:,0] += xy_shift[0]
         merged_coords[:,1] += xy_shift[1]
 
-        # ---------------------------------------------------------
-        # RANDOM SURFACE LINKERS (FIXED ABOVE SURFACE)
-        # ---------------------------------------------------------
-        if args.surface_linkers > 0:
-
-            xmin, xmax = surf_coords[:,0].min(), surf_coords[:,0].max()
-            ymin, ymax = surf_coords[:,1].min(), surf_coords[:,1].max()
-
-            z_surface = surf_coords[:,2].max()
-
-            for _ in range(args.surface_linkers):
-
-                axis = linker_coords[-1] - linker_coords[0]
-                axis_norm = np.linalg.norm(axis)
-                if axis_norm < 1e-12:
-                    raise ValueError(
-                        "Linker has zero-length axis (first and last bead overlap). "
-                        "Cannot place random surface linkers."
-                    )
-                axis /= axis_norm
-
-                target = np.array([0,0,1])  # UPWARD
-
-                v = np.cross(axis, target)
-                s = np.linalg.norm(v)
-                c = np.dot(axis, target)
-
-                if s < 1e-8:
-                    R = np.eye(3)
-                else:
-                    vx = np.array([[0,-v[2],v[1]],
-                                   [v[2],0,-v[0]],
-                                   [-v[1],v[0],0]])
-                    R = np.eye(3) + vx + vx@vx*((1-c)/(s*s))
-
-                vertical_linker = (R @ (linker_coords - linker_coords[0]).T).T
-
-                rand_x = np.random.uniform(xmin, xmax)
-                rand_y = np.random.uniform(ymin, ymax)
-
-                # 🔥 ALWAYS ABOVE SURFACE
-                vertical_linker += np.array([
-                    rand_x,
-                    rand_y,
-                    z_surface + args.surface_min_dist
-                ])
-
-                merged_coords = np.vstack([merged_coords, vertical_linker])
-                merged_atoms  = merged_atoms + linker_atoms
+        merged_coords, merged_atoms = _append_surface_linkers(
+            merged_coords,
+            merged_atoms,
+            surf_coords,
+            linker_coords,
+            linker_atoms,
+            args.surface_linkers,
+            args.surface_min_dist,
+        )
 
         oriented = merged_coords
         final_atoms = merged_atoms

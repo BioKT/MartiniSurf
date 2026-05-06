@@ -37,7 +37,7 @@ freezegrps               = SRF
 freezedim                = Y Y Y
 cos-acceleration         = 0
 
-refcoord_scaling         = no
+refcoord_scaling         = all
 
 Pcoupl                   = Parrinello-Rahman ;parrinello-rahman
 Pcoupltype               = semiisotropic

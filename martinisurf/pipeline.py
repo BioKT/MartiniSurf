@@ -1196,7 +1196,7 @@ def _build_generated_surface_args(args: argparse.Namespace, output_path: Path) -
         builder_args += ["--stacking", str(args.surface_stacking)]
     if args.surface_dist_z is not None:
         builder_args += ["--dist-z", str(args.surface_dist_z)]
-    if args.surface_periodic_xy and mode in {"2-1", "4-1"}:
+    if mode in {"2-1", "4-1"}:
         builder_args += ["--periodic-xy"]
     if args.graphite_layers is not None:
         builder_args += ["--graphite-layers", str(args.graphite_layers)]
@@ -1387,7 +1387,7 @@ def build_parser():
         "--surface-periodic-xy",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Connect local 2-1 / 4-1 surface lattice bonds across periodic X/Y boundaries (default: enabled).",
+        help=argparse.SUPPRESS,
     )
     surface_group.add_argument(
         "--graphite-layers",
@@ -3490,6 +3490,9 @@ def main(argv=None):
     if balance_low_z_fraction is not None:
         orient_args += ["--balance-low-z-fraction", str(balance_low_z_fraction)]
 
+    if args.surface_linkers > 0 and not args.linker:
+        raise ValueError("--surface-linkers requires --linker with matching .gro/.itp files.")
+
     if args.linker:
         first_group_resid = None
         if resolved_linker_groups and len(resolved_linker_groups[0]) > 1:
@@ -3544,6 +3547,7 @@ def main(argv=None):
             "--linker-gro", str(args.linker),
             "--linker-prot-dist", str(linker_prot_dist_ang),
             "--linker-surf-dist", str(linker_surf_dist_ang),
+            "--surface-min-dist", str(linker_surf_dist_ang),
         ]
         if args.invert_linker:
             orient_args += ["--invert-linker"]
@@ -3551,9 +3555,9 @@ def main(argv=None):
         if args.surface_linkers > 0:
             orient_args += ["--surface-linkers", str(args.surface_linkers)]
 
-        if resolved_linker_groups:
-            for group in resolved_linker_groups:
-                orient_args += ["--linker-group"] + [str(x) for x in group]
+    if resolved_linker_groups:
+        for group in resolved_linker_groups:
+            orient_args += ["--linker-group"] + [str(x) for x in group]
 
     elif args.anchor:
         anchor_landmark_mode = _anchor_landmark_mode_for_pipeline(args, complex_cfg)
@@ -3603,8 +3607,12 @@ def main(argv=None):
     elif args.polarizable_water:
         final_args += ["--polarizable-water"]
 
-    if args.linker:
+    if args.linker and (resolved_linker_groups or args.surface_linkers > 0):
         final_args += ["--use-linker"]
+        if args.surface_linkers > 0:
+            final_args += ["--surface-linker-count", str(args.surface_linkers)]
+        if not resolved_linker_groups:
+            final_args += ["--linker-decoration-only"]
         linker_resname = _read_gro_first_resname(args.linker)
         if linker_resname:
             final_args += ["--linker-resname", linker_resname]

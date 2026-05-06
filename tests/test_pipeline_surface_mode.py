@@ -244,7 +244,7 @@ def test_protein_local_surface_args_enable_periodic_xy_by_default():
     assert "--periodic-xy" in builder_args
 
 
-def test_local_surface_periodic_xy_can_be_disabled():
+def test_local_surface_periodic_xy_legacy_disable_is_ignored():
     parser = build_parser()
     args = parser.parse_args([
         "--pdb", "1RJW",
@@ -257,7 +257,7 @@ def test_local_surface_periodic_xy_can_be_disabled():
 
     builder_args = _build_generated_surface_args(args, Path("surface"))
 
-    assert "--periodic-xy" not in builder_args
+    assert "--periodic-xy" in builder_args
 
 
 def test_surface_bead_accepts_multiple_values_and_forwards_them():

@@ -215,7 +215,7 @@ This section includes ALL flags from the main pipeline.
 - `--surface-layers` (default: none): number of layers for local `2-1` / `4-1` modes.
 - `--surface-stacking {hcp,fcc}` (default: `hcp`): local multilayer stacking for `2-1` / `4-1` surfaces. `hcp` uses ABAB stacking; `fcc` uses ABCABC stacking.
 - `--surface-dist-z` (default: none): manual interlayer spacing in nm for local `2-1` / `4-1` surfaces. If omitted, MartiniSurf uses the close-packed HCP/FCC spacing `sqrt(2/3) * --dx`.
-- `--surface-periodic-xy` / `--no-surface-periodic-xy` (default: enabled): connect local `2-1` / `4-1` surface lattice bonds across periodic X/Y boundaries.
+- Local `2-1` / `4-1` surfaces include periodic X/Y edge connectivity by default, so the generated surface remains continuous under PBC.
 - `--graphite-layers` (default: none): number of stacked graphene layers for `graphite`.
 - `--graphite-spacing` (default: none): interlayer spacing in nm for `graphite`.
 - `--surface-bead` (default: `C1`): bead type for generated surface.
@@ -256,7 +256,7 @@ Unit note:
 - `--linker-surf-dist` (default: auto): linker-to-surface distance (nm).
   - Auto rule: estimated from Martini bead-size sigma (`sigma * 1.2`) using linker-tail and surface bead classes.
 - `--invert-linker` (default: false): reverses linker bead order.
-- `--surface-linkers` (default: `0`): number of additional random surface linkers.
+- `--surface-linkers` (default: `0`): number of additional random surface linkers. These can be used in anchor, adsorption, or linker mode when `--linker` is supplied. They use the same orientation convention as biomolecule linkers and are bonded to top-layer surface beads through an intermolecular surface-linker bond file.
 - DNA linker coupling behavior:
   - Uses bonded linker-DNA coupling in topology (no linker-DNA pull).
   - Bond target bead in DNA residue: `BB1`, else `BB2`, else `BB3`.
@@ -313,7 +313,7 @@ These commands are usually called by MartiniSurf internally. Most new users do n
 - `--layers` for local multilayer `2-1` / `4-1` surfaces
 - `--stacking {hcp,fcc}` for local multilayer `2-1` / `4-1` surfaces
 - `--dist-z` manual interlayer spacing for local multilayer `2-1` / `4-1` surfaces
-- `--periodic-xy` to connect local lattice bonds across periodic X/Y boundaries
+- local lattice edge connectivity is periodic in X/Y by default
 - `--graphite-layers`
 - `--graphite-spacing`
 - `--cnt-numrings`

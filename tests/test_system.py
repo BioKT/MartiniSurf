@@ -810,6 +810,70 @@ def test_dna_linker_mode_uses_bonded_coupling_and_single_surface_pull(tmp_path, 
     assert "180.0 20.0" in text
 
 
+def test_protein_linker_mode_uses_bonded_coupling_and_single_surface_pull(tmp_path, monkeypatch):
+    sim, _ = prepare_simulation_structure(tmp_path)
+    monkeypatch.chdir(sim / "2_system")
+
+    gro = """Protein linker bonded test
+  5
+    1ALA     BB    1   1.000   1.000   1.000
+    1ALA    SC1    2   1.100   1.000   1.000
+    2LNK     C1    3   1.020   1.000   0.900
+    2LNK     C2    4   1.020   1.000   0.400
+    3SRF     P4    5   1.000   1.000   0.000
+   3.00000   3.00000   3.00000
+"""
+    (sim / "2_system" / "immobilized_system.gro").write_text(gro)
+    itp = sim / "system_itp"
+    (itp / "Active.itp").unlink(missing_ok=True)
+    (itp / "linker.itp").write_text(
+        "[ moleculetype ]\nLNK 1\n\n"
+        "[ atoms ]\n"
+        "1 C1 1 LNK C1 1 0.0\n"
+        "2 C1 1 LNK C2 2 0.0\n"
+    )
+    (itp / "Protein.itp").write_text(
+        "[ moleculetype ]\nProtein 1\n\n"
+        "[ atoms ]\n"
+        "1 C1 1 ALA BB 1 0.0\n"
+        "2 C1 1 ALA SC1 2 0.0\n"
+    )
+    (itp / "surface.itp").write_text(
+        "[ moleculetype ]\nSRF 1\n\n[ atoms ]\n1 P4 1 SRF P4 1 0.0\n"
+    )
+
+    gms.main([
+        "--moltype", "Protein",
+        "--anchor", "1", "1",
+        "--use-linker",
+        "--linker-resname", "LNK",
+        "--linker-size", "2",
+        "--linker-pull-init-prot", "0.47",
+        "--linker-pull-init-surf", "0.60",
+    ])
+
+    production = (sim / "1_mdp" / "production.mdp").read_text()
+    assert "pull-ncoords             = 1" in production
+    assert "pull-coord1-groups       = 3 4" in production
+    assert "pull-coord1-dim          = N N Y" in production
+    assert "pull-coord2-groups" not in production
+
+    system_top = (sim / "0_topology" / "system.top").read_text()
+    assert '#include "system_itp/Protein_linker.itp"' in system_top
+    assert '#include "system_itp/linker.itp"' not in system_top
+    assert "LNK 1" not in system_top
+
+    merged_itp = sim / "0_topology" / "system_itp" / "Protein_linker.itp"
+    text = merged_itp.read_text()
+    assert "[ bonds ]" in text
+    assert "[ angles ]" in text
+    assert "[ position_restraints ]" in text
+    assert "#ifdef POSRES" in text
+    assert "4 1 1000 1000 0" in text
+    assert "0.470 1250.0" in text
+    assert "180.0 20.0" in text
+
+
 def test_protein_deposition_and_production_templates_only_differ_in_nsteps():
     mdp_dir = Path(gms.__file__).resolve().parent / "mdp_templates"
     deposition = (mdp_dir / "deposition.mdp").read_text()
@@ -817,8 +881,8 @@ def test_protein_deposition_and_production_templates_only_differ_in_nsteps():
 
     assert "compressibility          = 0 4e-5" in deposition
     assert "compressibility          = 0 4e-5" in production
-    assert "refcoord_scaling         = no" in deposition
-    assert "refcoord_scaling         = no" in production
+    assert "refcoord_scaling         = all" in deposition
+    assert "refcoord_scaling         = all" in production
     assert "define                   = -DPOSRES" not in deposition
     assert "define                   = -DPOSRES" in production
 
@@ -849,8 +913,8 @@ def test_dna_deposition_and_production_templates_keep_expected_protocol_values()
     assert "tau-p                    = 12.0" in deposition
     assert "compressibility          = 0 3e-4" in deposition
     assert "ref-p                    = 1 1" in deposition
-    assert "refcoord_scaling         = no" in deposition
-    assert "refcoord_scaling         = no" in production
+    assert "refcoord_scaling         = all" in deposition
+    assert "refcoord_scaling         = all" in production
     assert "tau-p" not in production
     assert "compressibility" not in production
     assert "define                   = -DPOSRES" in deposition
@@ -905,7 +969,7 @@ def test_dna_minimization_freezes_surface_and_npt_keeps_surface_posres(tmp_path)
     assert "freezedim                = Y Y Y" in minimization
     assert "freezegrps = SRF" in npt
     assert "freezedim = Y Y Y" in npt
-    assert "refcoord_scaling         = no" in npt
+    assert "refcoord_scaling         = all" in npt
 
 
 def test_dna_surface_itp_gets_xyz_posres(tmp_path, monkeypatch):
@@ -1491,3 +1555,34 @@ def test_missing_named_protein_itp_uses_real_candidate_but_keeps_requested_molty
     text = protein_itp.read_text()
     assert "Protein 1" in text
     assert "Protein_0 1" not in text
+
+
+def test_surface_linker_bond_itp_uses_top_surface_and_linker_tail(tmp_path):
+    gro = tmp_path / "decorated.gro"
+    gro.write_text(
+        "surface linker bond test\n"
+        "    4\n"
+        "    1LNK     C1    1   0.000   0.000   1.000\n"
+        "    1LNK     C2    2   0.000   0.000   0.530\n"
+        "    2SRF     P4    3   0.000   0.000   0.000\n"
+        "    2SRF     P4    4   1.000   0.000   0.000\n"
+        "   4.00000   4.00000   4.00000\n"
+    )
+    out = tmp_path / "surface_linker_bonds.itp"
+    universe = gms.mda.Universe(str(gro))
+
+    count = gms._write_surface_linker_bond_itp(
+        itp_path=out,
+        universe=universe,
+        surface_resname="SRF",
+        linker_resname="LNK",
+        linker_size=2,
+        surface_linker_count=1,
+        bond_length_nm=0.53,
+    )
+
+    text = out.read_text()
+    assert count == 1
+    assert "[ intermolecular_interactions ]" in text
+    assert "[ bonds ]" in text
+    assert "3        2 1   0.5300" in text
