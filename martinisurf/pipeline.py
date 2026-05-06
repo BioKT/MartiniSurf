@@ -1970,6 +1970,75 @@ def _load_moltype_atom_templates_from_topology(top_path: Path) -> dict[str, list
     return mol_atoms
 
 
+def _reorder_multi_resname_molecule_records_from_topology(
+    top_path: Path,
+    gro_path: Path,
+) -> bool:
+    if not top_path.exists() or not gro_path.exists():
+        return False
+
+    molecules = _parse_molecules_entries(top_path)
+    if not molecules:
+        return False
+
+    mol_templates = _load_moltype_atom_templates_from_topology(top_path)
+    title, records, box = _read_gro_records(str(gro_path))
+    changed = False
+
+    for molname, count in molecules:
+        if count <= 0:
+            continue
+        template = mol_templates.get(molname, [])
+        template_resnames = {
+            str(resname).strip()
+            for resname, _atomname in template
+            if str(resname).strip()
+        }
+        if len(template_resnames) <= 1 or not template:
+            continue
+
+        selected_indices = [
+            idx for idx, rec in enumerate(records)
+            if str(rec["resname"]).strip() in template_resnames
+        ]
+        if not selected_indices:
+            continue
+
+        selected_records = [records[idx] for idx in selected_indices]
+        expected_total = int(count) * len(template)
+        if len(selected_records) != expected_total:
+            continue
+
+        buckets: dict[tuple[str, str], list[dict]] = {}
+        for rec in selected_records:
+            key = (str(rec["resname"]).strip(), str(rec["atomname"]).strip())
+            buckets.setdefault(key, []).append(rec)
+
+        reordered: list[dict] = []
+        failed = False
+        for resname, atomname in template * int(count):
+            key = (str(resname).strip(), str(atomname).strip())
+            bucket = buckets.get(key)
+            if not bucket:
+                failed = True
+                break
+            reordered.append(bucket.pop(0))
+        if failed:
+            continue
+
+        for idx, rec in zip(selected_indices, reordered):
+            records[idx] = rec
+        changed = True
+
+    if not changed:
+        return False
+
+    for atomid, rec in enumerate(records, start=1):
+        rec["atomid"] = atomid
+    _write_gro_records(str(gro_path), title, records, box)
+    return True
+
+
 def _normalize_surface_itp_atomnames(surface_gro: Path, surface_itp: Path) -> bool:
     if not surface_gro.exists() or not surface_itp.exists():
         return False
@@ -2883,6 +2952,7 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
         if args.dna:
             _refresh_dna_thermostat_groups(simdir=simdir, top_path=final_top)
         shutil.copy(solvated_gro, final_gro)
+        _reorder_multi_resname_molecule_records_from_topology(top_path=final_top, gro_path=final_gro)
         _normalize_uniform_atom_names_from_itp(top_dir=top_dir, top_path=final_top, gro_path=final_gro)
         shutil.copy(final_gro, final_alias_gro)
         merged_index = _rebuild_merged_index(gmx_bin=gmx_bin, gro_path=final_alias_gro, top_dir=top_dir)
@@ -2941,6 +3011,7 @@ def _run_optional_solvation_ionization(args: argparse.Namespace, simdir: Path) -
                 "✔ Applied Martini 3 water mix: "
                 + ", ".join(f"{name}={count}" for name, count in sorted(mixed_counts.items()))
             )
+    _reorder_multi_resname_molecule_records_from_topology(top_path=final_top, gro_path=final_gro)
     _normalize_uniform_atom_names_from_itp(top_dir=top_dir, top_path=final_top, gro_path=final_gro)
     _normalize_ion_atom_names_from_itp(top_dir=top_dir, gro_path=final_gro)
     _normalize_molecules_block(final_top=final_top, base_top=base_top, top_dir=top_dir)

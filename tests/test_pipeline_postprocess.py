@@ -148,6 +148,56 @@ def test_validate_named_molecule_atomnames_accepts_single_molecule_with_multiple
     )
 
 
+def test_reorder_multi_resname_molecule_records_from_topology_matches_itp_sequence(tmp_path):
+    top_dir = tmp_path / "0_topology"
+    itp_dir = top_dir / "system_itp"
+    gro_dir = tmp_path / "2_system"
+    itp_dir.mkdir(parents=True)
+    gro_dir.mkdir(parents=True)
+
+    (itp_dir / "surface.itp").write_text(
+        "[ moleculetype ]\n"
+        "GRA 1\n\n"
+        "[ atoms ]\n"
+        "1 P4 1 GRA P4 1 0.0\n"
+        "2 P4 1 GRA P5 2 0.0\n"
+        "3 C1 2 EPOX C01 3 0.0\n"
+        "4 C1 2 EPOX C02 4 0.0\n"
+    )
+    top_path = top_dir / "system_final.top"
+    top_path.write_text(
+        '#include "system_itp/surface.itp"\n\n'
+        "[ system ]\nMartiniSurf system\n\n"
+        "[ molecules ]\n"
+        "GRA 1\n"
+    )
+    gro_path = gro_dir / "system_final.gro"
+    gro_path.write_text(
+        "Test system\n"
+        "4\n"
+        "    2EPOX   C01    1   0.200   0.000   0.000\n"
+        "    2EPOX   C02    2   0.300   0.000   0.000\n"
+        "    1GRA     P4    3   0.000   0.000   0.000\n"
+        "    1GRA     P5    4   0.100   0.000   0.000\n"
+        "   1.00000   1.00000   1.00000\n"
+    )
+
+    changed = pipeline._reorder_multi_resname_molecule_records_from_topology(
+        top_path=top_path,
+        gro_path=gro_path,
+    )
+
+    assert changed is True
+    _, records, _ = pipeline._read_gro_records(str(gro_path))
+    assert [(r["resname"], r["atomname"]) for r in records] == [
+        ("GRA", "P4"),
+        ("GRA", "P5"),
+        ("EPOX", "C01"),
+        ("EPOX", "C02"),
+    ]
+    assert [r["atomid"] for r in records] == [1, 2, 3, 4]
+
+
 def test_martinize_extra_args_block_pipeline_managed_flags():
     parser = pipeline.build_parser()
     args = parser.parse_args([
