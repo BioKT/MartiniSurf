@@ -429,7 +429,11 @@ def write_top_files(
 
     present_forcefields = [itp for itp in forcefield_itps if itp and (dst_itp_dir / itp).exists()]
 
-    def _include_block(molecule_itp_name: str, linker_include_name: str | None = None) -> str:
+    def _include_block(
+        molecule_itp_name: str,
+        linker_include_name: str | None = None,
+        intermolecular_include_name: str | None = None,
+    ) -> str:
         lines = []
         if is_dna:
             lines.append("#define RUBBER_BANDS")
@@ -447,6 +451,8 @@ def write_top_files(
             lines.append(f'#include "system_itp/{cofactor_itp_name}"')
         if substrate_itp_name and substrate_count > 0:
             lines.append(f'#include "system_itp/{substrate_itp_name}"')
+        if intermolecular_include_name:
+            lines.append(f'#include "system_itp/{intermolecular_include_name}"')
         return "\n".join(lines)
 
     system_top = topo_dir / "system.top"
@@ -467,21 +473,17 @@ def write_top_files(
 
     with open(system_top, "w") as fh:
         fh.write(
-            _include_block(mol_itp_name, linker_itp_name)
+            _include_block(mol_itp_name, linker_itp_name, intermolecular_itp_name)
             + "\n\n[ system ]\nMartiniSurf system\n\n[ molecules ]\n"
             + f"{moltype} 1\n{cofactor_line}{linker_line}{surface_moltype} {surface_count}\n{substrate_line}"
         )
-        if intermolecular_itp_name:
-            fh.write(f'\n#include "system_itp/{intermolecular_itp_name}"\n')
 
     with open(system_res_top, "w") as fh:
         fh.write(
-            _include_block(anchor_itp_name, restrained_linker_itp_name)
+            _include_block(anchor_itp_name, restrained_linker_itp_name, intermolecular_itp_name)
             + "\n\n[ system ]\nMartiniSurf restrained system\n\n[ molecules ]\n"
             + f"{moltype} 1\n{cofactor_line}{linker_line}{surface_moltype} {surface_count}\n{substrate_line}"
         )
-        if intermolecular_itp_name:
-            fh.write(f'\n#include "system_itp/{intermolecular_itp_name}"\n')
 
     # Compatibility alias for legacy workflows/scripts that still expect system_anchor.top.
     shutil.copy(system_res_top, system_anchor_top)

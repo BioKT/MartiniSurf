@@ -2,6 +2,7 @@ from pathlib import Path
 
 from martinisurf.pipeline import (
     _build_generated_surface_args,
+    _effective_balance_merged_chains,
     _effective_surface_geometry,
     _resolve_generated_surface_mode,
     build_parser,
@@ -100,6 +101,34 @@ def test_surface_stacking_defaults_to_hcp_and_accepts_fcc():
         "--surface-stacking", "fcc",
     ])
     assert fcc_args.surface_stacking == "fcc"
+
+
+def test_effective_balance_merged_chains_disabled_for_dna():
+    parser = build_parser()
+    args = parser.parse_args([
+        "--dna",
+        "--pdb", "4C64",
+        "--merge", "A,B",
+        "--anchor", "1", "1",
+        "--lx", "10",
+        "--ly", "10",
+        "--balance-merged-chains",
+    ])
+    assert args.balance_merged_chains is True
+    assert _effective_balance_merged_chains(args) is False
+
+
+def test_effective_balance_merged_chains_stays_enabled_for_protein():
+    parser = build_parser()
+    args = parser.parse_args([
+        "--pdb", "1UBQ",
+        "--merge", "A,B",
+        "--anchor", "A", "76",
+        "--lx", "10",
+        "--ly", "10",
+        "--balance-merged-chains",
+    ])
+    assert _effective_balance_merged_chains(args) is True
 
 
 def test_surface_mode_accepts_graphite_parameters():

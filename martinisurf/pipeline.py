@@ -973,6 +973,12 @@ def _validate_martinize_extra_args(parser: argparse.ArgumentParser, args: argpar
     return tokens
 
 
+def _effective_balance_merged_chains(args: argparse.Namespace) -> bool:
+    if getattr(args, "dna", False):
+        return False
+    return bool(getattr(args, "balance_merged_chains", False))
+
+
 def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     _apply_dynamic_defaults(args)
     args.martinize_extra_tokens = _validate_martinize_extra_args(parser, args)
@@ -3258,11 +3264,15 @@ def main(argv=None):
         # ===============================================================
         # 1) CLEAN INPUT
         # ===============================================================
+        balance_merged_chains = _effective_balance_merged_chains(args)
+        if bool(args.dna) and bool(args.balance_merged_chains):
+            print("ℹ DNA mode: merged-chain balancing is ignored to preserve full nucleic-acid strands.")
+
         pdb_abs = load_clean_pdb(
             args.pdb,
             workdir=simdir,
             merge_groups=merge_groups,
-            balance_merged_chains=bool(args.balance_merged_chains),
+            balance_merged_chains=balance_merged_chains,
         )
         resolved_anchor_groups = _normalize_cli_residue_groups(args.anchor, pdb_abs, "--anchor")
         resolved_linker_groups = _normalize_cli_residue_groups(args.linker_group, pdb_abs, "--linker-group")

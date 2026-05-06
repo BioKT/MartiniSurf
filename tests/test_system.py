@@ -1439,6 +1439,44 @@ def test_protein_topology_avoids_duplicate_defaults_includes(tmp_path):
     assert '#include "system_itp/martini_v3.0.0_Active.itp"' not in system_top
 
 
+def test_interactions_itp_is_included_before_molecules_block(tmp_path):
+    topo_dir = tmp_path / "0_topology"
+    itp_dir = topo_dir / "system_itp"
+    topo_dir.mkdir(parents=True)
+    itp_dir.mkdir(parents=True)
+
+    for name in [
+        "martini_v3.0.0.itp",
+        "martini_v3.0.0_solvents_v1.itp",
+        "martini_v3.0.0_ions_v1.itp",
+        "Protein.itp",
+        "Protein_anchor.itp",
+        "surface.itp",
+        "LNK.itp",
+        "surface_linker_bonds.itp",
+    ]:
+        (itp_dir / name).write_text("; dummy\n")
+
+    gms.write_top_files(
+        topo_dir=topo_dir,
+        dst_itp_dir=itp_dir,
+        moltype="Protein",
+        mol_itp_name="Protein.itp",
+        anchor_itp_name="Protein_anchor.itp",
+        is_dna=False,
+        use_linker=True,
+        linker_itp_name="LNK.itp",
+        linker_moltype="LNK",
+        linker_count=5,
+        intermolecular_itp_name="surface_linker_bonds.itp",
+    )
+
+    system_top = (topo_dir / "system.top").read_text()
+    include_pos = system_top.index('#include "system_itp/surface_linker_bonds.itp"')
+    molecules_pos = system_top.index("[ molecules ]")
+    assert include_pos < molecules_pos
+
+
 def test_surface_molecule_count_tracks_surface_atoms_for_single_atom_surface_itp(tmp_path, monkeypatch):
     sim, _ = prepare_simulation_structure(tmp_path)
     monkeypatch.chdir(sim / "2_system")
