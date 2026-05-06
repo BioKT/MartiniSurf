@@ -247,6 +247,7 @@ def simple_clean_pdb(
     chain: str | None = None,
     merge_groups: list[str] | None = None,
     balance_merged_chains: bool = False,
+    validate_merged_alignment: bool = True,
 ) -> Path:
     atom_lines: list[str] = []
     with open(infile) as fin:
@@ -270,7 +271,8 @@ def simple_clean_pdb(
                 continue
         filtered_lines.append(line)
 
-    validate_merged_chain_residue_alignment(filtered_lines, merge_groups)
+    if validate_merged_alignment:
+        validate_merged_chain_residue_alignment(filtered_lines, merge_groups)
 
     with open(outfile, "w") as fout:
         for line in filtered_lines:
@@ -312,6 +314,7 @@ def load_clean_pdb(
     chain: str | None = None,
     merge_groups: list[str] | None = None,
     balance_merged_chains: bool = False,
+    validate_merged_alignment: bool = True,
 ) -> Path:
     raw_structure = resolve_pdb_input(pdb_input, workdir)
     raw_pdb = raw_structure
@@ -331,4 +334,5 @@ def load_clean_pdb(
         chain=chain,
         merge_groups=merge_groups,
         balance_merged_chains=balance_merged_chains,
+        validate_merged_alignment=validate_merged_alignment,
     ).resolve()

@@ -101,6 +101,31 @@ def test_simple_clean_pdb_fails_when_merge_group_remains_misaligned(tmp_path):
         )
 
 
+def test_simple_clean_pdb_allows_misaligned_merge_group_when_validation_disabled(tmp_path):
+    infile = tmp_path / "input.pdb"
+    outfile = tmp_path / "output.pdb"
+    infile.write_text(
+        "ATOM      1  P   DC  A   1      0.000   0.000   0.000  1.00 20.00           P\n"
+        "ATOM      2  P   DG  A   2      0.100   0.000   0.000  1.00 20.00           P\n"
+        "ATOM      3  P   DC  B  13      0.200   0.000   0.000  1.00 20.00           P\n"
+        "ATOM      4  P   DG  B  14      0.300   0.000   0.000  1.00 20.00           P\n"
+    )
+
+    cleaned = pdb_generation.simple_clean_pdb(
+        infile,
+        outfile,
+        merge_groups=["A,B"],
+        balance_merged_chains=False,
+        validate_merged_alignment=False,
+    )
+
+    assert cleaned == outfile
+    lines = outfile.read_text().splitlines()
+    assert len(lines) == 4
+    assert "A   1" in lines[0]
+    assert "B  13" in lines[2]
+
+
 def test_load_clean_pdb_converts_local_cif_before_cleaning(monkeypatch, tmp_path):
     cif = tmp_path / "input.cif"
     cif.write_text("data_test\n")

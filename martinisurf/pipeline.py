@@ -3273,6 +3273,7 @@ def main(argv=None):
             workdir=simdir,
             merge_groups=merge_groups,
             balance_merged_chains=balance_merged_chains,
+            validate_merged_alignment=not bool(args.dna),
         )
         resolved_anchor_groups = _normalize_cli_residue_groups(args.anchor, pdb_abs, "--anchor")
         resolved_linker_groups = _normalize_cli_residue_groups(args.linker_group, pdb_abs, "--linker-group")
