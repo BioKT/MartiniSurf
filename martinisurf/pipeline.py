@@ -1028,15 +1028,16 @@ def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
     ):
         parser.error("CNT flags (--cnt-*) require --surface-mode cnt, cnt-m2, or cnt-m3.")
 
-    if args.linker and not args.linker_group:
+    surface_linker_only = bool(args.linker and args.surface_linkers > 0 and not args.linker_group)
+    if args.linker and not args.linker_group and not surface_linker_only:
         parser.error("Linker mode requires at least one --linker-group.")
 
     if not args.linker and not args.anchor and not complex_mode:
         parser.error("Provide --anchor in classical mode, or use --linker mode.")
 
-    if args.anchor and args.linker:
+    if args.anchor and args.linker and not surface_linker_only:
         print("⚠ Both --anchor and --linker were provided. Linker mode will be used.")
-    if args.ads_mode and args.linker:
+    if args.ads_mode and args.linker and not surface_linker_only:
         parser.error("--ads-mode is incompatible with linker mode.")
     if args.ads_mode and not (args.anchor or args.complex_config):
         parser.error("--ads-mode requires anchor-based orientation (--anchor or --complex-config).")
@@ -1122,8 +1123,9 @@ def _print_config_summary(args: argparse.Namespace) -> None:
         return
 
     mode = "DNA" if args.dna else "Protein"
-    orient_mode = "linker" if args.linker else "anchor"
-    if args.ads_mode and not args.linker:
+    surface_linker_only = bool(args.linker and args.surface_linkers > 0 and not args.linker_group)
+    orient_mode = "linker" if args.linker and not surface_linker_only else "anchor"
+    if args.ads_mode and (not args.linker or surface_linker_only):
         orient_mode = "ads"
     print("\n=== MartiniSurf Configuration ===")
     print(f"Mode:            {mode}")
@@ -1137,6 +1139,8 @@ def _print_config_summary(args: argparse.Namespace) -> None:
     if args.linker:
         group_count = len(args.linker_group) if args.linker_group else 0
         print(f"Linker groups:    {group_count}")
+        if args.surface_linkers > 0:
+            print(f"Surface linkers:  {args.surface_linkers}")
         print(f"Invert linker:    {args.invert_linker}")
     elif args.anchor:
         print(f"Anchor groups:    {len(args.anchor)}")
