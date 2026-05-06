@@ -11,6 +11,7 @@ Stable architecture:
 """
 
 import argparse
+from collections import Counter
 import importlib.metadata
 import importlib.util
 import json
@@ -1885,6 +1886,47 @@ def _load_moltype_atoms_from_itp_file(itp_path: Path) -> dict[str, list[str]]:
     return mol_atoms
 
 
+def _load_moltype_atom_templates_from_itp_file(itp_path: Path) -> dict[str, list[tuple[str, str]]]:
+    mol_atoms: dict[str, list[tuple[str, str]]] = {}
+    if not itp_path.exists():
+        return mol_atoms
+
+    current_moltype: str | None = None
+    in_moleculetype = False
+    in_atoms = False
+    collecting_atoms: list[tuple[str, str]] | None = None
+
+    for raw in itp_path.read_text().splitlines():
+        line = raw.split(";", 1)[0].strip()
+        if not line:
+            continue
+
+        if line.startswith("["):
+            if in_atoms and collecting_atoms is not None and current_moltype and current_moltype not in mol_atoms:
+                mol_atoms[current_moltype] = collecting_atoms
+                collecting_atoms = None
+            section = line.strip("[]").strip().lower()
+            in_moleculetype = section == "moleculetype"
+            in_atoms = section == "atoms"
+            continue
+
+        if in_moleculetype:
+            current_moltype = line.split()[0]
+            in_moleculetype = False
+            collecting_atoms = []
+            continue
+
+        if in_atoms and current_moltype:
+            parts = line.split()
+            if len(parts) >= 5 and collecting_atoms is not None:
+                collecting_atoms.append((str(parts[3]).strip(), str(parts[4]).strip()))
+
+    if collecting_atoms is not None and current_moltype and current_moltype not in mol_atoms:
+        mol_atoms[current_moltype] = collecting_atoms
+
+    return mol_atoms
+
+
 def _iter_included_itp_paths(top_path: Path) -> list[Path]:
     include_re = re.compile(r'^\s*#include\s+"([^"]+)"')
     seen: set[Path] = set()
@@ -1912,6 +1954,16 @@ def _load_moltype_atoms_from_topology(top_path: Path) -> dict[str, list[str]]:
     mol_atoms: dict[str, list[str]] = {}
     for itp_path in _iter_included_itp_paths(top_path):
         current = _load_moltype_atoms_from_itp_file(itp_path)
+        for moltype, atoms in current.items():
+            if moltype not in mol_atoms:
+                mol_atoms[moltype] = atoms
+    return mol_atoms
+
+
+def _load_moltype_atom_templates_from_topology(top_path: Path) -> dict[str, list[tuple[str, str]]]:
+    mol_atoms: dict[str, list[tuple[str, str]]] = {}
+    for itp_path in _iter_included_itp_paths(top_path):
+        current = _load_moltype_atom_templates_from_itp_file(itp_path)
         for moltype, atoms in current.items():
             if moltype not in mol_atoms:
                 mol_atoms[moltype] = atoms
@@ -1968,6 +2020,7 @@ def _validate_named_molecule_atomnames(top_dir: Path, top_path: Path, gro_path: 
         return
 
     mol_atoms = _load_moltype_atoms_from_topology(top_path)
+    mol_templates = _load_moltype_atom_templates_from_topology(top_path)
     _, records, _ = _read_gro_records(str(gro_path))
 
     grouped: dict[tuple[int, str], list[dict]] = {}
@@ -1987,8 +2040,51 @@ def _validate_named_molecule_atomnames(top_dir: Path, top_path: Path, gro_path: 
     for molname, count in molecules:
         if count <= 0:
             continue
+        atom_template_full = mol_templates.get(molname, [])
         atom_template = mol_atoms.get(molname)
         got_atomnames = atomnames_by_resname.get(molname, [])
+        template_resnames = {
+            str(resname).strip()
+            for resname, _atomname in atom_template_full
+            if str(resname).strip()
+        }
+        if len(template_resnames) > 1 and atom_template_full:
+            expected_pairs = [
+                (str(resname).strip(), str(atomname).strip())
+                for resname, atomname in atom_template_full
+            ]
+            got_records = [
+                rec
+                for rec in records
+                if str(rec["resname"]).strip() in template_resnames
+            ]
+            expected_total = int(count) * len(expected_pairs)
+            if len(got_records) != expected_total:
+                issues.append(
+                    f"{molname}: expected {expected_total} atoms from topology, found {len(got_records)} atoms in GRO"
+                )
+                continue
+
+            expected_counter = Counter(expected_pairs)
+            got_counter = Counter(
+                (str(rec["resname"]).strip(), str(rec["atomname"]).strip())
+                for rec in got_records
+            )
+            if expected_counter != got_counter:
+                for key in sorted(set(expected_counter) | set(got_counter)):
+                    expected_count = expected_counter.get(key, 0)
+                    got_count = got_counter.get(key, 0)
+                    if expected_count == got_count:
+                        continue
+                    issues.append(
+                        f"{molname}: expected {expected_count} occurrences of {key[0]}:{key[1]} got {got_count}"
+                    )
+                    if len(issues) >= 200:
+                        issues.append("... truncated ...")
+                        break
+                if len(issues) >= 200:
+                    break
+            continue
         if not atom_template or not got_atomnames:
             continue
         expected_total = int(count) * len(atom_template)
@@ -2175,6 +2271,7 @@ def _update_top_molecule_count(top_path: Path, molname: str, new_count: int) -> 
     out: list[str] = []
     in_molecules = False
     replaced = False
+    inserted = False
     for raw in lines:
         stripped = raw.strip()
         if stripped.lower() == "[ molecules ]":
@@ -2182,7 +2279,10 @@ def _update_top_molecule_count(top_path: Path, molname: str, new_count: int) -> 
             out.append(raw)
             continue
         if in_molecules:
-            if stripped.startswith("["):
+            if stripped.startswith("[") or stripped.startswith("#include"):
+                if not replaced and not inserted:
+                    out.append(_fmt_molecule_line(molname, new_count))
+                    inserted = True
                 in_molecules = False
                 out.append(raw)
                 continue
@@ -2194,7 +2294,7 @@ def _update_top_molecule_count(top_path: Path, molname: str, new_count: int) -> 
                     continue
         out.append(raw)
 
-    if not replaced:
+    if not replaced and not inserted:
         text = "\n".join(out).rstrip() + "\n"
         if "[ molecules ]" in text:
             text += _fmt_molecule_line(molname, new_count) + "\n"

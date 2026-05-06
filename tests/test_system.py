@@ -1439,7 +1439,7 @@ def test_protein_topology_avoids_duplicate_defaults_includes(tmp_path):
     assert '#include "system_itp/martini_v3.0.0_Active.itp"' not in system_top
 
 
-def test_interactions_itp_is_included_after_molecules_block(tmp_path):
+def test_interactions_block_is_appended_after_molecules_block(tmp_path):
     topo_dir = tmp_path / "0_topology"
     itp_dir = topo_dir / "system_itp"
     topo_dir.mkdir(parents=True)
@@ -1453,9 +1453,14 @@ def test_interactions_itp_is_included_after_molecules_block(tmp_path):
         "Protein_anchor.itp",
         "surface.itp",
         "LNK.itp",
-        "surface_linker_bonds.itp",
     ]:
         (itp_dir / name).write_text("; dummy\n")
+    (itp_dir / "surface_linker_bonds.itp").write_text(
+        "[ intermolecular_interactions ]\n"
+        "[ bonds ]\n"
+        "; surface_atom linker_tail funct length force\n"
+        "1 2 1 0.5640 1250.0\n"
+    )
 
     gms.write_top_files(
         topo_dir=topo_dir,
@@ -1472,9 +1477,9 @@ def test_interactions_itp_is_included_after_molecules_block(tmp_path):
     )
 
     system_top = (topo_dir / "system.top").read_text()
-    include_pos = system_top.index('#include "system_itp/surface_linker_bonds.itp"')
+    block_pos = system_top.index("[ intermolecular_interactions ]")
     molecules_pos = system_top.index("[ molecules ]")
-    assert include_pos > molecules_pos
+    assert block_pos > molecules_pos
 
 
 def test_surface_molecule_count_tracks_surface_atoms_for_single_atom_surface_itp(tmp_path, monkeypatch):
@@ -1595,7 +1600,7 @@ def test_missing_named_protein_itp_uses_real_candidate_but_keeps_requested_molty
     assert "Protein_0 1" not in text
 
 
-def test_surface_linker_bond_itp_uses_top_surface_and_linker_tail(tmp_path):
+def test_surface_linkers_merge_into_surface_itp_with_surface_tail_bond(tmp_path):
     gro = tmp_path / "decorated.gro"
     gro.write_text(
         "surface linker bond test\n"
@@ -1606,11 +1611,27 @@ def test_surface_linker_bond_itp_uses_top_surface_and_linker_tail(tmp_path):
         "    2SRF     P4    4   1.000   0.000   0.000\n"
         "   4.00000   4.00000   4.00000\n"
     )
-    out = tmp_path / "surface_linker_bonds.itp"
+    surface_itp = tmp_path / "surface.itp"
+    surface_itp.write_text(
+        "[ moleculetype ]\nSRF 1\n\n"
+        "[ atoms ]\n"
+        "1 P4 1 SRF P4 1 0.0\n"
+        "2 P4 1 SRF P4 2 0.0\n"
+    )
+    linker_itp = tmp_path / "LNK.itp"
+    linker_itp.write_text(
+        "[ moleculetype ]\nLNK 1\n\n"
+        "[ atoms ]\n"
+        "1 C1 1 LNK C1 1 0.0\n"
+        "2 C1 1 LNK C2 2 0.0\n\n"
+        "[ bonds ]\n"
+        "1 2 1 0.470 1250\n"
+    )
     universe = gms.mda.Universe(str(gro))
 
-    count = gms._write_surface_linker_bond_itp(
-        itp_path=out,
+    count = gms._merge_surface_linker_itp(
+        surface_itp_path=surface_itp,
+        linker_itp_path=linker_itp,
         universe=universe,
         surface_resname="SRF",
         linker_resname="LNK",
@@ -1619,8 +1640,10 @@ def test_surface_linker_bond_itp_uses_top_surface_and_linker_tail(tmp_path):
         bond_length_nm=0.53,
     )
 
-    text = out.read_text()
+    text = surface_itp.read_text()
     assert count == 1
-    assert "[ intermolecular_interactions ]" in text
+    assert "[ atoms ]" in text
     assert "[ bonds ]" in text
-    assert "3        2 1   0.5300" in text
+    assert "3     C1" in text or "     3     C1" in text
+    assert "4     C1" in text or "     4     C1" in text
+    assert "1      4 1 0.5300 1250.0" in text or "     1      4 1 0.5300 1250.0" in text

@@ -60,7 +60,7 @@ def test_parser_accepts_advanced_martinize2_bias_flags():
     assert args.eunit == "chain"
 
 
-def test_replace_molecules_block_preserves_trailing_intermolecular_include(tmp_path):
+def test_replace_molecules_block_preserves_trailing_intermolecular_block(tmp_path):
     top = tmp_path / "system_final.top"
     top.write_text(
         '#include "system_itp/Protein.itp"\n'
@@ -69,7 +69,10 @@ def test_replace_molecules_block_preserves_trailing_intermolecular_include(tmp_p
         "Protein 1\n"
         "SRF 1\n"
         "W 10\n"
-        '\n#include "system_itp/surface_linker_bonds.itp"\n'
+        "\n[ intermolecular_interactions ]\n"
+        "[ bonds ]\n"
+        "; surface_atom linker_tail funct length force\n"
+        "1 2 1 0.5640 1250.0\n"
     )
 
     pipeline._replace_molecules_block(
@@ -79,8 +82,70 @@ def test_replace_molecules_block_preserves_trailing_intermolecular_include(tmp_p
 
     text = top.read_text()
     assert "[ molecules ]\nProtein 1\nSRF 1\nW 20\n" in text
-    assert '#include "system_itp/surface_linker_bonds.itp"' in text
-    assert text.index('#include "system_itp/surface_linker_bonds.itp"') > text.index("[ molecules ]")
+    assert "[ intermolecular_interactions ]" in text
+    assert text.index("[ intermolecular_interactions ]") > text.index("[ molecules ]")
+
+
+def test_update_top_molecule_count_inserts_water_before_trailing_intermolecular_block(tmp_path):
+    top = tmp_path / "system_final.top"
+    top.write_text(
+        '#include "system_itp/Protein.itp"\n'
+        "\n[ system ]\nMartiniSurf system\n\n"
+        "[ molecules ]\n"
+        "Protein 1\n"
+        "SRF 1\n"
+        "\n[ intermolecular_interactions ]\n"
+        "[ bonds ]\n"
+        "; surface_atom linker_tail funct length force\n"
+        "1 2 1 0.5640 1250.0\n"
+    )
+
+    pipeline._update_top_molecule_count(top, "W", 123)
+
+    text = top.read_text()
+    assert "W               123" in text
+    assert text.index("W               123") < text.index("[ intermolecular_interactions ]")
+
+
+def test_validate_named_molecule_atomnames_accepts_single_molecule_with_multiple_resnames(tmp_path):
+    top_dir = tmp_path / "0_topology"
+    itp_dir = top_dir / "system_itp"
+    gro_dir = tmp_path / "2_system"
+    itp_dir.mkdir(parents=True)
+    gro_dir.mkdir(parents=True)
+
+    (itp_dir / "surface.itp").write_text(
+        "[ moleculetype ]\n"
+        "GRA 1\n\n"
+        "[ atoms ]\n"
+        "1 P4 1 GRA P4 1 0.0\n"
+        "2 P4 1 GRA P4 2 0.0\n"
+        "3 C1 2 EPOX C1 3 0.0\n"
+        "4 C1 2 EPOX C2 4 0.0\n"
+    )
+    top_path = top_dir / "system_final.top"
+    top_path.write_text(
+        '#include "system_itp/surface.itp"\n\n'
+        "[ system ]\nMartiniSurf system\n\n"
+        "[ molecules ]\n"
+        "GRA 1\n"
+    )
+    gro_path = gro_dir / "system_final.gro"
+    gro_path.write_text(
+        "Test system\n"
+        "4\n"
+        "    1GRA     P4    1   0.000   0.000   0.000\n"
+        "    1GRA     P4    2   0.100   0.000   0.000\n"
+        "    2EPOX    C1    3   0.200   0.000   0.000\n"
+        "    2EPOX    C2    4   0.300   0.000   0.000\n"
+        "   1.00000   1.00000   1.00000\n"
+    )
+
+    pipeline._validate_named_molecule_atomnames(
+        top_dir=top_dir,
+        top_path=top_path,
+        gro_path=gro_path,
+    )
 
 
 def test_martinize_extra_args_block_pipeline_managed_flags():
