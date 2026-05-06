@@ -1970,6 +1970,45 @@ def _load_moltype_atom_templates_from_topology(top_path: Path) -> dict[str, list
     return mol_atoms
 
 
+def _topology_molecule_segments(
+    top_path: Path,
+    records: list[dict],
+) -> list[dict[str, Any]]:
+    molecules = _parse_molecules_entries(top_path)
+    if not molecules:
+        return []
+
+    mol_templates = _load_moltype_atom_templates_from_topology(top_path)
+    cursor = 0
+    segments: list[dict[str, Any]] = []
+
+    for molname, count in molecules:
+        if count <= 0:
+            continue
+        template = mol_templates.get(molname, [])
+        if not template:
+            continue
+        seg_len = len(template)
+        if seg_len <= 0:
+            continue
+        for occurrence in range(1, int(count) + 1):
+            seg_records = records[cursor:cursor + seg_len]
+            if len(seg_records) != seg_len:
+                return segments
+            segments.append(
+                {
+                    "molname": molname,
+                    "occurrence": occurrence,
+                    "template": template,
+                    "records": seg_records,
+                    "indices": list(range(cursor, cursor + seg_len)),
+                }
+            )
+            cursor += seg_len
+
+    return segments
+
+
 def _reorder_multi_resname_molecule_records_from_topology(
     top_path: Path,
     gro_path: Path,
@@ -1977,18 +2016,14 @@ def _reorder_multi_resname_molecule_records_from_topology(
     if not top_path.exists() or not gro_path.exists():
         return False
 
-    molecules = _parse_molecules_entries(top_path)
-    if not molecules:
-        return False
-
-    mol_templates = _load_moltype_atom_templates_from_topology(top_path)
     title, records, box = _read_gro_records(str(gro_path))
+    segments = _topology_molecule_segments(top_path, records)
+    if not segments:
+        return False
     changed = False
 
-    for molname, count in molecules:
-        if count <= 0:
-            continue
-        template = mol_templates.get(molname, [])
+    for segment in segments:
+        template = segment["template"]
         template_resnames = {
             str(resname).strip()
             for resname, _atomname in template
@@ -1997,26 +2032,14 @@ def _reorder_multi_resname_molecule_records_from_topology(
         if len(template_resnames) <= 1 or not template:
             continue
 
-        selected_indices = [
-            idx for idx, rec in enumerate(records)
-            if str(rec["resname"]).strip() in template_resnames
-        ]
-        if not selected_indices:
-            continue
-
-        selected_records = [records[idx] for idx in selected_indices]
-        expected_total = int(count) * len(template)
-        if len(selected_records) != expected_total:
-            continue
-
         buckets: dict[tuple[str, str], list[dict]] = {}
-        for rec in selected_records:
+        for rec in segment["records"]:
             key = (str(rec["resname"]).strip(), str(rec["atomname"]).strip())
             buckets.setdefault(key, []).append(rec)
 
         reordered: list[dict] = []
         failed = False
-        for resname, atomname in template * int(count):
+        for resname, atomname in template:
             key = (str(resname).strip(), str(atomname).strip())
             bucket = buckets.get(key)
             if not bucket:
@@ -2026,7 +2049,7 @@ def _reorder_multi_resname_molecule_records_from_topology(
         if failed:
             continue
 
-        for idx, rec in zip(selected_indices, reordered):
+        for idx, rec in zip(segment["indices"], reordered):
             records[idx] = rec
         changed = True
 
@@ -2088,110 +2111,95 @@ def _validate_named_molecule_atomnames(top_dir: Path, top_path: Path, gro_path: 
     if not molecules:
         return
 
-    mol_atoms = _load_moltype_atoms_from_topology(top_path)
     mol_templates = _load_moltype_atom_templates_from_topology(top_path)
     _, records, _ = _read_gro_records(str(gro_path))
-
-    grouped: dict[tuple[int, str], list[dict]] = {}
-    for rec in records:
-        key = (int(rec["resid"]), str(rec["resname"]).strip())
-        grouped.setdefault(key, []).append(rec)
-
-    by_resname: dict[str, list[list[dict]]] = {}
-    for (_, resname), atoms in grouped.items():
-        by_resname.setdefault(resname, []).append(atoms)
-    atomnames_by_resname: dict[str, list[str]] = {}
-    for rec in records:
-        res = str(rec["resname"]).strip()
-        atomnames_by_resname.setdefault(res, []).append(str(rec["atomname"]).strip())
+    segments = _topology_molecule_segments(top_path, records)
+    segments_by_name: dict[str, list[dict[str, Any]]] = {}
+    for segment in segments:
+        segments_by_name.setdefault(str(segment["molname"]).strip(), []).append(segment)
 
     issues: list[str] = []
     for molname, count in molecules:
         if count <= 0:
             continue
         atom_template_full = mol_templates.get(molname, [])
-        atom_template = mol_atoms.get(molname)
-        got_atomnames = atomnames_by_resname.get(molname, [])
-        template_resnames = {
-            str(resname).strip()
-            for resname, _atomname in atom_template_full
-            if str(resname).strip()
-        }
-        if len(template_resnames) > 1 and atom_template_full:
-            expected_pairs = [
-                (str(resname).strip(), str(atomname).strip())
-                for resname, atomname in atom_template_full
-            ]
-            got_records = [
-                rec
-                for rec in records
-                if str(rec["resname"]).strip() in template_resnames
-            ]
-            expected_total = int(count) * len(expected_pairs)
-            if len(got_records) != expected_total:
-                issues.append(
-                    f"{molname}: expected {expected_total} atoms from topology, found {len(got_records)} atoms in GRO"
+        if not atom_template_full:
+            continue
+
+        mol_segments = segments_by_name.get(molname, [])
+        expected_total = int(count) * len(atom_template_full)
+        actual_total = sum(len(seg["records"]) for seg in mol_segments)
+        if actual_total != expected_total:
+            issues.append(
+                f"{molname}: expected {expected_total} atoms from topology, found {actual_total} atoms in GRO"
+            )
+            continue
+
+        if len(mol_segments) != int(count):
+            issues.append(
+                f"{molname}: expected {count} molecule segment(s) from topology, found {len(mol_segments)} in GRO"
+            )
+            continue
+
+        expected_pairs = [
+            (str(resname).strip(), str(atomname).strip())
+            for resname, atomname in atom_template_full
+        ]
+        expected = [atomname for _resname, atomname in expected_pairs]
+        multi_resname = len({resname for resname, _atomname in expected_pairs}) > 1
+
+        for seg_idx, segment in enumerate(mol_segments, start=1):
+            seg_records = segment["records"]
+            if multi_resname:
+                expected_counter = Counter(expected_pairs)
+                got_counter = Counter(
+                    (str(rec["resname"]).strip(), str(rec["atomname"]).strip())
+                    for rec in seg_records
                 )
+                if expected_counter != got_counter:
+                    for key in sorted(set(expected_counter) | set(got_counter)):
+                        expected_count = expected_counter.get(key, 0)
+                        got_count = got_counter.get(key, 0)
+                        if expected_count == got_count:
+                            continue
+                        issues.append(
+                            f"{molname} molecule {seg_idx}: expected {expected_count} occurrences of {key[0]}:{key[1]} got {got_count}"
+                        )
+                        if len(issues) >= 200:
+                            issues.append("... truncated ...")
+                            break
+                    if len(issues) >= 200:
+                        break
                 continue
 
-            expected_counter = Counter(expected_pairs)
-            got_counter = Counter(
-                (str(rec["resname"]).strip(), str(rec["atomname"]).strip())
-                for rec in got_records
-            )
-            if expected_counter != got_counter:
-                for key in sorted(set(expected_counter) | set(got_counter)):
-                    expected_count = expected_counter.get(key, 0)
-                    got_count = got_counter.get(key, 0)
-                    if expected_count == got_count:
-                        continue
-                    issues.append(
-                        f"{molname}: expected {expected_count} occurrences of {key[0]}:{key[1]} got {got_count}"
-                    )
+            got = [str(rec["atomname"]).strip() for rec in seg_records]
+            if len(set(expected)) == 1:
+                target = expected[0]
+                for idx, got_name in enumerate(got, start=1):
+                    if got_name != target:
+                        issues.append(
+                            f"{molname} molecule {seg_idx}: atom {idx} expected '{target}' got '{got_name}'"
+                        )
                     if len(issues) >= 200:
                         issues.append("... truncated ...")
                         break
                 if len(issues) >= 200:
                     break
-            continue
-        if not atom_template or not got_atomnames:
-            continue
-        expected_total = int(count) * len(atom_template)
-        if len(got_atomnames) != expected_total:
-            issues.append(
-                f"{molname}: expected {expected_total} atoms from topology, found {len(got_atomnames)} atoms in GRO"
-            )
-            continue
+                continue
 
-        expected = [str(a).strip() for a in atom_template]
-        if len(set(expected)) == 1:
-            target = expected[0]
-            for idx, got_name in enumerate(got_atomnames, start=1):
-                if got_name != target:
-                    issues.append(
-                        f"{molname}: atom occurrence {idx} expected '{target}' got '{got_name}'"
-                    )
+            if len(got) != len(expected):
+                issues.append(
+                    f"{molname} molecule {seg_idx}: expected {len(expected)} atoms got {len(got)}"
+                )
                 if len(issues) >= 200:
                     issues.append("... truncated ...")
                     break
-            if len(issues) >= 200:
-                break
-            continue
-
-        groups = by_resname.get(molname, [])
-        if len(groups) != count:
-            # For non-uniform atomname templates we need one GRO-residue per molecule
-            # to validate sequence safely.
-            continue
-
-        for idx, atoms in enumerate(groups, start=1):
-            got = [str(a["atomname"]).strip() for a in atoms]
-            if len(got) != len(expected):
                 continue
+
             mismatch_pos = next((i for i, (e, g) in enumerate(zip(expected, got), start=1) if e != g), None)
             if mismatch_pos is not None:
                 issues.append(
-                    f"{molname} molecule {idx}: atom {mismatch_pos} expected '{expected[mismatch_pos - 1]}' got '{got[mismatch_pos - 1]}'"
+                    f"{molname} molecule {seg_idx}: atom {mismatch_pos} expected '{expected[mismatch_pos - 1]}' got '{got[mismatch_pos - 1]}'"
                 )
             if len(issues) >= 200:
                 issues.append("... truncated ...")
@@ -2679,7 +2687,7 @@ def _rebuild_merged_index(
     gro_path: Path,
     top_dir: Path,
 ) -> Path:
-    from martinisurf.gromacs_inputs import _read_itp_first_atoms_resname, _read_itp_moleculetype
+    from martinisurf.gromacs_inputs import _read_itp_atoms_resnames, _read_itp_first_atoms_resname, _read_itp_moleculetype
 
     def _parse_ndx_groups(text: str) -> list[tuple[str, list[int]]]:
         groups: list[tuple[str, list[int]]] = []
@@ -2721,10 +2729,15 @@ def _rebuild_merged_index(
     _, records, _ = _read_gro_records(str(gro_path))
     atom_indices = list(range(1, len(records) + 1))
     resnames = [str(rec["resname"]).strip() for rec in records]
+    top_path = top_dir / "system_final.top"
+    if not top_path.exists():
+        top_path = top_dir / "system.top"
 
     surface_itp = top_dir / "system_itp" / "surface.itp"
     surface_moltype = _read_itp_moleculetype(surface_itp) or "SRF"
     surface_resname = _read_itp_first_atoms_resname(surface_itp) or surface_moltype
+    surface_extra_resnames = _read_itp_atoms_resnames(surface_itp, moltype=surface_moltype)
+    segments = _topology_molecule_segments(top_path, records) if top_path.exists() else []
 
     def _collect_resname_group(*wanted_resnames: str) -> list[int]:
         wanted = {str(name).strip() for name in wanted_resnames if str(name).strip()}
@@ -2738,8 +2751,6 @@ def _rebuild_merged_index(
         }
         ignored = {
             "",
-            surface_moltype,
-            surface_resname,
             "W",
             "WF",
             "PW",
@@ -2772,9 +2783,63 @@ def _rebuild_merged_index(
             ordered.append(resname)
         return ordered
 
+    segment_surface_atoms: list[int] = []
+    segment_dna_atoms: list[int] = []
+    segment_extra_groups: dict[str, list[int]] = {}
+    if segments:
+        for segment in segments:
+            seg_atom_ids = [idx + 1 for idx in segment["indices"]]
+            template_resnames = {
+                str(resname).strip()
+                for resname, _atomname in segment["template"]
+                if str(resname).strip()
+            }
+            if segment["molname"] in {surface_moltype, surface_resname}:
+                for local_idx, rec in zip(seg_atom_ids, segment["records"]):
+                    if str(rec["resname"]).strip() in {surface_moltype, surface_resname}:
+                        segment_surface_atoms.append(local_idx)
+                continue
+            if template_resnames & {"DA", "DC", "DG", "DT"}:
+                for local_idx, rec in zip(seg_atom_ids, segment["records"]):
+                    resname = str(rec["resname"]).strip()
+                    if resname in {"DA", "DC", "DG", "DT"}:
+                        segment_dna_atoms.append(local_idx)
+                ignored_embedded = {
+                    "",
+                    surface_moltype,
+                    surface_resname,
+                    "DA",
+                    "DC",
+                    "DG",
+                    "DT",
+                    "W",
+                    "WF",
+                    "PW",
+                    "SOL",
+                    "NA",
+                    "CL",
+                    "K",
+                    "CA",
+                    "MG",
+                    "ZN",
+                    "LI",
+                    "RB",
+                    "CS",
+                    "BA",
+                    "SR",
+                    "F",
+                    "BR",
+                    "I",
+                }
+                for local_idx, rec in zip(seg_atom_ids, segment["records"]):
+                    resname = str(rec["resname"]).strip()
+                    if resname in ignored_embedded:
+                        continue
+                    segment_extra_groups.setdefault(resname, []).append(local_idx)
+
     rebuilt_groups: list[tuple[str, list[int]]] = [("system", atom_indices)]
 
-    surface_atoms = _collect_resname_group(surface_moltype, surface_resname)
+    surface_atoms = segment_surface_atoms or _collect_resname_group(surface_moltype, surface_resname)
     if surface_atoms:
         rebuilt_groups.append((surface_moltype, surface_atoms))
         if surface_moltype != "SRF":
@@ -2792,12 +2857,20 @@ def _rebuild_merged_index(
              "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL"),
         ),
     ):
-        atoms = _collect_resname_group(*wanted)
+        if group_name == "DNA" and segment_dna_atoms:
+            atoms = segment_dna_atoms
+        else:
+            atoms = _collect_resname_group(*wanted)
         if atoms:
             rebuilt_groups.append((group_name, atoms))
 
-    for resname in _iter_extra_resnames():
-        atoms = _collect_resname_group(resname)
+    ordered_extra_group_names = _iter_extra_resnames()
+    for resname in segment_extra_groups:
+        if resname not in ordered_extra_group_names:
+            ordered_extra_group_names.append(resname)
+
+    for resname in ordered_extra_group_names:
+        atoms = sorted(set(segment_extra_groups.get(resname, [])) | set(_collect_resname_group(resname)))
         if atoms:
             rebuilt_groups.append((resname, atoms))
 

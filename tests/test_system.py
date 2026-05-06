@@ -1174,6 +1174,65 @@ def test_refresh_dna_mdp_thermostat_groups_uses_topology_groups(tmp_path):
     assert "ref-t                    = 300 300 300 300 300 300 300" in production
 
 
+def test_refresh_dna_mdp_thermostat_groups_keeps_surface_embedded_resnames_inside_srf(tmp_path):
+    mdp_dir = tmp_path / "1_mdp"
+    itp_dir = tmp_path / "system_itp"
+    top_path = tmp_path / "system_final.top"
+    mdp_dir.mkdir()
+    itp_dir.mkdir()
+
+    for name in ("nvt_dna.mdp", "production_dna.mdp"):
+        (mdp_dir / name).write_text(
+            "integrator = md\n"
+            "tcoupl                   = v-rescale\n"
+            "tc-grps                  = System\n"
+            "tau-t                    = 1.0\n"
+            "ref-t                    = 300\n"
+        )
+    (mdp_dir / "minimization_dna.mdp").write_text(
+        "integrator = steep\n"
+        "freezegrps               = SRF\n"
+        "freezedim                = Y Y Y\n"
+    )
+
+    top_path.write_text(
+        '#include "system_itp/Nucleic_A+Nucleic_B_linker.itp"\n'
+        '#include "system_itp/surface.itp"\n\n'
+        "[ molecules ]\n"
+        "Nucleic_A+Nucleic_B 1\n"
+        "SRF 1\n"
+        "WF 2\n"
+        "NA 1\n"
+        "CL 1\n"
+    )
+    (itp_dir / "surface.itp").write_text(
+        "[ moleculetype ]\nSRF 1\n\n"
+        "[ atoms ]\n"
+        "1 C1 1 SRF C1 1 0.0\n"
+        "2 C1 1 SRF C2 2 0.0\n"
+        "3 C3 2 EPOX C01 3 0.0\n"
+        "4 C3 2 EPOX C02 4 0.0\n"
+    )
+    (itp_dir / "Nucleic_A+Nucleic_B_linker.itp").write_text(
+        "[ moleculetype ]\nNucleic_A+Nucleic_B 1\n\n"
+        "[ atoms ]\n"
+        "1 Q0 1 DG BB1 1 -1.0\n"
+        "2 SN0 1 DG BB2 2 0.0\n"
+    )
+
+    groups = gms.refresh_dna_mdp_thermostat_groups(
+        mdp_dir=mdp_dir,
+        top_path=top_path,
+        itp_dir=itp_dir,
+        surface_moltype="SRF",
+        surface_resname="SRF",
+    )
+
+    assert groups == ["SRF", "DNA", "WF", "IONS", "EPOX"]
+    production = (mdp_dir / "production_dna.mdp").read_text()
+    assert "tc-grps                  = SRF DNA WF IONS EPOX" in production
+
+
 def test_dna_generated_mdps_include_extra_topology_groups_and_index_aliases(tmp_path, monkeypatch):
     sim, sys2 = prepare_simulation_structure(tmp_path)
     monkeypatch.chdir(sys2)

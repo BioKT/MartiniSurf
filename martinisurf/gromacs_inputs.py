@@ -747,6 +747,16 @@ def _build_dna_thermostat_groups_from_top(
             continue
         if group_name == surface_moltype:
             surface_present = True
+            for extra_name in _embedded_extra_resnames_for_top_molecule(
+                molecule_name=molecule_name,
+                itp_dir=itp_dir,
+                top_path=top_path,
+                surface_moltype=surface_moltype,
+                surface_resname=surface_resname,
+            ):
+                if extra_name not in seen_extras:
+                    extras.append(extra_name)
+                    seen_extras.add(extra_name)
         elif group_name == "DNA":
             dna_present = True
             for extra_name in _embedded_extra_resnames_for_top_molecule(
@@ -2827,8 +2837,6 @@ def main(argv: Sequence[str] | None = None) -> None:
         }
         ignored = {
             "",
-            surface_moltype,
-            surface_resname,
             "W",
             "WF",
             "PW",
@@ -2863,7 +2871,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         return ordered
 
     # Surface freeze/pull groups referenced by mdp templates.
-    surface_atoms = _collect_resname_group(surface_moltype, surface_resname)
+    surface_group_resnames = [surface_moltype, surface_resname]
+    surface_atoms = _collect_resname_group(*surface_group_resnames)
     if surface_atoms:
         custom_groups[surface_moltype] = surface_atoms
         if surface_moltype != "SRF":

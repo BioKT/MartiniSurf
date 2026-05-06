@@ -959,6 +959,46 @@ def test_rebuild_merged_index_adds_extra_resname_groups_like_mol1(tmp_path):
     assert "[ SRF ]" in merged
 
 
+def test_rebuild_merged_index_includes_surface_embedded_resnames_inside_srf_group(tmp_path):
+    top_dir = tmp_path / "0_topology"
+    (top_dir / "system_itp").mkdir(parents=True)
+    gro = tmp_path / "2_system" / "system_final.gro"
+    gro.parent.mkdir(parents=True)
+    fmt = "{resid:5d}{resname:<5}{atomname:>5}{atomid:5d}{x:8.3f}{y:8.3f}{z:8.3f}\n"
+    gro.write_text(
+        "Dummy\n"
+        "    5\n"
+        + fmt.format(resid=1, resname="DA", atomname="BB1", atomid=1, x=0.100, y=0.100, z=0.100)
+        + fmt.format(resid=2, resname="EPOX", atomname="C01", atomid=2, x=0.200, y=0.200, z=0.200)
+        + fmt.format(resid=2, resname="EPOX", atomname="C02", atomid=3, x=0.300, y=0.300, z=0.300)
+        + fmt.format(resid=3, resname="SRF", atomname="C1", atomid=4, x=0.400, y=0.400, z=0.400)
+        + fmt.format(resid=3, resname="SRF", atomname="C2", atomid=5, x=0.500, y=0.500, z=0.400)
+        + "   1.00000   1.00000   1.00000\n"
+    )
+    (top_dir / "system_itp" / "surface.itp").write_text(
+        "[ moleculetype ]\nSRF 1\n\n"
+        "[ atoms ]\n"
+        "1 C1 1 SRF C1 1 0.0\n"
+        "2 C1 1 SRF C2 2 0.0\n"
+        "3 C3 2 EPOX C01 3 0.0\n"
+        "4 C3 2 EPOX C02 4 0.0\n"
+    )
+
+    pipeline._rebuild_merged_index(gmx_bin="gmx", gro_path=gro, top_dir=top_dir)
+    merged = (top_dir / "index.ndx").read_text()
+
+    assert "[ SRF ]" in merged
+    srf_block = merged.split("[ SRF ]", 1)[1].split("[", 1)[0]
+    for atom_id in ("4", "5"):
+        assert atom_id in srf_block
+    for atom_id in ("2", "3"):
+        assert atom_id not in srf_block
+    assert "[ EPOX ]" in merged
+    epox_block = merged.split("[ EPOX ]", 1)[1].split("[", 1)[0]
+    for atom_id in ("2", "3"):
+        assert atom_id in epox_block
+
+
 def test_rebuild_merged_index_replaces_case_conflicting_auto_group(tmp_path):
     top_dir = tmp_path / "0_topology"
     (top_dir / "system_itp").mkdir(parents=True)
