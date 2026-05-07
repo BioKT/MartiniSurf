@@ -41,6 +41,7 @@ setup(
         "martinisurf": [
             "system_templates/*",
             "system_itp/*",
+            "Subtrates/*",
             "martini-dna_itp/*",
             "mdp_templates/*",
             "data/*",

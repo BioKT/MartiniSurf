@@ -1,6 +1,7 @@
 include README.md
 recursive-include martinisurf/system_templates *
 recursive-include martinisurf/system_itp *
+recursive-include martinisurf/Subtrates *
 recursive-include martinisurf/martini-dna_itp *
 recursive-include martinisurf/mdp_templates *
 recursive-include martinisurf/data *
