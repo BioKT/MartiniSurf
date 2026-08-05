@@ -256,7 +256,7 @@ Unit note:
 - `--linker-surf-dist` (default: auto): linker-to-surface distance (nm).
   - Auto rule: estimated from Martini bead-size sigma (`sigma * 1.2`) using linker-tail and surface bead classes.
 - `--invert-linker` (default: false): reverses linker bead order.
-- `--surface-linkers` (default: `0`): number of additional random surface linkers. These can be used in anchor, adsorption, or linker mode when `--linker` is supplied. They use the same orientation convention as biomolecule linkers and are bonded to top-layer surface beads through an intermolecular surface-linker bond file.
+- `--surface-linkers` (default: `0`): requested number of additional surface-decorating linkers. MartiniSurf places them as a monolayer on unique top-layer surface sites and automatically caps the count at the number of available top-layer sites. They use the same orientation convention as biomolecule linkers and are bonded to top-layer surface beads through an intermolecular surface-linker bond file.
 - DNA linker coupling behavior:
   - Uses bonded linker-DNA coupling in topology (no linker-DNA pull).
   - Bond target bead in DNA residue: `BB1`, else `BB2`, else `BB3`.
@@ -338,6 +338,8 @@ Notes:
 - `--out`
 - `--anchor`
 - `--anchor-landmark-mode`
+- `--histag`: orient terminal or chain-local His-tag/linker-tail selections as vertically as possible toward the surface. Useful when selected residues sit at the end of a flexible His-tag rather than in a compact core.
+- `--histag-window` (default: `10`): number of terminal/tail residues considered by `--histag`.
 - `--dist`
 - `--reference-exclude-resname`
 - `--linker-gro`

@@ -95,8 +95,10 @@ DNA workflow note:
   - Example: `linker.gro` -> `linker.itp`
 - You can reverse linker orientation with:
   - `--invert-linker`
+- For terminal His-tag immobilization, `--histag` uses a terminal/local tail window around the selected residues to orient the tag more vertically toward the surface. Adjust the tail window with `--histag-window` (default `10`).
 - For multiple linker instances, pull/index groups are generated per linker automatically.
 - If not provided manually, linker distances are estimated from Martini bead-size sigma rules.
+- `--surface-linkers N` decorates unique top-layer surface sites as a monolayer and caps placement at the number of available top-layer sites; for example, requesting 500 linkers on a surface with 264 top sites places 264 surface linkers.
 - Local `2-1` / `4-1` multilayer surfaces use HCP-like ABAB stacking by default; use `--surface-stacking fcc` to generate ABCABC stacking instead.
 - For Martini 3 protein workflows, `--water-mix` can tune the final solvent composition among `W`, `SW`, and `TW` after solvation; for example, `--water-mix SW:0.10,TW:0.10` keeps 80% `W`, 10% `SW`, and 10% `TW`.
 

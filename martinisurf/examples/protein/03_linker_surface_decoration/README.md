@@ -12,4 +12,4 @@ Notes:
 - Uses `inputs/EPOXY.gro` as linker.
 - `inputs/EPOXY.itp` must match linker basename (`EPOXY.gro` -> `EPOXY.itp`).
 - Uses two linker groups as attachment targets with chain-local residue ids (`A 8 10 11` and `D 8 10 11`).
-- `--surface-linkers 12` adds 12 random linkers above the surface.
+- `--surface-linkers 12` requests 12 monolayer linkers on unique top-layer surface sites.

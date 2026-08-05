@@ -4,7 +4,7 @@ MartiniSurf Orientation Assistant
 
 Stable Classical Mode
 + Multi-Linker Mode (Physically Correct)
-+ Optional Random Surface Linkers (Above Surface Only)
++ Optional Monolayer Surface Linkers (Unique Top-Layer Sites)
 """
 
 import argparse
@@ -188,6 +188,134 @@ def _anchor_landmarks_for_groups(group_defs, atom_records, coords, mode, prefilt
 
     return np.vstack(residue_centroids)
 
+def _residue_centroid(resid, atom_records, coords):
+    selected = [c for (r, _, _, _), c in zip(atom_records, coords) if int(r) == int(resid)]
+    if not selected:
+        return None
+    return np.mean(selected, axis=0)
+
+
+def _histag_tail_groups(group_defs, atom_records, coords, window=10):
+    """Build tail base/tip descriptors for terminal His-tag-like anchor groups."""
+    available = _available_resids(atom_records)
+    if not available:
+        raise ValueError("Cannot build --histag orientation: no residues found.")
+    min_resid = min(available)
+    max_resid = max(available)
+    descriptors = []
+    for group_id, residues in group_defs:
+        residues = sorted(int(r) for r in residues)
+        if not residues:
+            continue
+        group_min = min(residues)
+        group_max = max(residues)
+        near_cter = (max_resid - group_max) <= int(window)
+        near_nter = (group_min - min_resid) <= int(window)
+        if near_cter:
+            tail_start = max(min_resid, max_resid - int(window) + 1)
+            tail_resids = [r for r in range(tail_start, max_resid + 1) if r in available]
+            base_resids = tail_resids[:max(1, min(3, len(tail_resids)))]
+            tip_resids = residues
+            terminal = "C"
+        elif near_nter:
+            tail_end = min(max_resid, min_resid + int(window) - 1)
+            tail_resids = [r for r in range(min_resid, tail_end + 1) if r in available]
+            base_resids = tail_resids[-max(1, min(3, len(tail_resids))):]
+            tip_resids = residues
+            terminal = "N"
+        else:
+            # After chain merge, chain-local terminal tags are no longer at the
+            # global terminal residue. In that common protein workflow, assume
+            # the selected residues are the tip of a C-terminal-like local tail
+            # and use the contiguous residues immediately before them.
+            tail_start = max(min_resid, group_max - int(window) + 1)
+            tail_resids = [r for r in range(tail_start, group_max + 1) if r in available]
+            if len(tail_resids) < 2:
+                tail_end = min(max_resid, group_min + int(window) - 1)
+                tail_resids = [r for r in range(group_min, tail_end + 1) if r in available]
+                base_resids = tail_resids[-max(1, min(3, len(tail_resids))):]
+                terminal = "N-local"
+            else:
+                base_resids = tail_resids[:max(1, min(3, len(tail_resids)))]
+                terminal = "C-local"
+            tip_resids = residues
+        base = np.mean([_residue_centroid(r, atom_records, coords) for r in base_resids], axis=0)
+        tip = np.mean([_residue_centroid(r, atom_records, coords) for r in tip_resids], axis=0)
+        vector = tip - base
+        norm = np.linalg.norm(vector)
+        if norm < 1e-8:
+            raise ValueError(f"--histag anchor group {group_id} produced a zero-length tail vector.")
+        descriptors.append({
+            "group_id": group_id,
+            "tail_resids": tail_resids,
+            "base_resids": base_resids,
+            "tip_resids": tip_resids,
+            "base": base,
+            "tip": tip,
+            "vector": vector / norm,
+            "terminal": terminal,
+        })
+    return descriptors
+
+
+def _rotate_for_histag_vertical(system_coords, histag_descriptors, reference_coords):
+    """Rotate so the average tail vector points toward the surface (-Z)."""
+    vectors = np.array([d["vector"] for d in histag_descriptors], float)
+    mean_vector = vectors.mean(axis=0)
+    mean_vector /= np.linalg.norm(mean_vector)
+    center = np.mean([d["base"] for d in histag_descriptors], axis=0)
+    rotation = _rotation_matrix_from_vectors(mean_vector, np.array([0.0, 0.0, -1.0]))
+    return (
+        _apply_rotation(system_coords, rotation, center),
+        _apply_rotation(reference_coords, rotation, center),
+        [
+            {
+                **d,
+                "base": _apply_rotation(np.array([d["base"]]), rotation, center)[0],
+                "tip": _apply_rotation(np.array([d["tip"]]), rotation, center)[0],
+                "vector": _apply_rotation(np.array([d["base"] + d["vector"]]), rotation, center)[0]
+                - _apply_rotation(np.array([d["base"]]), rotation, center)[0],
+            }
+            for d in histag_descriptors
+        ],
+    )
+
+
+def auto_orient_from_histag_tails(system_coords, histag_descriptors, surface_coords, target_z, reference_coords=None, min_reference_dist=1.0):
+    """Orient terminal His-tags as vertically as possible toward the surface."""
+    ref = np.array(reference_coords if reference_coords is not None else system_coords, float, copy=True)
+    oriented, ref_oriented, desc_oriented = _rotate_for_histag_vertical(system_coords, histag_descriptors, ref)
+
+    z_surface = surface_coords[:, 2].max()
+    tip_z_values = [d["tip"][2] for d in desc_oriented]
+    dz = (z_surface + target_z) - float(np.mean(tip_z_values))
+    oriented[:, 2] += dz
+    ref_oriented[:, 2] += dz
+
+    required_min_z = z_surface + float(min_reference_dist)
+    min_ref_z = ref_oriented[:, 2].min()
+    if min_ref_z < required_min_z:
+        shift = required_min_z - min_ref_z
+        oriented[:, 2] += shift
+        ref_oriented[:, 2] += shift
+        dz += shift
+
+    xy_shift = surface_coords[:, :2].mean(0) - ref_oriented[:, :2].mean(0)
+    oriented[:, 0] += xy_shift[0]
+    oriented[:, 1] += xy_shift[1]
+
+    for descriptor in desc_oriented:
+        v = descriptor["vector"] / np.linalg.norm(descriptor["vector"])
+        angle_to_plane = np.degrees(np.arcsin(np.clip(abs(v[2]), 0.0, 1.0)))
+        print(
+            f"Histag group {descriptor['group_id']}: terminal={descriptor['terminal']}, "
+            f"tail={descriptor['tail_resids'][0]}-{descriptor['tail_resids'][-1]}, "
+            f"base={descriptor['base_resids']}, tip={descriptor['tip_resids']}, "
+            f"angle_to_surface_plane={angle_to_plane:.1f} deg"
+        )
+
+    return oriented
+
 
 def _rotation_matrix_from_vectors(source, target):
     src = np.array(source, float)
@@ -255,23 +383,34 @@ def _append_surface_linkers(
     if count <= 0:
         return merged_coords, merged_atoms
 
-    xmin, xmax = surf_coords[:, 0].min(), surf_coords[:, 0].max()
-    ymin, ymax = surf_coords[:, 1].min(), surf_coords[:, 1].max()
     z_surface = surf_coords[:, 2].max()
+    top_mask = np.isclose(surf_coords[:, 2], z_surface, atol=1e-3)
+    top_sites = surf_coords[top_mask]
+    if len(top_sites) == 0:
+        raise ValueError("Could not identify top-layer surface sites for linker decoration.")
+
+    requested_count = int(count)
+    placed_count = min(requested_count, len(top_sites))
+    if placed_count < requested_count:
+        print(
+            f"⚠ Requested {requested_count} surface linker(s), but only "
+            f"{len(top_sites)} top-layer site(s) are available. Placing {placed_count}."
+        )
 
     # Same convention as biomolecule linkers: bead 0 is the free/head side,
     # bead -1 is the surface/tail side. --invert-linker reverses this globally
-    # before this helper is called.
+    # before this helper is called. Surface decoration now uses one unique
+    # top-layer surface bead per linker to avoid overdecorated monolayers.
     template = _oriented_linker_coords(linker_coords, np.array([0.0, 0.0, -1.0]))
+    site_order = np.random.permutation(len(top_sites))[:placed_count]
 
-    for _ in range(count):
+    for site_idx in site_order:
         vertical_linker = template.copy()
-        rand_x = np.random.uniform(xmin, xmax)
-        rand_y = np.random.uniform(ymin, ymax)
+        site = top_sites[site_idx]
         tail = vertical_linker[-1]
         vertical_linker += np.array([
-            rand_x - tail[0],
-            rand_y - tail[1],
+            site[0] - tail[0],
+            site[1] - tail[1],
             (z_surface + surface_min_dist) - tail[2],
         ])
 
@@ -713,6 +852,8 @@ def main(argv=None):
     parser.add_argument("--surface-min-dist", type=float, default=3.0)
     parser.add_argument("--dna-mode", action="store_true")
     parser.add_argument("--min-reference-z-dist", type=float, default=1.0)
+    parser.add_argument("--histag", action="store_true", help="Orient terminal His-tag/linker-tail anchors as vertically as possible toward the surface.")
+    parser.add_argument("--histag-window", type=int, default=10, help="Number of terminal residues considered as the His-tag/tail region in --histag mode.")
     parser.add_argument(
         "--balance-low-z",
         action="store_true",
@@ -770,17 +911,33 @@ def main(argv=None):
             prefilter_z_consistency=args.prefilter_anchor_z_consistency,
         )
 
-        oriented = auto_orient_from_anchor_residues(
-            sys_coords,
-            centroids,
-            surf_coords,
-            args.dist,
-            reference_coords=reference_coords,
-            min_reference_dist=args.min_reference_z_dist,
-            balance_low_z=args.balance_low_z,
-            balance_low_z_fraction=args.balance_low_z_fraction,
-            orient_single_anchor_up=(len(centroids) == 1),
-        )
+        if args.histag:
+            histag_descriptors = _histag_tail_groups(
+                anchor_groups,
+                sys_atoms,
+                sys_coords,
+                window=args.histag_window,
+            )
+            oriented = auto_orient_from_histag_tails(
+                sys_coords,
+                histag_descriptors,
+                surf_coords,
+                args.dist,
+                reference_coords=reference_coords,
+                min_reference_dist=args.min_reference_z_dist,
+            )
+        else:
+            oriented = auto_orient_from_anchor_residues(
+                sys_coords,
+                centroids,
+                surf_coords,
+                args.dist,
+                reference_coords=reference_coords,
+                min_reference_dist=args.min_reference_z_dist,
+                balance_low_z=args.balance_low_z,
+                balance_low_z_fraction=args.balance_low_z_fraction,
+                orient_single_anchor_up=(len(centroids) == 1),
+            )
 
         oriented, final_atoms = _append_surface_linkers(
             oriented,
@@ -807,17 +964,34 @@ def main(argv=None):
             "linker groups"
         )
 
-        oriented_protein = auto_orient_from_anchor_residues(
-            sys_coords,
-            centroids,
-            surf_coords,
-            target_z=0.0,
-            reference_coords=reference_coords,
-            min_reference_dist=args.min_reference_z_dist,
-            balance_low_z=args.balance_low_z,
-            balance_low_z_fraction=args.balance_low_z_fraction,
-            orient_single_anchor_up=True,
-        )
+        if args.histag:
+            linker_groups = _parse_group_residues(args.linker_group, "--linker-group")
+            histag_descriptors = _histag_tail_groups(
+                linker_groups,
+                sys_atoms,
+                sys_coords,
+                window=args.histag_window,
+            )
+            oriented_protein = auto_orient_from_histag_tails(
+                sys_coords,
+                histag_descriptors,
+                surf_coords,
+                target_z=args.linker_prot_dist + args.linker_surf_dist,
+                reference_coords=reference_coords,
+                min_reference_dist=args.min_reference_z_dist,
+            )
+        else:
+            oriented_protein = auto_orient_from_anchor_residues(
+                sys_coords,
+                centroids,
+                surf_coords,
+                target_z=0.0,
+                reference_coords=reference_coords,
+                min_reference_dist=args.min_reference_z_dist,
+                balance_low_z=args.balance_low_z,
+                balance_low_z_fraction=args.balance_low_z_fraction,
+                orient_single_anchor_up=True,
+            )
 
         merged_coords = oriented_protein
         merged_atoms  = sys_atoms

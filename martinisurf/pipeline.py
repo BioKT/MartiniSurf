@@ -1458,6 +1458,17 @@ def build_parser():
         default=None,
         help="Fraction (0,1] of lowest-Z beads used by --balance-low-z (default: 0.2).",
     )
+    anchor_group.add_argument(
+        "--histag",
+        action="store_true",
+        help="Orient terminal His-tag/linker-tail anchors as vertically as possible toward the surface.",
+    )
+    anchor_group.add_argument(
+        "--histag-window",
+        type=int,
+        default=10,
+        help="Number of terminal residues considered as the His-tag/tail region in --histag mode.",
+    )
 
     linker_group = parser.add_argument_group("Orientation: Linker Mode")
     linker_group.add_argument("--linker", help="Linker .gro file.")
@@ -1474,7 +1485,7 @@ def build_parser():
     linker_group.add_argument("--linker-prot-dist", type=float, help="Linker-to-protein/DNA distance (nm). Auto if omitted.")
     linker_group.add_argument("--linker-surf-dist", type=float, help="Linker-to-surface distance (nm). Auto if omitted.")
     linker_group.add_argument("--invert-linker", action="store_true", help="Reverse linker bead order before attachment.")
-    linker_group.add_argument("--surface-linkers", type=int, default=0, help="Add random extra linkers on the surface.")
+    linker_group.add_argument("--surface-linkers", type=int, default=0, help="Add up to this many extra linkers on unique top-layer surface sites; capped automatically by available sites.")
 
     substrate_group = parser.add_argument_group("Optional Random Substrate")
     substrate_group.add_argument("--substrate", help="Substrate .gro file to place randomly inside the simulation box.")
@@ -3768,6 +3779,8 @@ def main(argv=None):
         orient_args += ["--balance-low-z"]
     if balance_low_z_fraction is not None:
         orient_args += ["--balance-low-z-fraction", str(balance_low_z_fraction)]
+    if args.histag:
+        orient_args += ["--histag", "--histag-window", str(args.histag_window)]
 
     if args.surface_linkers > 0 and not args.linker:
         raise ValueError("--surface-linkers requires --linker with matching .gro/.itp files.")
@@ -3889,7 +3902,16 @@ def main(argv=None):
     if args.linker and (resolved_linker_groups or args.surface_linkers > 0):
         final_args += ["--use-linker"]
         if args.surface_linkers > 0:
-            final_args += ["--surface-linker-count", str(args.surface_linkers)]
+            surface_linker_count_for_topology = args.surface_linkers
+            try:
+                _, surface_records, _ = _read_gro_records(str(surface_gro))
+                z_top = max(float(r["z"]) for r in surface_records)
+                top_site_count = sum(abs(float(r["z"]) - z_top) <= 1e-3 for r in surface_records)
+                if top_site_count > 0:
+                    surface_linker_count_for_topology = min(args.surface_linkers, top_site_count)
+            except Exception:
+                surface_linker_count_for_topology = args.surface_linkers
+            final_args += ["--surface-linker-count", str(surface_linker_count_for_topology)]
         if not resolved_linker_groups:
             final_args += ["--linker-decoration-only"]
         linker_resname = _read_gro_first_resname(args.linker)
