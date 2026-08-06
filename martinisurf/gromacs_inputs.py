@@ -2621,6 +2621,12 @@ def main(argv: Sequence[str] | None = None) -> None:
                     dst_path,
                     _dna_required_posres_macros(dst_name),
                 )
+            elif bonded_linker_mode:
+                _rewrite_mdp_define_macros(
+                    dst_path,
+                    [],
+                    managed_macros=(SURFACE_POSRES_DEFINE,),
+                )
             print(f"  ✔ {src_name} → {dst_name}")
         else:
             print(f"⚠ Missing MDP template: {src_name}")
