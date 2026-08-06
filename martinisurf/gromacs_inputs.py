@@ -2574,16 +2574,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     surface_moltype = _read_itp_moleculetype(surface_itp_path) or "SRF"
     surface_resname = _read_itp_first_atoms_resname(surface_itp_path) or surface_moltype
     linker_itp_path_for_merge = dst_itp_dir / args.linker_itp_name
-    bonded_linker_mode = bool(linker_mode and linker_pairs and not args.linker_decoration_only)
     biomolecule_linker_bonded = bool(
-        bonded_linker_mode
+        linker_pull_enabled
         and _linker_merge_inputs_available(mol_itp, linker_itp_path_for_merge)
     )
-
-    # In bonded linker mode the protein-linker-surface geometry is defined by
-    # topology bonds/angles. Do not add extra pull coordinates to the MDPs.
-    mdp_anchor_count = 0 if bonded_linker_mode else len(pull_anchor_atoms)
-    mdp_linker_pull = False
 
     # copy MDPs
     for src_name, dst_name in mdp_files.items():
@@ -2603,11 +2597,11 @@ def main(argv: Sequence[str] | None = None) -> None:
             write_custom_mdp(
                 src=src,
                 dst=dst_path,
-                anchor_count=mdp_anchor_count,
+                anchor_count=len(pull_anchor_atoms),
                 is_dna=is_dna,
                 surface_moltype=surface_moltype,
-                linker_pull=mdp_linker_pull,
-                linker_count=1,
+                linker_pull=linker_pull_enabled,
+                linker_count=(len(pull_anchor_atoms) // 3) if linker_pull_enabled else 1,
                 linker_pull_init_prot_nm=args.linker_pull_init_prot,
                 linker_pull_init_surf_nm=args.linker_pull_init_surf,
                 rewrite_pull=rewrite_pull,
