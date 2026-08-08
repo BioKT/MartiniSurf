@@ -38,13 +38,15 @@ def apply_theme() -> None:
         [data-testid="stHeader"],
         header[data-testid="stHeader"] {
           display: block !important;
-          height: 0 !important;
-          min-height: 0 !important;
+          height: 3rem !important;
+          min-height: 3rem !important;
           opacity: 1 !important;
           pointer-events: none !important;
           background: transparent !important;
           background-color: transparent !important;
           box-shadow: none !important;
+          overflow: visible !important;
+          z-index: 999998 !important;
         }
         [data-testid="stHeader"]::before,
         [data-testid="stHeader"]::after {
@@ -66,11 +68,20 @@ def apply_theme() -> None:
           visibility: visible !important;
           opacity: 1 !important;
           pointer-events: auto !important;
+          position: relative !important;
           background: rgba(14, 33, 51, 0.92) !important;
           border: 1px solid rgba(40, 213, 245, 0.45) !important;
           border-radius: 8px !important;
           color: var(--ms-ink) !important;
           z-index: 999999 !important;
+        }
+        [data-testid="collapsedControl"],
+        [data-testid="stSidebarCollapsedControl"] {
+          position: fixed !important;
+          top: 0.75rem !important;
+          left: 0.75rem !important;
+          width: 2.35rem !important;
+          height: 2.35rem !important;
         }
         [data-testid="collapsedControl"] svg,
         [data-testid="stSidebarCollapsedControl"] svg,
@@ -134,7 +145,7 @@ def apply_theme() -> None:
           object-fit: contain;
         }
         .block-container {
-          padding-top: 0.5rem;
+          padding-top: 3.4rem;
           padding-bottom: 2rem;
           max-width: 1500px;
         }
