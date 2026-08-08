@@ -25,6 +25,15 @@ def apply_theme() -> None:
             linear-gradient(140deg, #06111d 0%, #0b1f2d 54%, #102b2e 100%);
           color: var(--ms-ink);
         }
+        .stApp > header,
+        [data-testid="stHeader"] {
+          background: transparent;
+          height: 0;
+        }
+        [data-testid="stToolbar"],
+        [data-testid="stDecoration"] {
+          display: none;
+        }
         [data-testid="stSidebar"] {
           background: rgba(5, 16, 28, 0.98);
           border-right: 1px solid var(--ms-line);
@@ -32,10 +41,21 @@ def apply_theme() -> None:
         [data-testid="stSidebar"] * {
           color: #eef8ff;
         }
+        [data-testid="stSidebar"] img {
+          background: rgba(255,255,255,0.92);
+          border: 1px solid rgba(255,255,255,0.18);
+          border-radius: 8px;
+          padding: 0.8rem;
+          max-height: 21rem;
+          object-fit: contain;
+        }
         .block-container {
-          padding-top: 1rem;
+          padding-top: 0.75rem;
           padding-bottom: 2rem;
           max-width: 1500px;
+        }
+        p, label, span {
+          color: inherit;
         }
         h1, h2, h3 {
           letter-spacing: 0;
@@ -104,9 +124,12 @@ def apply_theme() -> None:
           min-width: 0;
         }
         .ms-top-brand img {
-          width: 3.4rem;
-          height: 3.4rem;
+          width: 3.8rem;
+          height: 3.8rem;
           object-fit: contain;
+          background: rgba(255,255,255,0.93);
+          border-radius: 8px;
+          padding: 0.28rem;
         }
         .ms-top-title {
           color: var(--ms-accent);
@@ -208,25 +231,75 @@ def apply_theme() -> None:
           padding: 0.75rem;
         }
         div[data-testid="stTabs"] button {
-          color: var(--ms-muted);
+          color: var(--ms-muted) !important;
+        }
+        div[data-testid="stTabs"] button p {
+          color: inherit !important;
+          font-weight: 750;
         }
         div[data-testid="stTabs"] button[aria-selected="true"] {
-          color: var(--ms-deep);
+          color: var(--ms-deep) !important;
           background: linear-gradient(135deg, var(--ms-teal), #7ce7f4);
           border-radius: 8px;
+        }
+        [data-testid="stWidgetLabel"] p,
+        [data-testid="stWidgetLabel"] label,
+        [data-testid="stWidgetLabel"] span {
+          color: #dce8ef !important;
+          font-weight: 700;
         }
         div[data-testid="stTextInput"] input,
         div[data-testid="stTextArea"] textarea,
         div[data-testid="stNumberInput"] input,
+        div[data-baseweb="input"],
+        div[data-baseweb="textarea"],
+        div[data-testid="stSelectbox"],
         div[data-testid="stSelectbox"] div,
         div[data-baseweb="select"] > div {
-          background: rgba(255,255,255,0.07);
-          color: var(--ms-ink);
-          border-color: var(--ms-line);
+          background-color: rgba(255,255,255,0.075) !important;
+          color: var(--ms-ink) !important;
+          border-color: var(--ms-line) !important;
+        }
+        input::placeholder,
+        textarea::placeholder {
+          color: rgba(220,232,239,0.55) !important;
+        }
+        [data-testid="stFileUploader"] {
+          margin-bottom: 0.8rem;
+        }
+        [data-testid="stFileUploader"] section,
+        [data-testid="stFileUploaderDropzone"] {
+          background: rgba(255,255,255,0.075) !important;
+          border: 1px dashed rgba(40, 213, 245, 0.36) !important;
+          border-radius: 8px !important;
+          min-height: 4.4rem;
+        }
+        [data-testid="stFileUploader"] section * {
+          color: #dce8ef !important;
+        }
+        [data-testid="stFileUploader"] button {
+          background: rgba(40, 213, 245, 0.14) !important;
+          border: 1px solid rgba(40, 213, 245, 0.42) !important;
+          color: var(--ms-ink) !important;
+        }
+        [data-testid="stExpander"] {
+          border: 1px solid var(--ms-line);
+          background: rgba(255,255,255,0.045);
+          border-radius: 8px;
+        }
+        [data-testid="stExpander"] summary,
+        [data-testid="stExpander"] summary p {
+          color: #dce8ef !important;
+          font-weight: 750;
+        }
+        [data-testid="stMarkdownContainer"] code,
+        pre {
+          color: #dce8ef !important;
+          background: rgba(0,0,0,0.28) !important;
         }
         .ms-canvas {
           position: relative;
-          min-height: 545px;
+          min-height: 520px;
           border: 1px solid var(--ms-line);
           border-radius: 8px;
           overflow: hidden;
@@ -262,8 +335,8 @@ def apply_theme() -> None:
         .ms-legend .silver { background: #aeb8c1; }
         .ms-protein-shape {
           position: absolute;
-          left: 22%;
-          right: 12%;
+          left: 21%;
+          right: 10%;
           top: 8%;
           height: 50%;
           filter: drop-shadow(0 28px 38px rgba(0,0,0,0.38));

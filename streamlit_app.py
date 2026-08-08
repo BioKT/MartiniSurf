@@ -281,10 +281,11 @@ def main() -> None:
         with input_tab:
             uploaded_pdb = st.file_uploader("Protein structure", type=["pdb", "cif", "mmcif"])
             remote_id = st.text_input("RCSB or UniProt ID", value="1RJW" if uploaded_pdb is None else "")
-            uploaded_surface = st.file_uploader("Existing surface .gro", type=["gro"])
-            uploaded_linker = st.file_uploader("Linker .gro", type=["gro"])
-            uploaded_substrate = st.file_uploader("Substrate .gro", type=["gro"])
-            uploaded_substrate_itp = st.file_uploader("Substrate .itp", type=["itp"])
+            with st.expander("Optional input files", expanded=False):
+                uploaded_surface = st.file_uploader("Existing surface .gro", type=["gro"])
+                uploaded_linker = st.file_uploader("Linker .gro", type=["gro"])
+                uploaded_substrate = st.file_uploader("Substrate .gro", type=["gro"])
+                uploaded_substrate_itp = st.file_uploader("Substrate .itp", type=["itp"])
 
         with model_tab:
             moltype = st.text_input("Molecule name", value="Protein")
@@ -361,6 +362,8 @@ def main() -> None:
             substrate_count = st.number_input("Substrate count", min_value=0, value=0, step=1)
             martinize_extra = st.text_area("Advanced martinize2 args", height=72)
 
+        action_slot = st.container()
+
     pdb_path = _save_upload(uploaded_pdb, uploads_dir)
     surface_path = _save_upload(uploaded_surface, uploads_dir)
     linker_upload_path = _save_upload(uploaded_linker, uploads_dir)
@@ -428,22 +431,14 @@ def main() -> None:
         _show_design_canvas(outdir, config)
         _show_spec_cards(config)
 
-    build_col, output_col = st.columns([1.35, 0.95], gap="large")
-    with build_col:
-        st.markdown('<div class="ms-command-bar">', unsafe_allow_html=True)
-        with st.expander("Reproducible command", expanded=False):
-            st.code(shell_command(args), language="bash")
-        st.markdown("</div>", unsafe_allow_html=True)
-
+    with action_slot:
         if errors:
             for error in errors:
                 st.error(error)
         if tool_warnings:
             for warning in tool_warnings:
                 st.warning(warning)
-
-    with output_col:
-        action_a, action_b = st.columns([1.6, 1])
+        action_a, action_b = st.columns([1.55, 1])
         run = action_a.button(
             "Build system",
             type="primary",
@@ -469,6 +464,14 @@ def main() -> None:
                 else:
                     status.update(label="Run failed", state="error")
 
+    build_col, output_col = st.columns([1.35, 0.95], gap="large")
+    with build_col:
+        st.markdown('<div class="ms-command-bar">', unsafe_allow_html=True)
+        with st.expander("Reproducible command", expanded=False):
+            st.code(shell_command(args), language="bash")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with output_col:
         zip_path = Path(st.session_state["zip_path"]) if st.session_state.get("zip_path") else None
         stdout = st.session_state.get("last_stdout", "")
         stderr = st.session_state.get("last_stderr", "")
