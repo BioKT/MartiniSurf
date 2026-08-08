@@ -77,15 +77,23 @@ def apply_theme() -> None:
           color: var(--ms-ink) !important;
           z-index: 999999 !important;
         }
+        [data-testid="collapsedControl"] *,
+        [data-testid="stSidebarCollapsedControl"] *,
+        button[title="Open sidebar"] *,
+        button[aria-label="Open sidebar"] * {
+          color: #ffffff !important;
+          fill: #ffffff !important;
+          stroke: #ffffff !important;
+        }
         [data-testid="collapsedControl"] svg,
         [data-testid="stSidebarCollapsedControl"] svg,
         button[title="Open sidebar"] svg,
         button[aria-label="Open sidebar"] svg,
         button[title="Close sidebar"] svg,
         button[aria-label="Close sidebar"] svg {
-          color: var(--ms-teal) !important;
-          fill: var(--ms-teal) !important;
-          stroke: var(--ms-teal) !important;
+          color: #ffffff !important;
+          fill: #ffffff !important;
+          stroke: #ffffff !important;
         }
         [data-testid="stSidebar"] {
           background: rgba(5, 16, 28, 0.98);
