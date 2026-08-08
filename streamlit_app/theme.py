@@ -8,41 +8,50 @@ def apply_theme() -> None:
         """
         <style>
         :root {
-          --ms-ink: #17211c;
-          --ms-muted: #63756d;
-          --ms-line: #ecd4df;
-          --ms-panel: #fff8fb;
+          --ms-ink: #f7fbff;
+          --ms-muted: #a9b8c4;
+          --ms-line: rgba(140, 190, 215, 0.25);
+          --ms-panel: rgba(12, 27, 42, 0.78);
           --ms-accent: #ff4fa7;
-          --ms-teal: #2d9bb3;
-          --ms-deep: #16312f;
+          --ms-teal: #28d5f5;
+          --ms-deep: #06111d;
+          --ms-green: #5bea89;
+          --ms-amber: #ffb94c;
         }
         .stApp {
           background:
-            radial-gradient(circle at top left, rgba(255, 79, 167, 0.12), transparent 30rem),
-            linear-gradient(180deg, #fffafd 0%, #eef8f8 100%);
+            radial-gradient(circle at 20% 10%, rgba(40, 213, 245, 0.18), transparent 28rem),
+            radial-gradient(circle at 85% 5%, rgba(255, 79, 167, 0.14), transparent 25rem),
+            linear-gradient(140deg, #06111d 0%, #0b1f2d 54%, #102b2e 100%);
           color: var(--ms-ink);
         }
         [data-testid="stSidebar"] {
-          background: #16312f;
+          background: rgba(5, 16, 28, 0.98);
+          border-right: 1px solid var(--ms-line);
         }
         [data-testid="stSidebar"] * {
-          color: #f5fbf7;
+          color: #eef8ff;
+        }
+        .block-container {
+          padding-top: 1rem;
+          padding-bottom: 2rem;
+          max-width: 1500px;
         }
         h1, h2, h3 {
           letter-spacing: 0;
         }
-        h1 {
-          font-size: clamp(3rem, 6vw, 5.8rem) !important;
-          line-height: 0.92 !important;
-        }
         h2 {
-          color: var(--ms-deep);
+          color: var(--ms-ink);
         }
         div[data-testid="stMetric"] {
-          background: rgba(255,255,255,0.72);
+          background: rgba(10, 26, 42, 0.74);
           border: 1px solid var(--ms-line);
           border-radius: 8px;
           padding: 0.75rem 0.9rem;
+        }
+        div[data-testid="stMetric"] label,
+        div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+          color: var(--ms-ink);
         }
         .ms-header {
           border-bottom: 1px solid var(--ms-line);
@@ -68,6 +77,270 @@ def apply_theme() -> None:
         }
         .ms-soft {
           color: var(--ms-muted);
+        }
+        .ms-sidebar-title {
+          color: var(--ms-accent);
+          font-size: 1.55rem;
+          font-weight: 900;
+          line-height: 1;
+          margin: -0.4rem 0 0.8rem;
+        }
+        .ms-topbar {
+          display: grid;
+          grid-template-columns: minmax(18rem, 1fr) auto auto;
+          gap: 1rem;
+          align-items: center;
+          border: 1px solid var(--ms-line);
+          background: rgba(5, 16, 28, 0.72);
+          border-radius: 8px;
+          padding: 0.72rem 1rem;
+          margin-bottom: 1rem;
+          box-shadow: 0 18px 48px rgba(0,0,0,0.22);
+        }
+        .ms-top-brand {
+          display: flex;
+          gap: 0.85rem;
+          align-items: center;
+          min-width: 0;
+        }
+        .ms-top-brand img {
+          width: 3.4rem;
+          height: 3.4rem;
+          object-fit: contain;
+        }
+        .ms-top-title {
+          color: var(--ms-accent);
+          font-size: clamp(1.9rem, 3.2vw, 3.35rem);
+          font-weight: 950;
+          line-height: 0.92;
+        }
+        .ms-top-subtitle {
+          color: var(--ms-muted);
+          font-size: 0.88rem;
+          margin-top: 0.2rem;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 34rem;
+        }
+        .ms-top-pills {
+          display: flex;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+        .ms-top-pills span,
+        .ms-ready {
+          border: 1px solid var(--ms-line);
+          border-radius: 8px;
+          background: rgba(255,255,255,0.06);
+          padding: 0.54rem 0.78rem;
+          color: var(--ms-ink);
+          font-weight: 700;
+        }
+        .ms-top-pills span:nth-child(2) {
+          color: var(--ms-teal);
+          border-color: rgba(40, 213, 245, 0.4);
+        }
+        .ms-top-pills span:nth-child(3) {
+          color: var(--ms-green);
+          border-color: rgba(91, 234, 137, 0.35);
+        }
+        .ms-ready {
+          display: flex;
+          gap: 0.45rem;
+          align-items: center;
+          justify-content: center;
+        }
+        .ms-ready span {
+          width: 0.62rem;
+          height: 0.62rem;
+          border-radius: 50%;
+          background: var(--ms-green);
+          box-shadow: 0 0 18px rgba(91, 234, 137, 0.8);
+        }
+        .ms-steps {
+          margin: 1.4rem 0 1rem;
+        }
+        .ms-step {
+          display: flex;
+          align-items: center;
+          gap: 0.7rem;
+          padding: 0.58rem 0.2rem;
+          color: var(--ms-muted);
+        }
+        .ms-step span {
+          width: 1.82rem;
+          height: 1.82rem;
+          border-radius: 50%;
+          border: 1px solid rgba(40, 213, 245, 0.45);
+          background: rgba(255,255,255,0.04);
+        }
+        .ms-step p {
+          margin: 0;
+          font-weight: 700;
+        }
+        .ms-step.active {
+          color: var(--ms-deep);
+          background: linear-gradient(135deg, var(--ms-teal), #7ce7f4);
+          border-radius: 8px;
+          padding-left: 0.7rem;
+          margin: 0.25rem 0;
+        }
+        .ms-step.active span {
+          border-color: var(--ms-deep);
+        }
+        .ms-step.done span {
+          background: var(--ms-green);
+          border-color: var(--ms-green);
+        }
+        .ms-control-title,
+        .ms-panel-title {
+          color: var(--ms-ink);
+          font-size: 1.22rem;
+          font-weight: 850;
+          margin: 0.25rem 0 0.75rem;
+        }
+        div[data-testid="stTabs"] {
+          border: 1px solid var(--ms-line);
+          border-radius: 8px;
+          background: rgba(5, 16, 28, 0.58);
+          padding: 0.75rem;
+        }
+        div[data-testid="stTabs"] button {
+          color: var(--ms-muted);
+        }
+        div[data-testid="stTabs"] button[aria-selected="true"] {
+          color: var(--ms-deep);
+          background: linear-gradient(135deg, var(--ms-teal), #7ce7f4);
+          border-radius: 8px;
+        }
+        div[data-testid="stTextInput"] input,
+        div[data-testid="stTextArea"] textarea,
+        div[data-testid="stNumberInput"] input,
+        div[data-testid="stSelectbox"] div,
+        div[data-baseweb="select"] > div {
+          background: rgba(255,255,255,0.07);
+          color: var(--ms-ink);
+          border-color: var(--ms-line);
+        }
+        .ms-canvas {
+          position: relative;
+          min-height: 545px;
+          border: 1px solid var(--ms-line);
+          border-radius: 8px;
+          overflow: hidden;
+          background:
+            radial-gradient(circle at 44% 28%, rgba(40, 213, 245, 0.22), transparent 18rem),
+            radial-gradient(circle at 70% 30%, rgba(255, 79, 167, 0.16), transparent 18rem),
+            linear-gradient(180deg, rgba(5,16,28,0.78), rgba(2,8,15,0.92));
+          box-shadow: inset 0 0 90px rgba(0,0,0,0.38), 0 18px 50px rgba(0,0,0,0.28);
+        }
+        .ms-legend {
+          position: absolute;
+          top: 1.1rem;
+          left: 1.15rem;
+          display: grid;
+          gap: 0.45rem;
+          z-index: 3;
+        }
+        .ms-legend span {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          color: var(--ms-ink);
+          font-weight: 700;
+        }
+        .ms-legend b {
+          display: inline-block;
+          width: 0.75rem;
+          height: 0.75rem;
+          border-radius: 50%;
+        }
+        .ms-legend .cyan { background: var(--ms-teal); }
+        .ms-legend .amber { background: var(--ms-amber); }
+        .ms-legend .silver { background: #aeb8c1; }
+        .ms-protein-shape {
+          position: absolute;
+          left: 22%;
+          right: 12%;
+          top: 8%;
+          height: 50%;
+          filter: drop-shadow(0 28px 38px rgba(0,0,0,0.38));
+        }
+        .ms-protein-shape i {
+          position: absolute;
+          display: block;
+          border-radius: 50%;
+          background: radial-gradient(circle at 28% 25%, #a9f6ff, var(--ms-teal) 45%, #176b87);
+          opacity: 0.94;
+        }
+        .ms-protein-shape i:nth-child(1) { width: 16rem; height: 13rem; left: 0; top: 2.2rem; }
+        .ms-protein-shape i:nth-child(2) { width: 13rem; height: 12rem; left: 11rem; top: 0.5rem; background: radial-gradient(circle at 30% 25%, #c9bcff, #6967d8 50%, #343681); }
+        .ms-protein-shape i:nth-child(3) { width: 12rem; height: 11rem; left: 5.5rem; top: 11rem; background: radial-gradient(circle at 30% 25%, #8bd8ff, #357de1 55%, #174b92); }
+        .ms-protein-shape i:nth-child(4) { width: 13rem; height: 10.5rem; left: 21rem; top: 11.4rem; background: radial-gradient(circle at 30% 25%, #c5fff5, #61c8c0 52%, #286c69); }
+        .ms-protein-shape i:nth-child(5) { width: 8rem; height: 8rem; left: 27rem; top: 4rem; background: radial-gradient(circle at 30% 25%, #ff9fca, var(--ms-accent) 55%, #9b1f61); }
+        .ms-protein-shape i:nth-child(6) { width: 7rem; height: 7rem; left: 14.5rem; top: 8.5rem; background: radial-gradient(circle at 30% 25%, #ffffff, #76e4ef 52%, #2d7e95); }
+        .ms-surface-grid {
+          position: absolute;
+          left: -4%;
+          right: -4%;
+          bottom: -7%;
+          height: 34%;
+          background:
+            radial-gradient(circle, rgba(210, 222, 231, 0.36) 0 0.48rem, transparent 0.52rem) 0 0 / 2.1rem 1.35rem,
+            radial-gradient(circle, rgba(130, 148, 160, 0.38) 0 0.46rem, transparent 0.52rem) 1.05rem 0.68rem / 2.1rem 1.35rem,
+            linear-gradient(180deg, rgba(255,255,255,0.12), rgba(0,0,0,0.24));
+          transform: perspective(580px) rotateX(58deg);
+          transform-origin: bottom;
+        }
+        .ms-anchor-callout {
+          position: absolute;
+          bottom: 34%;
+          border: 1px solid rgba(255, 185, 76, 0.55);
+          background: rgba(5, 16, 28, 0.82);
+          color: var(--ms-amber);
+          border-radius: 8px;
+          padding: 0.45rem 0.65rem;
+          font-weight: 800;
+          z-index: 4;
+        }
+        .ms-anchor-callout.left { left: 9%; }
+        .ms-anchor-callout.right { right: 8%; color: var(--ms-teal); border-color: rgba(40,213,245,0.45); }
+        .ms-axis {
+          position: absolute;
+          left: 2rem;
+          bottom: 2rem;
+          color: var(--ms-ink);
+          font-weight: 900;
+        }
+        .ms-spec-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 0.8rem;
+          margin: 1rem 0;
+        }
+        .ms-spec {
+          border: 1px solid var(--ms-line);
+          border-radius: 8px;
+          background: rgba(10, 26, 42, 0.72);
+          padding: 0.95rem;
+        }
+        .ms-spec span {
+          display: block;
+          color: var(--ms-muted);
+          font-size: 0.82rem;
+          margin-bottom: 0.32rem;
+        }
+        .ms-spec strong {
+          color: var(--ms-ink);
+          font-size: 1rem;
+        }
+        .ms-command-bar {
+          border: 1px solid var(--ms-line);
+          border-radius: 8px;
+          background: rgba(5, 16, 28, 0.72);
+          padding: 0.6rem;
         }
         .ms-hero-logo img {
           max-height: 12rem;
@@ -99,7 +372,8 @@ def apply_theme() -> None:
           border-left: 3px solid var(--ms-accent);
           padding: 0.35rem 0 0.35rem 0.75rem;
           margin: 0.35rem 0;
-          background: rgba(255,255,255,0.45);
+          background: rgba(255,255,255,0.06);
+          border-radius: 0 8px 8px 0;
         }
         .ms-log-label {
           color: var(--ms-teal);
@@ -115,19 +389,30 @@ def apply_theme() -> None:
         .stButton > button, .stDownloadButton > button {
           border-radius: 8px;
           border: 1px solid var(--ms-accent);
+          background: rgba(255,255,255,0.06);
+          color: var(--ms-ink);
         }
         .stButton > button[kind="primary"] {
-          background: var(--ms-accent);
+          background: linear-gradient(135deg, var(--ms-teal), #38e0f4);
+          color: var(--ms-deep);
+          border-color: var(--ms-teal);
+          font-weight: 850;
         }
-        div[data-testid="stTabs"] button[aria-selected="true"] {
-          color: var(--ms-accent);
-        }
-        @media (max-width: 720px) {
+        @media (max-width: 900px) {
           .ms-header {
+            grid-template-columns: 1fr;
+          }
+          .ms-topbar {
             grid-template-columns: 1fr;
           }
           .ms-hero-logo {
             display: none;
+          }
+          .ms-spec-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+          .ms-canvas {
+            min-height: 420px;
           }
         }
         </style>

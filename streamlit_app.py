@@ -99,6 +99,92 @@ def _image_data_uri(path: Path) -> str:
     return f"data:image/png;base64,{encoded}"
 
 
+def _status_dot(label: str, active: bool = False, done: bool = False) -> str:
+    class_name = "done" if done else ("active" if active else "")
+    return f'<div class="ms-step {class_name}"><span></span><p>{html.escape(label)}</p></div>'
+
+
+def _show_sidebar_progress(active_step: str, has_output: bool) -> None:
+    steps = ["Structure", "Model", "Surface", "Orientation", "Environment", "Review & Build"]
+    done_steps = {"Structure", "Model", "Surface"} if active_step != "Structure" else set()
+    if has_output:
+        done_steps = set(steps)
+    markup = "\n".join(
+        _status_dot(step, active=step == active_step and not has_output, done=step in done_steps)
+        for step in steps
+    )
+    st.markdown(f'<div class="ms-steps">{markup}</div>', unsafe_allow_html=True)
+    completed = len(done_steps)
+    st.progress(completed / len(steps), text=f"{completed} of {len(steps)}")
+
+
+def _show_topbar(logo: Path, preset_name: str, input_label: str, go: bool, has_output: bool) -> None:
+    st.markdown(
+        f"""
+        <div class="ms-topbar">
+          <div class="ms-top-brand">
+            <img src="{_image_data_uri(logo)}" />
+            <div>
+              <div class="ms-top-title">MartiniSurf Studio</div>
+              <div class="ms-top-subtitle">{html.escape(input_label or "Protein design")}</div>
+            </div>
+          </div>
+          <div class="ms-top-pills">
+            <span>{html.escape(preset_name)}</span>
+            <span>Martini 3</span>
+            <span>{'Go model' if go else 'Standard model'}</span>
+          </div>
+          <div class="ms-ready {'on' if has_output else ''}"><span></span>{'Generated' if has_output else 'Ready'}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _show_design_canvas(outdir: Path, config: BuildConfig) -> None:
+    structures = find_viewable_structures(outdir)
+    if structures:
+        st.markdown('<div class="ms-panel-title">Molecular workspace</div>', unsafe_allow_html=True)
+        _show_viewer(outdir)
+        return
+
+    anchor_count = len(config.anchors) if config.orientation_mode != "Linker" else len(config.linker_groups)
+    st.markdown(
+        f"""
+        <div class="ms-canvas">
+          <div class="ms-legend">
+            <span><b class="cyan"></b>Protein</span>
+            <span><b class="amber"></b>Anchors</span>
+            <span><b class="silver"></b>Surface</span>
+          </div>
+          <div class="ms-protein-shape">
+            <i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+          <div class="ms-anchor-callout left">Groups: {anchor_count}</div>
+          <div class="ms-anchor-callout right">{html.escape(config.orientation_mode)}</div>
+          <div class="ms-surface-grid"></div>
+          <div class="ms-axis">Z</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _show_spec_cards(config: BuildConfig) -> None:
+    solvent = "Water + ions" if config.ionize else ("Water" if config.solvate else "Dry setup")
+    st.markdown(
+        f"""
+        <div class="ms-spec-grid">
+          <div class="ms-spec"><span>Surface</span><strong>{html.escape(config.surface_mode)} · {' '.join(config.surface_beads)}</strong></div>
+          <div class="ms-spec"><span>Box</span><strong>{config.lx:g} × {config.ly:g} nm</strong></div>
+          <div class="ms-spec"><span>Solvent</span><strong>{html.escape(solvent)}</strong></div>
+          <div class="ms-spec"><span>Output</span><strong>GROMACS-ready</strong></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def _show_log(stdout: str, stderr: str, returncode: int | None) -> None:
     if returncode is None:
         return
@@ -172,125 +258,108 @@ def main() -> None:
         logo = REPO_ROOT / "logo.png"
         if logo.exists():
             st.image(str(logo), width="stretch")
-        st.title("Protein Designer")
+        st.markdown('<div class="ms-sidebar-title">MartiniSurf</div>', unsafe_allow_html=True)
         preset_name = st.selectbox("Preset", list(PRESETS), index=0)
         preset = PRESETS[preset_name]
-        st.caption("Generate MartiniSurf design files without running molecular dynamics.")
-
-    st.markdown(
-        f"""
-        <div class="ms-header">
-          <div>
-            <div class="ms-kicker">Protein workflow</div>
-            <div class="ms-brand">MartiniSurf</div>
-            <p class="ms-soft">Build coarse-grained protein-surface systems, inspect the generated structure, and export reproducible setup files.</p>
-            <div class="ms-chip-row">
-              <span class="ms-chip">Protein</span>
-              <span class="ms-chip">Martini 3</span>
-              <span class="ms-chip">No mdrun</span>
-              <span class="ms-chip">Local preview</span>
-            </div>
-          </div>
-          <div class="ms-hero-logo"><img src="{_image_data_uri(logo)}" /></div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        st.caption("Design files only. No molecular dynamics run.")
 
     run_root = Path(st.session_state.get("run_root", tempfile.mkdtemp(prefix="martinisurf_", dir=RUNS_DIR)))
     st.session_state["run_root"] = str(run_root)
     uploads_dir = run_root / "inputs"
     uploads_dir.mkdir(parents=True, exist_ok=True)
 
-    input_col, setup_col = st.columns([1.05, 0.95], gap="large")
+    top_slot = st.container()
+    workspace_col, controls_col = st.columns([1.55, 0.85], gap="large")
+    workspace_slot = workspace_col.container()
 
-    with input_col:
-        st.subheader("Input")
-        uploaded_pdb = st.file_uploader("Protein structure", type=["pdb", "cif", "mmcif"])
-        remote_id = st.text_input("RCSB or UniProt ID", value="1RJW" if uploaded_pdb is None else "")
-        uploaded_surface = st.file_uploader("Existing surface .gro", type=["gro"])
-        uploaded_linker = st.file_uploader("Linker .gro", type=["gro"])
-        uploaded_substrate = st.file_uploader("Substrate .gro", type=["gro"])
-        uploaded_substrate_itp = st.file_uploader("Substrate .itp", type=["itp"])
-
-    with setup_col:
-        st.subheader("Protein")
-        moltype = st.text_input("Molecule name", value="Protein")
-        ff = st.text_input("Force field", value="martini3001")
-        merge_text = st.text_area("Merge groups", value=preset["merge"], height=72)
-        martinize_cols = st.columns(3)
-        dssp = martinize_cols[0].toggle("DSSP", value=True)
-        go = martinize_cols[1].toggle("GoMartini", value=bool(preset["go"]))
-        elastic = martinize_cols[2].toggle("Elastic", value=False)
-        position_restraints = st.segmented_control(
-            "Position restraints",
-            ["backbone", "all", "none"],
-            default="backbone",
+    with controls_col:
+        st.markdown('<div class="ms-control-title">Build controls</div>', unsafe_allow_html=True)
+        input_tab, model_tab, surface_tab, orientation_tab, optional_tab = st.tabs(
+            ["Structure", "Model", "Surface", "Orient", "Env"]
         )
 
-    surface_tab, orientation_tab, optional_tab, run_tab = st.tabs(
-        ["Surface", "Orientation", "Optional Prep", "Run"]
-    )
+        with input_tab:
+            uploaded_pdb = st.file_uploader("Protein structure", type=["pdb", "cif", "mmcif"])
+            remote_id = st.text_input("RCSB or UniProt ID", value="1RJW" if uploaded_pdb is None else "")
+            uploaded_surface = st.file_uploader("Existing surface .gro", type=["gro"])
+            uploaded_linker = st.file_uploader("Linker .gro", type=["gro"])
+            uploaded_substrate = st.file_uploader("Substrate .gro", type=["gro"])
+            uploaded_substrate_itp = st.file_uploader("Substrate .itp", type=["itp"])
 
-    with surface_tab:
-        c1, c2, c3 = st.columns(3)
-        surface_mode = c1.selectbox("Mode", ["4-1", "2-1", "graphene", "graphene-periodic", "graphene-finite", "graphite", "cnt"], index=0)
-        surface_geometry = c2.selectbox("Geometry", ["planar", "3d"], index=0)
-        surface_beads = c3.text_input("Beads", value="P4")
-        d1, d2, d3 = st.columns(3)
-        lx = d1.number_input("X size nm", min_value=0.1, value=15.0, step=0.5)
-        ly = d2.number_input("Y size nm", min_value=0.1, value=15.0, step=0.5)
-        dx = d3.number_input("Spacing nm", min_value=0.01, value=0.47, step=0.01)
-        a1, a2, a3 = st.columns(3)
-        charge = a1.number_input("Charge", value=0.0, step=0.1)
-        surface_layers = a2.number_input("Layers", min_value=0, value=0, step=1)
-        surface_stacking = a3.selectbox("Stacking", ["hcp", "fcc"], index=0)
-        with st.expander("CNT and graphite"):
-            graphite_layers = st.number_input("Graphite layers", min_value=0, value=0, step=1)
-            cnt_numrings = st.number_input("CNT rings", min_value=0, value=0, step=1)
-            cnt_ringsize = st.number_input("CNT ring size", min_value=0, value=0, step=1)
+        with model_tab:
+            moltype = st.text_input("Molecule name", value="Protein")
+            ff = st.text_input("Force field", value="martini3001")
+            merge_text = st.text_area("Merge groups", value=preset["merge"], height=72)
+            martinize_cols = st.columns(3)
+            dssp = martinize_cols[0].toggle("DSSP", value=True)
+            go = martinize_cols[1].toggle("GoMartini", value=bool(preset["go"]))
+            elastic = martinize_cols[2].toggle("Elastic", value=False)
+            position_restraints = st.segmented_control(
+                "Position restraints",
+                ["backbone", "all", "none"],
+                default="backbone",
+            )
 
-    with orientation_tab:
-        orientation_mode = st.radio(
-            "Mode",
-            ["Anchor", "Adsorption", "Linker"],
-            index=["Anchor", "Adsorption", "Linker"].index("Linker" if preset_name == "Linker" else ("Adsorption" if preset["ads"] else "Anchor")),
-            horizontal=True,
-        )
-        dist = st.number_input("Surface distance nm", min_value=0.0, value=1.0 if preset_name != "Full Prep" else 1.0, step=0.1)
-        if orientation_mode == "Linker":
-            default_linker = preset["linker"]
-            linker_path_text = st.text_input("Linker path", value=default_linker if uploaded_linker is None else "")
-            linker_groups_text = st.text_area("Linker groups", value=preset["linker_groups"], height=104)
-            l1, l2, l3 = st.columns(3)
-            linker_prot_dist = l1.number_input("Protein-linker dist", min_value=0.0, value=0.0, step=0.1)
-            linker_surf_dist = l2.number_input("Surface-linker dist", min_value=0.0, value=0.0, step=0.1)
-            surface_linkers = l3.number_input("Surface linkers", min_value=0, value=12 if preset_name == "Linker" else 0, step=1)
-            invert_linker = st.toggle("Invert linker", value=False)
-            anchors_text = ""
-            ads_mode = False
-            balance_low_z = False
-            histag = False
-        else:
-            anchors_text = st.text_area("Anchor groups", value=preset["anchors"], height=104)
-            ads_mode = orientation_mode == "Adsorption"
-            balance_low_z = st.toggle("Balance low-Z region", value=False)
-            histag = st.toggle("His-tag orientation", value=False)
-            linker_path_text = ""
-            linker_groups_text = ""
-            linker_prot_dist = None
-            linker_surf_dist = None
-            invert_linker = False
-            surface_linkers = 0
+        with surface_tab:
+            surface_mode = st.selectbox(
+                "Mode",
+                ["4-1", "2-1", "graphene", "graphene-periodic", "graphene-finite", "graphite", "cnt"],
+                index=0,
+            )
+            surface_geometry = st.segmented_control("Geometry", ["planar", "3d"], default="planar")
+            surface_beads = st.text_input("Beads", value="P4")
+            d1, d2 = st.columns(2)
+            lx = d1.number_input("X size nm", min_value=0.1, value=15.0, step=0.5)
+            ly = d2.number_input("Y size nm", min_value=0.1, value=15.0, step=0.5)
+            d3, d4 = st.columns(2)
+            dx = d3.number_input("Spacing nm", min_value=0.01, value=0.47, step=0.01)
+            charge = d4.number_input("Charge", value=0.0, step=0.1)
+            with st.expander("Layer, CNT, graphite"):
+                surface_layers = st.number_input("Layers", min_value=0, value=0, step=1)
+                surface_stacking = st.selectbox("Stacking", ["hcp", "fcc"], index=0)
+                graphite_layers = st.number_input("Graphite layers", min_value=0, value=0, step=1)
+                cnt_numrings = st.number_input("CNT rings", min_value=0, value=0, step=1)
+                cnt_ringsize = st.number_input("CNT ring size", min_value=0, value=0, step=1)
 
-    with optional_tab:
-        o1, o2, o3 = st.columns(3)
-        solvate = o1.toggle("Solvate", value=bool(preset["solvate"]))
-        ionize = o2.toggle("Ionize", value=bool(preset["ionize"]))
-        salt_conc = o3.number_input("Salt M", min_value=0.0, value=0.15, step=0.01)
-        water_mix = st.text_input("Water mix", placeholder="SW:0.10,TW:0.10")
-        substrate_count = st.number_input("Substrate count", min_value=0, value=0, step=1)
-        martinize_extra = st.text_area("Advanced martinize2 args", height=72)
+        with orientation_tab:
+            orientation_mode = st.segmented_control(
+                "Mode",
+                ["Anchor", "Linker", "Adsorption"],
+                default="Linker" if preset_name == "Linker" else ("Adsorption" if preset["ads"] else "Anchor"),
+            )
+            dist = st.number_input("Target distance nm", min_value=0.0, value=1.0, step=0.1)
+            if orientation_mode == "Linker":
+                default_linker = preset["linker"]
+                linker_path_text = st.text_input("Linker path", value=default_linker if uploaded_linker is None else "")
+                linker_groups_text = st.text_area("Linker groups", value=preset["linker_groups"], height=104)
+                l1, l2 = st.columns(2)
+                linker_prot_dist = l1.number_input("Protein-linker dist", min_value=0.0, value=0.0, step=0.1)
+                linker_surf_dist = l2.number_input("Surface-linker dist", min_value=0.0, value=0.0, step=0.1)
+                surface_linkers = st.number_input("Surface linkers", min_value=0, value=12 if preset_name == "Linker" else 0, step=1)
+                invert_linker = st.toggle("Invert linker", value=False)
+                anchors_text = ""
+                ads_mode = False
+                balance_low_z = False
+                histag = False
+            else:
+                anchors_text = st.text_area("Anchor groups", value=preset["anchors"], height=104)
+                ads_mode = orientation_mode == "Adsorption"
+                balance_low_z = st.toggle("Balance low-Z region", value=False)
+                histag = st.toggle("His-tag orientation", value=False)
+                linker_path_text = ""
+                linker_groups_text = ""
+                linker_prot_dist = None
+                linker_surf_dist = None
+                invert_linker = False
+                surface_linkers = 0
+
+        with optional_tab:
+            solvate = st.toggle("Solvate", value=bool(preset["solvate"]))
+            ionize = st.toggle("Ionize", value=bool(preset["ionize"]))
+            salt_conc = st.number_input("Salt M", min_value=0.0, value=0.15, step=0.01)
+            water_mix = st.text_input("Water mix", placeholder="SW:0.10,TW:0.10")
+            substrate_count = st.number_input("Substrate count", min_value=0, value=0, step=1)
+            martinize_extra = st.text_area("Advanced martinize2 args", height=72)
 
     pdb_path = _save_upload(uploaded_pdb, uploads_dir)
     surface_path = _save_upload(uploaded_surface, uploads_dir)
@@ -346,30 +415,43 @@ def main() -> None:
     args = build_args(config)
     errors = validate_config(config)
     tool_warnings = check_external_tools(config, TOOL_DIRS)
+    outdir = run_root / config.outdir
+    has_output = outdir.exists()
 
-    with run_tab:
-        st.subheader("Design snapshot")
-        snap_cols = st.columns(5)
-        snap_cols[0].metric("Preset", preset_name)
-        snap_cols[1].metric("Surface", surface_mode)
-        snap_cols[2].metric("Orientation", orientation_mode)
-        snap_cols[3].metric("Input", str(input_path)[:12] or "none")
-        snap_cols[4].metric("Solvent", "on" if solvate else "off")
+    with st.sidebar:
+        _show_sidebar_progress("Review & Build" if has_output else "Orientation", has_output)
+
+    with top_slot:
+        _show_topbar(logo, preset_name, str(input_path), go, has_output)
+
+    with workspace_slot:
+        _show_design_canvas(outdir, config)
+        _show_spec_cards(config)
+
+    build_col, output_col = st.columns([1.35, 0.95], gap="large")
+    with build_col:
+        st.markdown('<div class="ms-command-bar">', unsafe_allow_html=True)
         with st.expander("Reproducible command", expanded=False):
             st.code(shell_command(args), language="bash")
+        st.markdown("</div>", unsafe_allow_html=True)
+
         if errors:
             for error in errors:
                 st.error(error)
         if tool_warnings:
             for warning in tool_warnings:
                 st.warning(warning)
-        run = st.button(
-            "Generate System",
+
+    with output_col:
+        action_a, action_b = st.columns([1.6, 1])
+        run = action_a.button(
+            "Build system",
             type="primary",
             width="stretch",
             disabled=bool(errors or tool_warnings),
         )
-        if st.button("Reset working folder", width="stretch"):
+        reset = action_b.button("Reset", width="stretch")
+        if reset:
             shutil.rmtree(run_root, ignore_errors=True)
             st.session_state.pop("run_root", None)
             st.rerun()
@@ -388,17 +470,11 @@ def main() -> None:
                     status.update(label="Run failed", state="error")
 
         zip_path = Path(st.session_state["zip_path"]) if st.session_state.get("zip_path") else None
-        outdir = run_root / config.outdir
-        viewer_col, output_col = st.columns([1.25, 0.75], gap="large")
-        with viewer_col:
-            st.subheader("Molecular viewer")
-            _show_viewer(outdir)
-        with output_col:
-            stdout = st.session_state.get("last_stdout", "")
-            stderr = st.session_state.get("last_stderr", "")
-            returncode = st.session_state.get("last_returncode")
-            _show_log(stdout, stderr, returncode)
-            _show_results(outdir, zip_path)
+        stdout = st.session_state.get("last_stdout", "")
+        stderr = st.session_state.get("last_stderr", "")
+        returncode = st.session_state.get("last_returncode")
+        _show_log(stdout, stderr, returncode)
+        _show_results(outdir, zip_path)
 
 
 if __name__ == "__main__":
