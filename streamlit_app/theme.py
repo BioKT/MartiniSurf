@@ -41,7 +41,7 @@ def apply_theme() -> None:
           height: 3rem !important;
           min-height: 3rem !important;
           opacity: 1 !important;
-          pointer-events: none !important;
+          pointer-events: auto !important;
           background: transparent !important;
           background-color: transparent !important;
           box-shadow: none !important;
@@ -53,10 +53,13 @@ def apply_theme() -> None:
           display: none !important;
           background: transparent !important;
         }
-        [data-testid="stToolbar"],
         [data-testid="stDecoration"],
         [data-testid="stStatusWidget"] {
           display: none !important;
+        }
+        [data-testid="stToolbar"] {
+          background: transparent !important;
+          pointer-events: auto !important;
         }
         [data-testid="collapsedControl"],
         [data-testid="stSidebarCollapsedControl"],
@@ -68,20 +71,11 @@ def apply_theme() -> None:
           visibility: visible !important;
           opacity: 1 !important;
           pointer-events: auto !important;
-          position: relative !important;
           background: rgba(14, 33, 51, 0.92) !important;
           border: 1px solid rgba(40, 213, 245, 0.45) !important;
           border-radius: 8px !important;
           color: var(--ms-ink) !important;
           z-index: 999999 !important;
-        }
-        [data-testid="collapsedControl"],
-        [data-testid="stSidebarCollapsedControl"] {
-          position: fixed !important;
-          top: 0.75rem !important;
-          left: 0.75rem !important;
-          width: 2.35rem !important;
-          height: 2.35rem !important;
         }
         [data-testid="collapsedControl"] svg,
         [data-testid="stSidebarCollapsedControl"] svg,
