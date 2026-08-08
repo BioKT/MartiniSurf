@@ -25,17 +25,30 @@ def apply_theme() -> None:
             linear-gradient(140deg, #06111d 0%, #0b1f2d 54%, #102b2e 100%);
           color: var(--ms-ink);
         }
+        html,
+        body,
+        #root,
+        .stApp,
+        [data-testid="stAppViewContainer"] {
+          min-height: 100vh !important;
+          overflow-y: auto !important;
+        }
         .stApp > header,
         [data-testid="stHeader"],
         header[data-testid="stHeader"] {
-          background: #08131F !important;
-          background-color: #08131F !important;
-          color: var(--ms-ink) !important;
+          display: none !important;
+          height: 0 !important;
+          min-height: 0 !important;
+          max-height: 0 !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          background: transparent !important;
           box-shadow: none !important;
         }
         [data-testid="stHeader"]::before,
         [data-testid="stHeader"]::after {
-          background: #08131F !important;
+          display: none !important;
+          background: transparent !important;
         }
         [data-testid="stToolbar"],
         [data-testid="stDecoration"],
@@ -45,6 +58,11 @@ def apply_theme() -> None:
         [data-testid="stSidebar"] {
           background: rgba(5, 16, 28, 0.98);
           border-right: 1px solid var(--ms-line);
+        }
+        [data-testid="stSidebarContent"] {
+          overflow-y: auto !important;
+          max-height: 100vh !important;
+          padding-top: 1.25rem;
         }
         [data-testid="stSidebar"] * {
           color: #eef8ff;
@@ -58,7 +76,7 @@ def apply_theme() -> None:
           object-fit: contain;
         }
         .block-container {
-          padding-top: 0.75rem;
+          padding-top: 0.5rem;
           padding-bottom: 2rem;
           max-width: 1500px;
         }
@@ -549,6 +567,20 @@ def apply_theme() -> None:
           border: 1px solid var(--ms-accent);
           background: rgba(255,255,255,0.06);
           color: var(--ms-ink);
+        }
+        .stLinkButton > a,
+        div[data-testid="stPopover"] button,
+        .stDownloadButton > button {
+          border-radius: 8px !important;
+          border: 1px solid rgba(40, 213, 245, 0.42) !important;
+          background: rgba(14, 33, 51, 0.92) !important;
+          color: var(--ms-ink) !important;
+          font-weight: 800 !important;
+        }
+        .stLinkButton > a p,
+        div[data-testid="stPopover"] button p,
+        .stDownloadButton > button p {
+          color: var(--ms-ink) !important;
         }
         .stButton > button[kind="primary"] {
           background: linear-gradient(135deg, var(--ms-teal), #38e0f4);
