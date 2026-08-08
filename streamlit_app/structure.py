@@ -27,7 +27,7 @@ AA3 = {
     "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE", "LEU", "LYS",
     "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL", "HSD", "HSE", "HSP", "MSE",
 }
-DNA_RNA = {"DA", "DT", "DG", "DC", "A", "U", "G", "C", "T"}
+NUCLEIC = {"DA", "DT", "DG", "DC", "A", "U", "G", "C", "T"}
 COMMON_SOLVENT = {"HOH", "WAT", "SOL", "NA", "CL", "K", "MG", "CA", "ZN"}
 
 
@@ -131,11 +131,11 @@ def _guess_molecule_type(residue_names: set[str]) -> str:
     if not residue_names:
         return "Unknown"
     protein_hits = len(residue_names & AA3)
-    nucleic_hits = len(residue_names & DNA_RNA)
+    nucleic_hits = len(residue_names & NUCLEIC)
     if protein_hits and nucleic_hits:
-        return "Protein / nucleic acid"
+        return "Protein with nucleic-acid-like residues"
     if nucleic_hits > protein_hits:
-        return "DNA/RNA-like"
+        return "Non-protein-like"
     if protein_hits:
         return "Protein-like"
     return "Unknown"

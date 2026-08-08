@@ -39,11 +39,9 @@ def _init_state() -> None:
         "project_name": "BsADH - 1RJW",
         "active_step": "Structure",
         "preset_name": "Agarose-like",
-        "workflow": "Protein",
         "remote_id": "1RJW",
         "moltype": "Protein",
         "ff": "martini3001",
-        "dnatype": "ds-stiff",
         "merge_text": "A,B,C,D",
         "dssp": True,
         "go": False,
@@ -162,14 +160,7 @@ def _render_topbar(config: BuildConfig, errors: list[str], tool_warnings: list[s
     else:
         status = "Ready"
 
-    badges = [config.workflow]
-    if config.workflow == "Protein":
-        badges.append("Martini 3")
-        badges.append("Gō model" if config.go else "Standard model")
-    elif config.workflow == "DNA":
-        badges.append(config.dnatype)
-    else:
-        badges.append("Pre-CG")
+    badges = ["Protein", "Martini 3", "Gō model" if config.go else "Standard model"]
 
     badge_html = "".join(f"<span>{html.escape(badge)}</span>" for badge in badges)
     st.markdown(
@@ -215,9 +206,8 @@ def _render_structure_step(upload_dir: Path) -> tuple[Path | None, Path | None, 
     with left:
         st.markdown('<div class="ms-panel-title">Structure input</div>', unsafe_allow_html=True)
         st.text_input("Project name", key="project_name")
-        uploaded_structure = st.file_uploader("Protein/DNA structure", type=["pdb", "cif", "mmcif"])
+        uploaded_structure = st.file_uploader("Protein structure", type=["pdb", "cif", "mmcif"])
         st.text_input("PDB ID or UniProt ID", key="remote_id")
-        complex_config = st.file_uploader("Pre-CG complex config", type=["yaml", "yml"])
         with st.expander("Optional auxiliary files"):
             uploaded_surface = st.file_uploader("Existing surface .gro", type=["gro"])
             uploaded_linker = st.file_uploader("Linker .gro", type=["gro"])
@@ -225,7 +215,6 @@ def _render_structure_step(upload_dir: Path) -> tuple[Path | None, Path | None, 
             uploaded_substrate_itp = st.file_uploader("Substrate .itp", type=["itp"])
 
     structure_path = _save_upload(uploaded_structure, upload_dir)
-    complex_config_path = _save_upload(complex_config, upload_dir)
     surface_path = _save_upload(uploaded_surface, upload_dir)
     linker_path = _save_upload(uploaded_linker, upload_dir)
     substrate_path = _save_upload(uploaded_substrate, upload_dir)
@@ -235,7 +224,7 @@ def _render_structure_step(upload_dir: Path) -> tuple[Path | None, Path | None, 
     with right:
         _render_structure_summary(summary, structure_path)
 
-    return structure_path, complex_config_path, surface_path, linker_path, substrate_path, substrate_itp_path, summary
+    return structure_path, surface_path, linker_path, substrate_path, substrate_itp_path, summary
 
 
 def _render_structure_summary(summary: StructureSummary, structure_path: Path | None) -> None:
@@ -273,28 +262,17 @@ def _render_structure_summary(summary: StructureSummary, structure_path: Path | 
 
 def _render_model_step() -> None:
     st.markdown('<div class="ms-panel-title">Model decisions</div>', unsafe_allow_html=True)
-    st.segmented_control("Workflow", ["Protein", "DNA", "Pre-CG complex"], key="workflow")
-
-    if st.session_state.workflow == "Protein":
-        a, b = st.columns(2)
-        a.text_input("Molecule name", key="moltype")
-        b.text_input("Force field", key="ff")
-        st.text_area("Merge chains", key="merge_text", height=80)
-        c1, c2, c3 = st.columns(3)
-        c1.toggle("DSSP", key="dssp", help="Passes DSSP handling to martinize2.")
-        c2.toggle("GōMartini", key="go", help="Enables the Gō model support exposed by MartiniSurf/martinize2.")
-        c3.toggle("Elastic network", key="elastic", help="Adds elastic-network options supported by martinize2.")
-        st.segmented_control("Position restraints", ["backbone", "all", "none"], key="position_restraints")
-        with st.expander("Advanced model options"):
-            st.text_area("Extra martinize2 args", key="martinize_extra", height=80)
-
-    elif st.session_state.workflow == "DNA":
-        st.text_input("DNA type", key="dnatype")
-        st.text_area("Merge chains", key="merge_text", height=80)
-        st.info("DNA mode uses MartiniSurf's `--dna` and `--dnatype` flags. Protein-only martinize2 options are hidden.")
-
-    else:
-        st.info("Pre-CG complex mode uses `--complex-config` and skips martinization-specific controls.")
+    a, b = st.columns(2)
+    a.text_input("Molecule name", key="moltype")
+    b.text_input("Force field", key="ff")
+    st.text_area("Merge chains", key="merge_text", height=80)
+    c1, c2, c3 = st.columns(3)
+    c1.toggle("DSSP", key="dssp", help="Passes DSSP handling to martinize2.")
+    c2.toggle("GōMartini", key="go", help="Enables the Gō model support exposed by MartiniSurf/martinize2.")
+    c3.toggle("Elastic network", key="elastic", help="Adds elastic-network options supported by martinize2.")
+    st.segmented_control("Position restraints", ["backbone", "all", "none"], key="position_restraints")
+    with st.expander("Advanced model options"):
+        st.text_area("Extra martinize2 args", key="martinize_extra", height=80)
 
 
 def _apply_surface_preset() -> None:
@@ -373,7 +351,7 @@ def _render_workspace_preview(config: BuildConfig) -> None:
         f"""
         <div class="ms-canvas">
           <div class="ms-legend">
-            <span><b class="cyan"></b>Protein/DNA</span>
+            <span><b class="cyan"></b>Protein</span>
             <span><b class="amber"></b>Selected groups</span>
             <span><b class="silver"></b>Surface</span>
           </div>
@@ -483,7 +461,6 @@ def _render_log() -> None:
 
 def _build_config(
     input_path: Path | str,
-    complex_config_path: Path | None,
     surface_path: Path | None,
     linker_upload_path: Path | None,
     substrate_path: Path | None,
@@ -492,11 +469,8 @@ def _build_config(
     return BuildConfig(
         input_path=input_path,
         workdir=Path(st.session_state.run_root),
-        workflow=st.session_state.workflow,
-        complex_config_path=complex_config_path,
         moltype=st.session_state.moltype,
         ff=st.session_state.ff,
-        dnatype=st.session_state.dnatype,
         dssp=st.session_state.dssp,
         go=st.session_state.go,
         elastic=st.session_state.elastic,
@@ -550,7 +524,6 @@ def main() -> None:
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     structure_path = st.session_state.get("_structure_path")
-    complex_config_path = st.session_state.get("_complex_config_path")
     surface_path = st.session_state.get("_surface_path")
     linker_upload_path = st.session_state.get("_linker_path")
     substrate_path = st.session_state.get("_substrate_path")
@@ -559,7 +532,6 @@ def main() -> None:
     input_path: Path | str = Path(structure_path) if structure_path else st.session_state.remote_id
     config = _build_config(
         input_path,
-        Path(complex_config_path) if complex_config_path else None,
         Path(surface_path) if surface_path else None,
         Path(linker_upload_path) if linker_upload_path else None,
         Path(substrate_path) if substrate_path else None,
@@ -575,9 +547,8 @@ def main() -> None:
 
     if st.session_state.active_step == "Structure":
         paths = _render_structure_step(upload_dir)
-        structure_path, complex_config_path, surface_path, linker_upload_path, substrate_path, substrate_itp_path, _ = paths
+        structure_path, surface_path, linker_upload_path, substrate_path, substrate_itp_path, _ = paths
         st.session_state["_structure_path"] = str(structure_path) if structure_path else ""
-        st.session_state["_complex_config_path"] = str(complex_config_path) if complex_config_path else ""
         st.session_state["_surface_path"] = str(surface_path) if surface_path else ""
         st.session_state["_linker_path"] = str(linker_upload_path) if linker_upload_path else ""
         st.session_state["_substrate_path"] = str(substrate_path) if substrate_path else ""

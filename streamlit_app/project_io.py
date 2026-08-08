@@ -8,11 +8,9 @@ from typing import Any
 PROJECT_KEYS = [
     "project_name",
     "preset_name",
-    "workflow",
     "remote_id",
     "moltype",
     "ff",
-    "dnatype",
     "merge_text",
     "dssp",
     "go",

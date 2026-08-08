@@ -1,6 +1,6 @@
 # MartiniSurf Protein Designer
 
-Streamlit interface for the MartiniSurf protein workflow. It generates design/setup files only; molecular dynamics execution is intentionally left outside the app.
+Streamlit interface for the MartiniSurf protein workflow, matching the scope of the MartiniSurf Protein Colab. It generates design/setup files only; molecular dynamics execution is intentionally left outside the app.
 
 ## Local Run
 
@@ -15,6 +15,6 @@ When launched from the repository, the app automatically adds the active Python 
 
 ## Streamlit Cloud
 
-Use `streamlit_app.py` as the entrypoint and `requirements-streamlit.txt` as the dependency file. External tools such as `martinize2` and GROMACS must be available in the deployed environment for the corresponding workflow options to run.
+Use `streamlit_app.py` as the entrypoint and `requirements-streamlit.txt` as the dependency file. External tools such as `martinize2` and GROMACS must be available in the deployed environment for the corresponding protein workflow options to run.
 
 The molecular viewer is embedded in the results panel and uses 3Dmol.js in the browser to inspect generated `.pdb` and `.gro` files.

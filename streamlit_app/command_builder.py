@@ -9,12 +9,9 @@ from pathlib import Path
 class BuildConfig:
     input_path: Path | str = ""
     workdir: Path = Path(".")
-    workflow: str = "Protein"
-    complex_config_path: Path | None = None
     outdir: str = "Simulation_Files"
     moltype: str = "Protein"
     ff: str = "martini3001"
-    dnatype: str = "ds-stiff"
     dssp: bool = True
     go: bool = False
     elastic: bool = False
@@ -75,28 +72,20 @@ def _append_group(args: list[str], flag: str, value: str) -> None:
 
 
 def build_args(config: BuildConfig) -> list[str]:
-    args = []
-    if config.workflow == "Pre-CG complex":
-        _append_value(args, "--complex-config", config.complex_config_path)
-    else:
-        args.extend(["--pdb", str(config.input_path)])
-
-    if config.workflow == "DNA":
-        args.extend(["--dna", "--dnatype", config.dnatype])
-
-    if config.workflow != "Pre-CG complex":
-        args.extend([
-            "--moltype",
-            config.moltype,
-            "--ff",
-            config.ff,
-            "--p",
-            config.position_restraints,
-            "--pf",
-            f"{config.pf:g}",
-            "--maxwarn",
-            str(config.maxwarn),
-        ])
+    args = [
+        "--pdb",
+        str(config.input_path),
+        "--moltype",
+        config.moltype,
+        "--ff",
+        config.ff,
+        "--p",
+        config.position_restraints,
+        "--pf",
+        f"{config.pf:g}",
+        "--maxwarn",
+        str(config.maxwarn),
+    ]
 
     args.extend([
         "--surface-mode",
@@ -113,12 +102,11 @@ def build_args(config: BuildConfig) -> list[str]:
         config.outdir,
     ])
 
-    if config.workflow == "Protein":
-        args.append("--dssp" if config.dssp else "--no-dssp")
+    args.append("--dssp" if config.dssp else "--no-dssp")
 
-    if config.workflow == "Protein" and config.go:
+    if config.go:
         args.append("--go")
-    if config.workflow == "Protein" and config.elastic:
+    if config.elastic:
         args.append("--elastic")
 
     if config.surface_path:
@@ -137,9 +125,8 @@ def build_args(config: BuildConfig) -> list[str]:
     _append_value(args, "--cnt-numrings", config.cnt_numrings)
     _append_value(args, "--cnt-ringsize", config.cnt_ringsize)
 
-    if config.workflow in {"Protein", "DNA"}:
-        for merge_group in config.merge_groups:
-            _append_value(args, "--merge", merge_group)
+    for merge_group in config.merge_groups:
+        _append_value(args, "--merge", merge_group)
 
     if config.orientation_mode == "Linker":
         _append_value(args, "--linker", config.linker_path)
