@@ -13,7 +13,7 @@ import streamlit as st
 from streamlit_app.archive import make_zip
 from streamlit_app.command_builder import BuildConfig, build_args, shell_command
 from streamlit_app.logs import summarize_log
-from streamlit_app.molecular_viewer import file_caption, find_viewable_structures, render_molecule
+from streamlit_app.molecular_viewer import file_caption, find_viewable_structures, render_martini_step4_viewer, render_molecule
 from streamlit_app.project_io import export_state, import_state
 from streamlit_app.runner import run_martinisurf
 from streamlit_app.structure import StructureSummary, summarize_structure
@@ -392,7 +392,7 @@ def _render_environment_step() -> None:
 def _render_review_step(config: BuildConfig, errors: list[str], tool_warnings: list[str], outdir: Path) -> None:
     left, right = st.columns([1.2, 0.9], gap="large")
     with left:
-        _render_results(outdir)
+        _render_results(outdir, config)
         _render_command(config)
     with right:
         for error in errors:
@@ -421,13 +421,45 @@ def _render_review_step(config: BuildConfig, errors: list[str], tool_warnings: l
         _render_log()
 
 
-def _render_results(outdir: Path) -> None:
+def _render_results(outdir: Path, config: BuildConfig) -> None:
     st.markdown('<div class="ms-panel-title">Generated structure</div>', unsafe_allow_html=True)
     structures = find_viewable_structures(outdir)
     if structures:
         labels = [file_caption(path) for path in structures]
         selected = st.selectbox("Structure", labels)
-        render_molecule(structures[labels.index(selected)], height=520)
+        structure_path = structures[labels.index(selected)]
+        if structure_path.suffix.lower() == ".gro":
+            with st.expander("Step 4 viewer options", expanded=False):
+                show_connectivity = st.toggle(
+                    "Show protein topology connectivity",
+                    value=True,
+                    help="Draws short protein bonds as thin green cylinders. Surface lattice bonds are not drawn.",
+                )
+                a, b = st.columns(2)
+                bead_radius = a.number_input("Bead radius", min_value=0.05, max_value=3.0, value=0.85, step=0.05)
+                bond_radius = b.number_input("Bond radius", min_value=0.01, max_value=1.0, value=0.2, step=0.01)
+                c, d = st.columns(2)
+                highlight_radius = c.number_input("Highlight radius", min_value=0.05, max_value=3.0, value=1.1, step=0.05)
+                topology_bond_max_nm = d.number_input("Topology bond max (nm)", min_value=0.05, max_value=2.0, value=0.75, step=0.05)
+            selection_text = "\n".join(config.linker_groups if config.orientation_mode == "Linker" else config.anchors)
+            stats = render_martini_step4_viewer(
+                structure_path,
+                outdir,
+                selection_text,
+                height=800,
+                show_connectivity=show_connectivity,
+                bead_radius=bead_radius,
+                bond_radius=bond_radius,
+                highlight_radius=highlight_radius,
+                topology_bond_max_nm=topology_bond_max_nm,
+            )
+            st.caption(
+                f"Step 4 style: {stats['bonds']} protein bonds drawn, "
+                f"{stats['skipped_long']} long topology contacts skipped, "
+                f"{stats['highlighted']} immobilization residues highlighted."
+            )
+        else:
+            render_molecule(structure_path, height=520)
     else:
         st.info("No generated files yet.")
     zip_path = Path(st.session_state["zip_path"]) if st.session_state.get("zip_path") else None
