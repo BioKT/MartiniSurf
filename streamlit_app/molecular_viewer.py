@@ -42,7 +42,7 @@ def render_molecule(path: Path, height: int = 520) -> None:
     <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
     <script>
       const element = document.getElementById({json.dumps(element_id)});
-      const viewer = $3Dmol.createViewer(element, {{ backgroundColor: "#fbfdfb" }});
+      const viewer = $3Dmol.createViewer(element, {{ backgroundColor: "#08131f" }});
       viewer.addModel({json.dumps(mol_data)}, {json.dumps(fmt)});
       viewer.setStyle({{}}, {{ sphere: {{ radius: 0.18, colorscheme: "Jmol" }} }});
       viewer.addStyle({{resn: "SRF"}}, {{ sphere: {{ radius: 0.22, color: "#ff4fa7" }} }});
@@ -51,17 +51,25 @@ def render_molecule(path: Path, height: int = 520) -> None:
       viewer.render();
     </script>
     <style>
+      html, body {{
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #08131f;
+      }}
       .viewer-shell {{
         width: 100%;
         height: {height}px;
-        border: 1px solid #ecd4df;
+        box-sizing: border-box;
+        border: 1px solid #28455b;
         border-radius: 8px;
         overflow: hidden;
-        background: #fbfdfb;
+        background: #08131f;
       }}
       .viewer {{
         width: 100%;
         height: {height}px;
+        overflow: hidden;
       }}
     </style>
     """

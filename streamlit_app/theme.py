@@ -8,23 +8,49 @@ def apply_theme() -> None:
         """
         <style>
         :root {
-          --ms-ink: #f7fbff;
-          --ms-muted: #a9b8c4;
-          --ms-line: rgba(140, 190, 215, 0.25);
-          --ms-panel: rgba(12, 27, 42, 0.78);
+          --ms-bg: #08131f;
+          --ms-bg-elevated: #0e2133;
+          --ms-bg-panel: #132a3d;
+          --ms-bg-input: #102638;
+          --ms-bg-hover: #18364b;
+          --ms-border: #28455b;
+          --ms-border-strong: #37647d;
+          --ms-text: #f5f8fa;
+          --ms-text-secondary: #b2c2cf;
+          --ms-text-muted: #8297a8;
+          --ms-text-on-accent: #04151c;
+          --ms-primary: #20c7c9;
+          --ms-primary-hover: #43d7d3;
+          --ms-success: #64e3a1;
+          --ms-warning: #f3b45b;
+          --ms-error: #ef6a72;
+          --ms-focus: rgba(32, 199, 201, 0.35);
           --ms-accent: #ff4fa7;
-          --ms-teal: #28d5f5;
+          --ms-radius-sm: 6px;
+          --ms-radius-md: 10px;
+          --ms-radius-lg: 14px;
+
+          --ms-ink: var(--ms-text);
+          --ms-muted: var(--ms-text-secondary);
+          --ms-line: var(--ms-border);
+          --ms-panel: rgba(14, 33, 51, 0.82);
+          --ms-teal: var(--ms-primary);
           --ms-mint: #64E3C4;
           --ms-deep: #06111d;
-          --ms-green: #5bea89;
-          --ms-amber: #ffb94c;
+          --ms-green: var(--ms-success);
+          --ms-amber: var(--ms-warning);
+        }
+        *,
+        *::before,
+        *::after {
+          box-sizing: border-box;
         }
         .stApp {
           background:
-            radial-gradient(circle at 20% 10%, rgba(40, 213, 245, 0.18), transparent 28rem),
+            radial-gradient(circle at 20% 10%, rgba(32, 199, 201, 0.15), transparent 28rem),
             radial-gradient(circle at 85% 5%, rgba(255, 79, 167, 0.14), transparent 25rem),
-            linear-gradient(140deg, #06111d 0%, #0b1f2d 54%, #102b2e 100%);
-          color: var(--ms-ink);
+            linear-gradient(140deg, var(--ms-bg) 0%, #0b1f2d 54%, #102b2e 100%);
+          color: var(--ms-text);
         }
         html,
         body,
@@ -63,6 +89,7 @@ def apply_theme() -> None:
         }
         [data-testid="collapsedControl"],
         [data-testid="stSidebarCollapsedControl"],
+        button[data-testid="stBaseButton-headerNoPadding"],
         button[title="Open sidebar"],
         button[aria-label="Open sidebar"],
         button[title="Close sidebar"],
@@ -79,6 +106,7 @@ def apply_theme() -> None:
         }
         [data-testid="collapsedControl"] *,
         [data-testid="stSidebarCollapsedControl"] *,
+        button[data-testid="stBaseButton-headerNoPadding"] *,
         button[title="Open sidebar"] *,
         button[aria-label="Open sidebar"] * {
           color: #ffffff !important;
@@ -87,6 +115,7 @@ def apply_theme() -> None:
         }
         [data-testid="collapsedControl"] svg,
         [data-testid="stSidebarCollapsedControl"] svg,
+        button[data-testid="stBaseButton-headerNoPadding"] svg,
         button[title="Open sidebar"] svg,
         button[aria-label="Open sidebar"] svg,
         button[title="Close sidebar"] svg,
@@ -135,8 +164,13 @@ def apply_theme() -> None:
         body::-webkit-scrollbar-thumb:hover {
           background: var(--ms-mint, #64E3C4);
         }
-        [data-testid="stSidebar"] * {
-          color: #eef8ff;
+        [data-testid="stSidebar"] {
+          color: var(--ms-text);
+        }
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] span {
+          color: inherit;
         }
         [data-testid="stSidebar"] img {
           background: rgba(255,255,255,0.92);
@@ -151,9 +185,6 @@ def apply_theme() -> None:
           padding-bottom: 2rem;
           max-width: 1500px;
         }
-        p, label, span {
-          color: inherit;
-        }
         h1, h2, h3 {
           letter-spacing: 0;
         }
@@ -161,14 +192,17 @@ def apply_theme() -> None:
           color: var(--ms-ink);
         }
         div[data-testid="stMetric"] {
-          background: rgba(10, 26, 42, 0.74);
+          background: var(--ms-bg-elevated);
           border: 1px solid var(--ms-line);
           border-radius: 8px;
           padding: 0.75rem 0.9rem;
         }
         div[data-testid="stMetric"] label,
         div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-          color: var(--ms-ink);
+          color: var(--ms-text);
+        }
+        div[data-testid="stMetric"] label {
+          color: var(--ms-text-secondary) !important;
         }
         .ms-header {
           border-bottom: 1px solid var(--ms-line);
@@ -324,7 +358,7 @@ def apply_theme() -> None:
         div[data-testid="stTabs"] {
           border: 1px solid var(--ms-line);
           border-radius: 8px;
-          background: rgba(5, 16, 28, 0.58);
+          background: rgba(14, 33, 51, 0.66);
           padding: 0.75rem;
         }
         div[data-testid="stTabs"] button {
@@ -336,8 +370,21 @@ def apply_theme() -> None:
         }
         div[data-testid="stTabs"] button[aria-selected="true"] {
           color: var(--ms-deep) !important;
-          background: linear-gradient(135deg, var(--ms-teal), #7ce7f4);
+          background: linear-gradient(135deg, var(--ms-primary), var(--ms-primary-hover));
           border-radius: 8px;
+        }
+        div[data-testid="stRadio"] label,
+        div[data-testid="stCheckbox"] label,
+        div[data-testid="stToggle"] label {
+          color: var(--ms-text) !important;
+        }
+        div[data-testid="stRadio"] label:hover,
+        div[data-testid="stCheckbox"] label:hover,
+        div[data-testid="stToggle"] label:hover {
+          color: var(--ms-primary-hover) !important;
+        }
+        div[data-testid="stProgress"] > div > div {
+          background-color: var(--ms-primary) !important;
         }
         [data-testid="stWidgetLabel"] p,
         [data-testid="stWidgetLabel"] label,
@@ -347,32 +394,86 @@ def apply_theme() -> None:
         }
         div[data-testid="stTextInput"] input,
         div[data-testid="stTextArea"] textarea,
-        div[data-testid="stNumberInput"] input,
-        div[data-baseweb="input"],
-        div[data-baseweb="textarea"],
-        div[data-testid="stSelectbox"],
-        div[data-testid="stSelectbox"] div,
-        div[data-baseweb="select"] > div {
-          background-color: rgba(255,255,255,0.075) !important;
-          color: var(--ms-ink) !important;
-          border-color: var(--ms-line) !important;
+        div[data-testid="stNumberInput"] input {
+          background-color: var(--ms-bg-input) !important;
+          color: var(--ms-text) !important;
+          border: 1px solid var(--ms-border) !important;
+          border-radius: var(--ms-radius-sm) !important;
+          box-shadow: none !important;
+        }
+        div[data-testid="stTextInput"] input:hover,
+        div[data-testid="stTextArea"] textarea:hover,
+        div[data-testid="stNumberInput"] input:hover {
+          border-color: var(--ms-border-strong) !important;
+          background-color: var(--ms-bg-hover) !important;
+        }
+        div[data-testid="stTextInput"] input:focus,
+        div[data-testid="stTextArea"] textarea:focus,
+        div[data-testid="stNumberInput"] input:focus {
+          border-color: var(--ms-primary) !important;
+          box-shadow: 0 0 0 0.18rem var(--ms-focus) !important;
+        }
+        div[data-baseweb="select"] > div,
+        div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div {
+          background-color: var(--ms-bg-input) !important;
+          color: var(--ms-text) !important;
+          border-color: var(--ms-border) !important;
+          border-radius: var(--ms-radius-sm) !important;
+        }
+        div[data-baseweb="select"] span,
+        div[data-baseweb="select"] svg {
+          color: var(--ms-text-secondary) !important;
+          fill: var(--ms-text-secondary) !important;
+        }
+        div[data-baseweb="popover"],
+        div[data-baseweb="menu"],
+        ul[role="listbox"] {
+          background: var(--ms-bg-elevated) !important;
+          color: var(--ms-text) !important;
+          border: 1px solid var(--ms-border-strong) !important;
+          border-radius: var(--ms-radius-md) !important;
+          box-shadow: 0 18px 50px rgba(0,0,0,0.42) !important;
+        }
+        li[role="option"],
+        div[role="option"] {
+          background: transparent !important;
+          color: var(--ms-text) !important;
+        }
+        li[role="option"]:hover,
+        div[role="option"]:hover,
+        li[role="option"][aria-selected="true"],
+        div[role="option"][aria-selected="true"] {
+          background: var(--ms-bg-hover) !important;
+          color: var(--ms-text) !important;
+        }
+        div[data-baseweb="tag"] {
+          background: rgba(32, 199, 201, 0.18) !important;
+          border: 1px solid rgba(32, 199, 201, 0.38) !important;
+          color: var(--ms-text) !important;
+        }
+        div[data-baseweb="tag"] span,
+        div[data-baseweb="tag"] svg {
+          color: var(--ms-text) !important;
+          fill: var(--ms-text) !important;
         }
         input::placeholder,
         textarea::placeholder {
-          color: rgba(220,232,239,0.55) !important;
+          color: var(--ms-text-muted) !important;
         }
         [data-testid="stFileUploader"] {
           margin-bottom: 0.8rem;
         }
         [data-testid="stFileUploader"] section,
         [data-testid="stFileUploaderDropzone"] {
-          background: rgba(255,255,255,0.075) !important;
+          background: var(--ms-bg-input) !important;
           border: 1px dashed rgba(40, 213, 245, 0.36) !important;
           border-radius: 8px !important;
           min-height: 4.4rem;
         }
-        [data-testid="stFileUploader"] section * {
-          color: #dce8ef !important;
+        [data-testid="stFileUploader"] section p,
+        [data-testid="stFileUploader"] section span,
+        [data-testid="stFileUploader"] section small {
+          color: var(--ms-text-secondary) !important;
         }
         [data-testid="stFileUploader"] button {
           background: rgba(40, 213, 245, 0.14) !important;
@@ -381,7 +482,7 @@ def apply_theme() -> None:
         }
         [data-testid="stExpander"] {
           border: 1px solid var(--ms-line);
-          background: rgba(255,255,255,0.045);
+          background: rgba(14,33,51,0.62);
           border-radius: 8px;
         }
         [data-testid="stExpander"] summary,
@@ -391,8 +492,9 @@ def apply_theme() -> None:
         }
         [data-testid="stMarkdownContainer"] code,
         pre {
-          color: #dce8ef !important;
-          background: rgba(0,0,0,0.28) !important;
+          color: var(--ms-text) !important;
+          background: #07111c !important;
+          border-color: var(--ms-border) !important;
         }
         .ms-canvas {
           position: relative;
@@ -611,7 +713,7 @@ def apply_theme() -> None:
         .ms-section {
           border: 1px solid var(--ms-line);
           border-radius: 8px;
-          background: rgba(255,255,255,0.62);
+          background: var(--ms-bg-elevated);
           padding: 1rem;
           margin-bottom: 1rem;
         }
@@ -635,29 +737,75 @@ def apply_theme() -> None:
         }
         .stButton > button, .stDownloadButton > button {
           border-radius: 8px;
-          border: 1px solid var(--ms-accent);
-          background: rgba(255,255,255,0.06);
-          color: var(--ms-ink);
+          border: 1px solid var(--ms-border-strong);
+          background: var(--ms-bg-elevated);
+          color: var(--ms-text);
+        }
+        .stButton > button:hover,
+        .stDownloadButton > button:hover {
+          border-color: var(--ms-primary);
+          background: var(--ms-bg-hover);
+          color: var(--ms-text);
+        }
+        .stButton > button:focus,
+        .stDownloadButton > button:focus,
+        .stLinkButton > a:focus {
+          box-shadow: 0 0 0 0.18rem var(--ms-focus) !important;
+          outline: none !important;
+        }
+        .stButton > button:disabled,
+        .stDownloadButton > button:disabled {
+          border-color: rgba(40, 69, 91, 0.55) !important;
+          background: rgba(16, 38, 56, 0.46) !important;
+          color: var(--ms-text-muted) !important;
+          cursor: not-allowed !important;
         }
         .stLinkButton > a,
         div[data-testid="stPopover"] button,
         .stDownloadButton > button {
           border-radius: 8px !important;
-          border: 1px solid rgba(40, 213, 245, 0.42) !important;
-          background: rgba(14, 33, 51, 0.92) !important;
-          color: var(--ms-ink) !important;
+          border: 1px solid var(--ms-border-strong) !important;
+          background: var(--ms-bg-elevated) !important;
+          color: var(--ms-text) !important;
           font-weight: 800 !important;
         }
         .stLinkButton > a p,
         div[data-testid="stPopover"] button p,
         .stDownloadButton > button p {
-          color: var(--ms-ink) !important;
+          color: var(--ms-text) !important;
+          overflow-wrap: normal !important;
+          word-break: normal !important;
+          white-space: normal !important;
         }
         .stButton > button[kind="primary"] {
-          background: linear-gradient(135deg, var(--ms-teal), #38e0f4);
-          color: var(--ms-deep);
-          border-color: var(--ms-teal);
+          background: linear-gradient(135deg, var(--ms-primary), var(--ms-primary-hover));
+          color: var(--ms-text-on-accent);
+          border-color: var(--ms-primary);
           font-weight: 850;
+        }
+        div[data-testid="stAlert"] {
+          border-radius: var(--ms-radius-md);
+          border: 1px solid var(--ms-border);
+          background: var(--ms-bg-elevated);
+          color: var(--ms-text);
+        }
+        div[data-testid="stAlert"] p,
+        div[data-testid="stAlert"] li {
+          color: var(--ms-text) !important;
+        }
+        div[data-testid="stDataFrame"],
+        div[data-testid="stDataEditor"] {
+          border: 1px solid var(--ms-border);
+          border-radius: var(--ms-radius-md);
+          overflow: hidden;
+        }
+        div[data-testid="stDataFrame"] *,
+        div[data-testid="stDataEditor"] * {
+          color: inherit;
+        }
+        div[data-testid="stStatusWidget"],
+        div[data-testid="stStatus"] {
+          color: var(--ms-text) !important;
         }
         @media (max-width: 900px) {
           .ms-header {
@@ -674,6 +822,27 @@ def apply_theme() -> None:
           }
           .ms-canvas {
             min-height: 420px;
+          }
+        }
+        @media (max-width: 1100px) {
+          .block-container {
+            padding-left: 1.25rem;
+            padding-right: 1.25rem;
+          }
+          section[data-testid="stMain"] div[data-testid="stHorizontalBlock"] {
+            display: block !important;
+          }
+          section[data-testid="stMain"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+            flex: 1 1 100% !important;
+            min-width: 100% !important;
+            width: 100% !important;
+            margin-bottom: 0.75rem;
+          }
+          .stLinkButton > a,
+          div[data-testid="stPopover"] button,
+          .stDownloadButton > button,
+          .stButton > button {
+            min-height: 2.75rem;
           }
         }
         </style>

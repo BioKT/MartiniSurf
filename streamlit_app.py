@@ -140,11 +140,6 @@ def _render_sidebar(errors: list[str], tool_warnings: list[str], has_output: boo
         selected = st.radio("Workflow step", STEPS, key="active_step", label_visibility="collapsed")
         completed = sum(1 for step in STEPS if _step_state(step, errors, tool_warnings, has_output) == "completed")
         st.progress(completed / len(STEPS), text=f"{completed} of {len(STEPS)}")
-        state_markup = "\n".join(
-            f'<div class="ms-step {_step_state(step, errors, tool_warnings, has_output)}"><span></span><p>{html.escape(step)}</p></div>'
-            for step in STEPS
-        )
-        st.markdown(f'<div class="ms-steps">{state_markup}</div>', unsafe_allow_html=True)
 
 
 def _render_topbar(config: BuildConfig, errors: list[str], tool_warnings: list[str], has_output: bool) -> None:
@@ -181,7 +176,7 @@ def _render_topbar(config: BuildConfig, errors: list[str], tool_warnings: list[s
         unsafe_allow_html=True,
     )
 
-    tools = st.columns([1, 1, 1, 2.4])
+    tools = st.columns(3)
     tools[0].link_button("Documentation", "https://biokt.github.io/MartiniSurf/", width="stretch")
     with tools[1].popover("Import config", use_container_width=True):
         import_file = st.file_uploader("Project JSON", type=["json"])
@@ -230,11 +225,12 @@ def _render_structure_step(upload_dir: Path) -> tuple[Path | None, Path | None, 
 
 def _render_structure_summary(summary: StructureSummary, structure_path: Path | None) -> None:
     st.markdown('<div class="ms-panel-title">Structure preview</div>', unsafe_allow_html=True)
-    cols = st.columns(4)
-    cols[0].metric("Source", summary.source)
-    cols[1].metric("Type", summary.molecule_type)
-    cols[2].metric("Chains", len(summary.chains) if summary.chains else "-")
-    cols[3].metric("Residues", summary.residue_count or "-")
+    top_metrics = st.columns(2)
+    bottom_metrics = st.columns(2)
+    top_metrics[0].metric("Source", summary.source)
+    top_metrics[1].metric("Type", summary.molecule_type)
+    bottom_metrics[0].metric("Chains", len(summary.chains) if summary.chains else "-")
+    bottom_metrics[1].metric("Residues", summary.residue_count or "-")
 
     if structure_path and structure_path.suffix.lower() in {".pdb", ".gro"}:
         render_molecule(structure_path, height=430)
