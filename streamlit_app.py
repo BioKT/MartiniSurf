@@ -88,6 +88,14 @@ def _lines(value: str) -> list[str]:
     return [line.strip() for line in value.splitlines() if line.strip()]
 
 
+def _choice(value: object, default: str) -> str:
+    if isinstance(value, str) and value:
+        return value
+    if isinstance(value, (list, tuple)) and value:
+        return str(value[0])
+    return default
+
+
 def _image_data_uri(path: Path) -> str:
     if not path.exists():
         return ""
@@ -343,7 +351,8 @@ def _render_orientation_step(config: BuildConfig) -> None:
 
 
 def _render_workspace_preview(config: BuildConfig) -> None:
-    anchor_count = len(config.anchors) if config.orientation_mode != "Linker" else len(config.linker_groups)
+    orientation_mode = _choice(config.orientation_mode, "Anchor")
+    anchor_count = len(config.anchors) if orientation_mode != "Linker" else len(config.linker_groups)
     st.markdown(
         f"""
         <div class="ms-canvas">
@@ -354,7 +363,7 @@ def _render_workspace_preview(config: BuildConfig) -> None:
           </div>
           <div class="ms-protein-shape"><i></i><i></i><i></i><i></i><i></i><i></i></div>
           <div class="ms-anchor-callout left">Groups: {anchor_count}</div>
-          <div class="ms-anchor-callout right">{html.escape(config.orientation_mode)}</div>
+          <div class="ms-anchor-callout right">{html.escape(orientation_mode)}</div>
           <div class="ms-surface-grid"></div>
           <div class="ms-axis">Z</div>
         </div>
@@ -495,6 +504,7 @@ def _build_config(
     substrate_path: Path | None,
     substrate_itp_path: Path | None,
 ) -> BuildConfig:
+    orientation_mode = _choice(st.session_state.orientation_mode, "Anchor")
     values = {
         "input_path": input_path,
         "workdir": Path(st.session_state.run_root),
@@ -503,10 +513,10 @@ def _build_config(
         "dssp": st.session_state.dssp,
         "go": st.session_state.go,
         "elastic": st.session_state.elastic,
-        "position_restraints": st.session_state.position_restraints,
+        "position_restraints": _choice(st.session_state.position_restraints, "backbone"),
         "merge_groups": _lines(st.session_state.merge_text),
         "surface_mode": st.session_state.surface_mode,
-        "surface_geometry": st.session_state.surface_geometry,
+        "surface_geometry": _choice(st.session_state.surface_geometry, "planar"),
         "surface_path": surface_path,
         "lx": st.session_state.lx,
         "ly": st.session_state.ly,
@@ -519,10 +529,10 @@ def _build_config(
         "graphite_layers": st.session_state.graphite_layers or None,
         "cnt_numrings": st.session_state.cnt_numrings or None,
         "cnt_ringsize": st.session_state.cnt_ringsize or None,
-        "orientation_mode": st.session_state.orientation_mode,
+        "orientation_mode": orientation_mode,
         "anchors": _lines(st.session_state.anchors_text),
         "dist": st.session_state.dist,
-        "ads_mode": st.session_state.orientation_mode == "Adsorption",
+        "ads_mode": orientation_mode == "Adsorption",
         "balance_low_z": st.session_state.balance_low_z,
         "balance_low_z_fraction": st.session_state.balance_low_z_fraction if st.session_state.balance_low_z else None,
         "histag": st.session_state.histag,
