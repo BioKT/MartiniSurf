@@ -10,13 +10,18 @@ from .command_builder import BuildConfig
 def validate_config(config: BuildConfig) -> list[str]:
     errors: list[str] = []
 
-    if not str(config.input_path).strip():
+    if config.workflow == "Pre-CG complex":
+        if not config.complex_config_path:
+            errors.append("Pre-CG complex mode needs a complex configuration YAML file.")
+    elif not str(config.input_path).strip():
         errors.append("Provide a protein structure file, RCSB ID, or UniProt ID.")
 
     if not config.surface_path and (config.lx <= 0 or config.ly <= 0):
         errors.append("Generated surfaces need positive X and Y dimensions.")
 
-    if config.orientation_mode == "Linker":
+    if config.workflow == "Pre-CG complex":
+        pass
+    elif config.orientation_mode == "Linker":
         if not config.linker_path:
             errors.append("Linker mode needs a linker .gro file.")
         if not config.linker_groups:
@@ -31,7 +36,7 @@ def validate_config(config: BuildConfig) -> list[str]:
     if config.substrate_count > 0 and not config.substrate_path:
         errors.append("Substrate count is set, but no substrate .gro file was provided.")
 
-    for path in [config.surface_path, config.linker_path, config.substrate_path, config.substrate_itp_path]:
+    for path in [config.complex_config_path, config.surface_path, config.linker_path, config.substrate_path, config.substrate_itp_path]:
         if isinstance(path, Path) and not path.exists():
             errors.append(f"Missing file: {path}")
 
@@ -50,7 +55,7 @@ def check_external_tools(
 ) -> list[str]:
     warnings: list[str] = []
 
-    if _which_with_extra_paths("martinize2", extra_tool_dirs) is None:
+    if config.workflow == "Protein" and _which_with_extra_paths("martinize2", extra_tool_dirs) is None:
         warnings.append(
             "martinize2 is not available in PATH. Protein coarse-graining will fail until it is installed "
             "or the app is launched from an environment where martinize2 is active."

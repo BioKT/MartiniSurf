@@ -7,11 +7,14 @@ from pathlib import Path
 
 @dataclass
 class BuildConfig:
-    input_path: Path | str
-    workdir: Path
+    input_path: Path | str = ""
+    workdir: Path = Path(".")
+    workflow: str = "Protein"
+    complex_config_path: Path | None = None
     outdir: str = "Simulation_Files"
     moltype: str = "Protein"
     ff: str = "martini3001"
+    dnatype: str = "ds-stiff"
     dssp: bool = True
     go: bool = False
     elastic: bool = False
@@ -29,6 +32,7 @@ class BuildConfig:
     charge: float = 0.0
     surface_layers: int | None = None
     surface_stacking: str = "hcp"
+    surface_dist_z: float | None = None
     graphite_layers: int | None = None
     cnt_numrings: int | None = None
     cnt_ringsize: int | None = None
@@ -37,6 +41,7 @@ class BuildConfig:
     dist: float = 1.0
     ads_mode: bool = False
     balance_low_z: bool = False
+    balance_low_z_fraction: float | None = None
     histag: bool = False
     linker_path: Path | None = None
     linker_groups: list[str] = field(default_factory=list)
@@ -70,19 +75,30 @@ def _append_group(args: list[str], flag: str, value: str) -> None:
 
 
 def build_args(config: BuildConfig) -> list[str]:
-    args = [
-        "--pdb",
-        str(config.input_path),
-        "--moltype",
-        config.moltype,
-        "--ff",
-        config.ff,
-        "--p",
-        config.position_restraints,
-        "--pf",
-        f"{config.pf:g}",
-        "--maxwarn",
-        str(config.maxwarn),
+    args = []
+    if config.workflow == "Pre-CG complex":
+        _append_value(args, "--complex-config", config.complex_config_path)
+    else:
+        args.extend(["--pdb", str(config.input_path)])
+
+    if config.workflow == "DNA":
+        args.extend(["--dna", "--dnatype", config.dnatype])
+
+    if config.workflow != "Pre-CG complex":
+        args.extend([
+            "--moltype",
+            config.moltype,
+            "--ff",
+            config.ff,
+            "--p",
+            config.position_restraints,
+            "--pf",
+            f"{config.pf:g}",
+            "--maxwarn",
+            str(config.maxwarn),
+        ])
+
+    args.extend([
         "--surface-mode",
         config.surface_mode,
         "--surface-geometry",
@@ -95,12 +111,14 @@ def build_args(config: BuildConfig) -> list[str]:
         f"{config.dist:g}",
         "--outdir",
         config.outdir,
-    ]
+    ])
 
-    args.append("--dssp" if config.dssp else "--no-dssp")
-    if config.go:
+    if config.workflow == "Protein":
+        args.append("--dssp" if config.dssp else "--no-dssp")
+
+    if config.workflow == "Protein" and config.go:
         args.append("--go")
-    if config.elastic:
+    if config.workflow == "Protein" and config.elastic:
         args.append("--elastic")
 
     if config.surface_path:
@@ -114,12 +132,14 @@ def build_args(config: BuildConfig) -> list[str]:
 
     _append_value(args, "--surface-layers", config.surface_layers)
     _append_value(args, "--surface-stacking", config.surface_stacking)
+    _append_value(args, "--surface-dist-z", config.surface_dist_z)
     _append_value(args, "--graphite-layers", config.graphite_layers)
     _append_value(args, "--cnt-numrings", config.cnt_numrings)
     _append_value(args, "--cnt-ringsize", config.cnt_ringsize)
 
-    for merge_group in config.merge_groups:
-        _append_value(args, "--merge", merge_group)
+    if config.workflow in {"Protein", "DNA"}:
+        for merge_group in config.merge_groups:
+            _append_value(args, "--merge", merge_group)
 
     if config.orientation_mode == "Linker":
         _append_value(args, "--linker", config.linker_path)
@@ -138,6 +158,7 @@ def build_args(config: BuildConfig) -> list[str]:
             args.append("--ads-mode")
         if config.balance_low_z:
             args.append("--balance-low-z")
+            _append_value(args, "--balance-low-z-fraction", config.balance_low_z_fraction)
         if config.histag:
             args.append("--histag")
 

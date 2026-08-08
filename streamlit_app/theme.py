@@ -415,6 +415,83 @@ def apply_theme() -> None:
           background: rgba(5, 16, 28, 0.72);
           padding: 0.6rem;
         }
+        .ms-empty-preview {
+          min-height: 430px;
+          border: 1px dashed rgba(40,213,245,0.32);
+          border-radius: 8px;
+          background:
+            radial-gradient(circle at center, rgba(40,213,245,0.12), transparent 18rem),
+            rgba(5,16,28,0.52);
+          display: grid;
+          place-content: center;
+          text-align: center;
+          padding: 2rem;
+        }
+        .ms-empty-preview strong {
+          color: var(--ms-ink);
+          font-size: 1.4rem;
+        }
+        .ms-empty-preview span {
+          color: var(--ms-muted);
+          max-width: 32rem;
+          margin-top: 0.45rem;
+        }
+        .ms-surface-preview {
+          margin-top: 1rem;
+          border: 1px solid var(--ms-line);
+          border-radius: 8px;
+          background: rgba(5,16,28,0.54);
+          padding: 1rem;
+        }
+        .ms-surface-preview span {
+          display: block;
+          color: var(--ms-muted);
+          font-weight: 700;
+          margin-bottom: 0.8rem;
+        }
+        .ms-surface-preview div {
+          height: 9rem;
+          border-radius: 8px;
+          background:
+            radial-gradient(circle, rgba(40,213,245,0.72) 0 0.32rem, transparent 0.34rem) 0 0 / 1.35rem 1.05rem,
+            radial-gradient(circle, rgba(100,227,196,0.62) 0 0.30rem, transparent 0.34rem) 0.68rem 0.52rem / 1.35rem 1.05rem,
+            linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.18));
+          transform: perspective(460px) rotateX(54deg);
+          transform-origin: bottom;
+        }
+        .ms-quality {
+          margin-top: 1rem;
+          border: 1px solid var(--ms-line);
+          border-radius: 8px;
+          background: rgba(255,255,255,0.045);
+          padding: 0.9rem;
+        }
+        .ms-quality strong {
+          color: var(--ms-ink);
+          display: block;
+          margin-bottom: 0.6rem;
+        }
+        .ms-quality-row {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          color: var(--ms-muted);
+          padding: 0.25rem 0;
+          font-weight: 700;
+        }
+        .ms-quality-row span {
+          width: 0.68rem;
+          height: 0.68rem;
+          border-radius: 50%;
+          background: var(--ms-muted);
+        }
+        .ms-quality-row.ok {
+          color: var(--ms-green);
+        }
+        .ms-quality-row.ok span {
+          background: var(--ms-green);
+          box-shadow: 0 0 12px rgba(91,234,137,0.55);
+        }
         .ms-hero-logo img {
           max-height: 12rem;
           object-fit: contain;
