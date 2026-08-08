@@ -84,6 +84,15 @@ DNA workflow note:
   - Notebook: `martinisurf/examples/MartiniSurf_DNA.ipynb`
   - Open in Colab: https://colab.research.google.com/github/BioKT/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_DNA.ipynb
 
+## Streamlit Protein Designer
+The protein workflow is also available as a local Streamlit app:
+```bash
+pip install -r requirements-streamlit.txt
+pip install -e .
+streamlit run streamlit_app.py
+```
+See `docs/streamlit_app.md` for deployment notes.
+
 ## Linker Mode Notes
 - `--anchor` and `--linker-group` accept either legacy global residue ids or chain-based residue ids from the input PDB:
   - Legacy: `--anchor 1 8 10 11`
