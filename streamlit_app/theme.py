@@ -14,6 +14,7 @@ def apply_theme() -> None:
           --ms-panel: rgba(12, 27, 42, 0.78);
           --ms-accent: #ff4fa7;
           --ms-teal: #28d5f5;
+          --ms-mint: #64E3C4;
           --ms-deep: #06111d;
           --ms-green: #5bea89;
           --ms-amber: #ffb94c;
@@ -36,13 +37,13 @@ def apply_theme() -> None:
         .stApp > header,
         [data-testid="stHeader"],
         header[data-testid="stHeader"] {
-          display: none !important;
+          display: block !important;
           height: 0 !important;
           min-height: 0 !important;
-          max-height: 0 !important;
-          opacity: 0 !important;
+          opacity: 1 !important;
           pointer-events: none !important;
           background: transparent !important;
+          background-color: transparent !important;
           box-shadow: none !important;
         }
         [data-testid="stHeader"]::before,
@@ -55,14 +56,71 @@ def apply_theme() -> None:
         [data-testid="stStatusWidget"] {
           display: none !important;
         }
+        [data-testid="collapsedControl"],
+        [data-testid="stSidebarCollapsedControl"],
+        button[title="Open sidebar"],
+        button[aria-label="Open sidebar"],
+        button[title="Close sidebar"],
+        button[aria-label="Close sidebar"] {
+          display: flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          pointer-events: auto !important;
+          background: rgba(14, 33, 51, 0.92) !important;
+          border: 1px solid rgba(40, 213, 245, 0.45) !important;
+          border-radius: 8px !important;
+          color: var(--ms-ink) !important;
+          z-index: 999999 !important;
+        }
+        [data-testid="collapsedControl"] svg,
+        [data-testid="stSidebarCollapsedControl"] svg,
+        button[title="Open sidebar"] svg,
+        button[aria-label="Open sidebar"] svg,
+        button[title="Close sidebar"] svg,
+        button[aria-label="Close sidebar"] svg {
+          color: var(--ms-teal) !important;
+          fill: var(--ms-teal) !important;
+          stroke: var(--ms-teal) !important;
+        }
         [data-testid="stSidebar"] {
           background: rgba(5, 16, 28, 0.98);
           border-right: 1px solid var(--ms-line);
+          scrollbar-color: rgba(40, 213, 245, 0.78) rgba(8, 19, 31, 0.65);
+          scrollbar-width: thin;
         }
         [data-testid="stSidebarContent"] {
           overflow-y: auto !important;
           max-height: 100vh !important;
           padding-top: 1.25rem;
+          scrollbar-color: rgba(40, 213, 245, 0.78) rgba(8, 19, 31, 0.65);
+          scrollbar-width: thin;
+        }
+        [data-testid="stSidebar"]::-webkit-scrollbar,
+        [data-testid="stSidebarContent"]::-webkit-scrollbar,
+        [data-testid="stAppViewContainer"]::-webkit-scrollbar,
+        body::-webkit-scrollbar {
+          width: 10px;
+          height: 10px;
+        }
+        [data-testid="stSidebar"]::-webkit-scrollbar-track,
+        [data-testid="stSidebarContent"]::-webkit-scrollbar-track,
+        [data-testid="stAppViewContainer"]::-webkit-scrollbar-track,
+        body::-webkit-scrollbar-track {
+          background: rgba(8, 19, 31, 0.72);
+        }
+        [data-testid="stSidebar"]::-webkit-scrollbar-thumb,
+        [data-testid="stSidebarContent"]::-webkit-scrollbar-thumb,
+        [data-testid="stAppViewContainer"]::-webkit-scrollbar-thumb,
+        body::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, var(--ms-teal), var(--ms-accent));
+          border: 2px solid rgba(8, 19, 31, 0.72);
+          border-radius: 999px;
+        }
+        [data-testid="stSidebar"]::-webkit-scrollbar-thumb:hover,
+        [data-testid="stSidebarContent"]::-webkit-scrollbar-thumb:hover,
+        [data-testid="stAppViewContainer"]::-webkit-scrollbar-thumb:hover,
+        body::-webkit-scrollbar-thumb:hover {
+          background: var(--ms-mint, #64E3C4);
         }
         [data-testid="stSidebar"] * {
           color: #eef8ff;
