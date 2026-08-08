@@ -26,13 +26,21 @@ def apply_theme() -> None:
           color: var(--ms-ink);
         }
         .stApp > header,
-        [data-testid="stHeader"] {
-          background: transparent;
-          height: 0;
+        [data-testid="stHeader"],
+        header[data-testid="stHeader"] {
+          background: #08131F !important;
+          background-color: #08131F !important;
+          color: var(--ms-ink) !important;
+          box-shadow: none !important;
+        }
+        [data-testid="stHeader"]::before,
+        [data-testid="stHeader"]::after {
+          background: #08131F !important;
         }
         [data-testid="stToolbar"],
-        [data-testid="stDecoration"] {
-          display: none;
+        [data-testid="stDecoration"],
+        [data-testid="stStatusWidget"] {
+          display: none !important;
         }
         [data-testid="stSidebar"] {
           background: rgba(5, 16, 28, 0.98);
