@@ -5,3 +5,4 @@ scipy
 vermouth
 mdtraj
 pytest
+streamlit==1.61.1
