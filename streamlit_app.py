@@ -29,6 +29,7 @@ from streamlit_app.validators import check_external_tools, validate_config
 
 REPO_ROOT = Path(__file__).resolve().parent
 RUNS_DIR = REPO_ROOT / "streamlit_runs"
+APP_DEPLOY_REVISION = "2026-08-10-local-full"
 TOOL_DIRS = [Path(sys.executable).resolve().parent, REPO_ROOT / ".venv" / "bin"]
 
 STEPS = ["Structure", "Model", "Surface", "Orientation", "Environment", "Review & Build"]
@@ -333,6 +334,7 @@ def _render_topbar(config: BuildConfig, errors: list[str], tool_warnings: list[s
 
     st.markdown(
         f"""
+        <!-- MartiniSurf deploy revision: {APP_DEPLOY_REVISION} -->
         <div class="ms-topbar">
           <div class="ms-top-brand">
             <div>
