@@ -600,7 +600,6 @@ def _render_orientation_step(config: BuildConfig) -> None:
         _render_anchor_group_editor()
         if st.session_state.orientation_mode == "Adsorption":
             st.info("Adsorption uses anchor-based orientation but skips pull/restraint topology generation.")
-    _render_orientation_quality(config)
 
 
 def _render_anchor_group_editor() -> None:
