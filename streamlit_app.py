@@ -143,12 +143,15 @@ def _init_state() -> None:
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
+    if not str(st.session_state.get("moltype", "")).strip():
+        st.session_state.moltype = "Protein"
     if float(st.session_state.get("go_eps") or 0) <= 0:
         st.session_state.go_eps = 9.414
     if st.session_state.get("_protein_colab_defaults_version") != PROTEIN_COLAB_DEFAULTS_VERSION:
         for key in [
             "project_name",
             "remote_id",
+            "moltype",
             "merge_text",
             "merge_chain_count",
             "go",
@@ -309,7 +312,6 @@ def _render_sidebar(errors: list[str], tool_warnings: list[str], has_output: boo
     with st.sidebar:
         logo = REPO_ROOT / "logo.png"
         st.image(str(logo), width="stretch")
-        st.markdown('<div class="ms-sidebar-title">MartiniSurf</div>', unsafe_allow_html=True)
         selected = st.radio("Workflow step", STEPS, key="active_step", label_visibility="collapsed")
         completed = sum(1 for step in STEPS if _step_state(step, errors, tool_warnings, has_output) == "completed")
         st.progress(completed / len(STEPS), text=f"{completed} of {len(STEPS)}")
@@ -390,7 +392,7 @@ def _render_structure_step(upload_dir: Path) -> tuple[Path | None, Path | None, 
             linker_itp_path = matching_itp
     substrate_path = _save_upload(uploaded_substrate, upload_dir)
     substrate_itp_path = _save_upload(uploaded_substrate_itp, upload_dir)
-    summary = summarize_structure(structure_path, st.session_state.remote_id)
+    summary = summarize_structure(structure_path, st.session_state.remote_id, upload_dir / "preview")
 
     with right:
         _render_structure_summary(summary, structure_path)
@@ -400,12 +402,9 @@ def _render_structure_step(upload_dir: Path) -> tuple[Path | None, Path | None, 
 
 def _render_structure_summary(summary: StructureSummary, structure_path: Path | None) -> None:
     st.markdown('<div class="ms-panel-title">Structure preview</div>', unsafe_allow_html=True)
-    top_metrics = st.columns(2)
-    bottom_metrics = st.columns(2)
-    top_metrics[0].metric("Source", summary.source)
-    top_metrics[1].metric("Type", summary.molecule_type)
-    bottom_metrics[0].metric("Chains", len(summary.chains) if summary.chains else "-")
-    bottom_metrics[1].metric("Residues", summary.residue_count or "-")
+    preview_metrics = st.columns(2)
+    preview_metrics[0].metric("Source", summary.source)
+    preview_metrics[1].metric("Chains", len(summary.chains) if summary.chains else "-")
 
     if structure_path and structure_path.suffix.lower() in {".pdb", ".gro"}:
         render_molecule(structure_path, height=430)
@@ -422,12 +421,6 @@ def _render_structure_summary(summary: StructureSummary, structure_path: Path | 
             unsafe_allow_html=True,
         )
 
-    if summary.chains:
-        st.dataframe(
-            [{"Chain": item.chain, "Residues": item.residues, "Atoms": item.atoms or "-"} for item in summary.chains],
-            hide_index=True,
-            width="stretch",
-        )
     if summary.ligands:
         st.info("Ligands/cofactors detected: " + ", ".join(summary.ligands[:12]))
     for note in summary.notes:
@@ -440,7 +433,11 @@ def _render_model_step(summary: StructureSummary) -> None:
     max_count = available_count or len(CHAIN_LABELS)
     if int(st.session_state.merge_chain_count) > max_count:
         st.session_state.merge_chain_count = max_count
-    st.text_input("Molecule name", key="moltype")
+    st.session_state.moltype = st.text_input(
+        "Molecule name",
+        value=st.session_state.moltype,
+        key=_versioned_key("moltype"),
+    )
     chain_options = list(range(1, max_count + 1))
     merge_count = st.selectbox(
         "Merge chains",
@@ -886,7 +883,11 @@ def main() -> None:
     substrate_itp_path = st.session_state.get("_substrate_itp_path")
 
     input_path: Path | str = Path(structure_path) if structure_path else st.session_state.remote_id
-    summary = summarize_structure(Path(structure_path) if structure_path else None, st.session_state.remote_id)
+    summary = summarize_structure(
+        Path(structure_path) if structure_path else None,
+        st.session_state.remote_id,
+        upload_dir / "preview",
+    )
     config = _build_config(
         input_path,
         Path(surface_path) if surface_path else None,

@@ -182,8 +182,8 @@ def apply_theme() -> None:
           background: linear-gradient(180deg, rgba(12, 32, 44, 0.92), rgba(8, 22, 32, 0.76));
           border: 1px solid rgba(53, 201, 211, 0.18);
           border-radius: var(--ms-radius-lg);
-          padding: 0.7rem;
-          max-height: 13.5rem;
+          padding: 0.55rem;
+          height: 13.5rem;
           object-fit: contain;
           box-shadow: var(--ms-shadow-panel);
         }
@@ -245,12 +245,19 @@ def apply_theme() -> None:
           color: var(--ms-muted);
         }
         .ms-sidebar-title {
-          color: var(--ms-accent);
-          font-size: 1.32rem;
+          color: var(--ms-text);
+          font-size: 1.22rem;
           font-weight: 900;
           line-height: 1;
-          margin: -0.15rem 0 0.85rem;
+          margin: 0;
           letter-spacing: 0;
+        }
+        .ms-sidebar-title span {
+          color: var(--ms-accent);
+        }
+        .ms-sidebar-title strong {
+          color: var(--ms-primary);
+          font-weight: 900;
         }
         .ms-topbar {
           display: grid;
@@ -437,6 +444,10 @@ def apply_theme() -> None:
         }
         div[data-testid="stProgress"] > div > div {
           background-color: var(--ms-primary) !important;
+        }
+        div[data-testid="stProgress"] p {
+          color: #06111A !important;
+          font-weight: 850 !important;
         }
         [data-testid="stWidgetLabel"] p,
         [data-testid="stWidgetLabel"] label,

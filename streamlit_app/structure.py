@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from martinisurf.utils.pdb_generation import fetch_alphafold_pdb, fetch_pdb
+
 
 @dataclass
 class ChainSummary:
@@ -31,7 +33,7 @@ NUCLEIC = {"DA", "DT", "DG", "DC", "A", "U", "G", "C", "T"}
 COMMON_SOLVENT = {"HOH", "WAT", "SOL", "NA", "CL", "K", "MG", "CA", "ZN"}
 
 
-def summarize_structure(path: Path | None, identifier: str = "") -> StructureSummary:
+def summarize_structure(path: Path | None, identifier: str = "", preview_dir: Path | None = None) -> StructureSummary:
     if path and path.exists():
         suffix = path.suffix.lower()
         if suffix == ".pdb":
@@ -42,6 +44,10 @@ def summarize_structure(path: Path | None, identifier: str = "") -> StructureSum
 
     clean_id = identifier.strip()
     if clean_id:
+        if preview_dir:
+            remote_summary = _summarize_remote_preview(clean_id, preview_dir)
+            if remote_summary:
+                return remote_summary
         return StructureSummary(
             clean_id,
             "remote",
@@ -54,6 +60,48 @@ def summarize_structure(path: Path | None, identifier: str = "") -> StructureSum
         )
 
     return StructureSummary("No structure selected", "none", "Not configured", [], 0, 0, [], [])
+
+
+def _summarize_remote_preview(identifier: str, preview_dir: Path) -> StructureSummary | None:
+    clean_id = "".join(ch for ch in identifier.strip().upper() if ch.isalnum())
+    if not clean_id:
+        return None
+
+    preview_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        if len(clean_id) == 4:
+            preview_path = preview_dir / f"{clean_id}.pdb"
+            if not preview_path.exists() or preview_path.stat().st_size == 0:
+                preview_path = fetch_pdb(clean_id, preview_dir)
+        elif len(clean_id) == 6:
+            preview_path = preview_dir / f"{clean_id}_AF.pdb"
+            if not preview_path.exists() or preview_path.stat().st_size == 0:
+                preview_path = fetch_alphafold_pdb(clean_id, preview_dir)
+        else:
+            return None
+    except Exception as exc:
+        return StructureSummary(
+            clean_id,
+            "remote",
+            "Deferred",
+            [],
+            0,
+            0,
+            [],
+            [f"Remote preview could not be fetched yet: {exc}"],
+        )
+
+    summary = _summarize_pdb(preview_path)
+    return StructureSummary(
+        clean_id,
+        "remote",
+        summary.molecule_type,
+        summary.chains,
+        summary.residue_count,
+        summary.atom_count,
+        summary.ligands,
+        summary.notes,
+    )
 
 
 def _summarize_pdb(path: Path) -> StructureSummary:
