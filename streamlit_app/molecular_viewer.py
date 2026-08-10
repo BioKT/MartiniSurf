@@ -42,7 +42,7 @@ def render_molecule(path: Path, height: int = 520) -> None:
     <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
     <script>
       const element = document.getElementById({json.dumps(element_id)});
-      const viewer = $3Dmol.createViewer(element, {{ backgroundColor: "#08131f" }});
+      const viewer = $3Dmol.createViewer(element, {{ backgroundColor: "#07131C" }});
       viewer.addModel({json.dumps(mol_data)}, {json.dumps(fmt)});
       viewer.setStyle({{}}, {{ sphere: {{ radius: 0.18, colorscheme: "Jmol" }} }});
       viewer.addStyle({{resn: "SRF"}}, {{ sphere: {{ radius: 0.22, color: "#ff4fa7" }} }});
@@ -55,16 +55,64 @@ def render_molecule(path: Path, height: int = 520) -> None:
         margin: 0;
         padding: 0;
         overflow: hidden;
-        background: #08131f;
+        background: #07131C;
       }}
       .viewer-shell {{
         width: 100%;
         height: {height}px;
         box-sizing: border-box;
-        border: 1px solid #28455b;
-        border-radius: 8px;
+        border: 1px solid rgba(116, 152, 170, 0.28);
+        border-radius: 16px;
         overflow: hidden;
-        background: #08131f;
+        background: #07131C;
+        box-shadow: inset 0 0 42px rgba(53, 201, 211, 0.06);
+      }}
+      .viewer {{
+        width: 100%;
+        height: {height}px;
+        overflow: hidden;
+      }}
+    </style>
+    """
+    components.html(script, height=height + 2)
+
+
+def render_remote_molecule(identifier: str, height: int = 430) -> None:
+    clean_id = "".join(ch for ch in identifier.strip().upper() if ch.isalnum())
+    if not clean_id:
+        return
+    element_id = f"viewer_remote_{clean_id}"
+    script = f"""
+    <div class="viewer-shell">
+      <div id="{element_id}" class="viewer"></div>
+    </div>
+    <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+    <script>
+      const element = document.getElementById({json.dumps(element_id)});
+      const viewer = $3Dmol.createViewer(element, {{ backgroundColor: "#07131C" }});
+      $3Dmol.download("pdb:{clean_id}", viewer, {{}}, function() {{
+        viewer.setStyle({{}}, {{ cartoon: {{ color: "spectrum" }} }});
+        viewer.addStyle({{hetflag: true}}, {{ stick: {{ radius: 0.16, colorscheme: "Jmol" }} }});
+        viewer.zoomTo();
+        viewer.render();
+      }});
+    </script>
+    <style>
+      html, body {{
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #07131C;
+      }}
+      .viewer-shell {{
+        width: 100%;
+        height: {height}px;
+        box-sizing: border-box;
+        border: 1px solid rgba(116, 152, 170, 0.28);
+        border-radius: 16px;
+        overflow: hidden;
+        background: #07131C;
+        box-shadow: inset 0 0 42px rgba(53, 201, 211, 0.06);
       }}
       .viewer {{
         width: 100%;
@@ -285,12 +333,12 @@ def render_martini_step4_viewer(
     script = f"""
     <div class="viewer-shell step4">
       <div id="{element_id}" class="viewer"></div>
-      <div class="viewer-badge">Step 4 visual quality check</div>
+      <div class="viewer-badge">Visual quality check</div>
     </div>
     <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
     <script>
       const element = document.getElementById({json.dumps(element_id)});
-      const viewer = $3Dmol.createViewer(element, {{ backgroundColor: "#08131f" }});
+      const viewer = $3Dmol.createViewer(element, {{ backgroundColor: "#07131C" }});
       viewer.addModel({json.dumps(mol_data)}, {json.dumps(fmt)});
       viewer.setStyle({{}}, {{ sphere: {{ radius: {float(bead_radius):.4f} }} }});
       for (const cylinder of {json.dumps(cylinders)}) {{
@@ -315,17 +363,18 @@ def render_martini_step4_viewer(
         margin: 0;
         padding: 0;
         overflow: hidden;
-        background: #08131f;
+        background: #07131C;
       }}
       .viewer-shell {{
         position: relative;
         width: 100%;
         height: {height}px;
         box-sizing: border-box;
-        border: 1px solid #28455b;
-        border-radius: 8px;
+        border: 1px solid rgba(116, 152, 170, 0.28);
+        border-radius: 16px;
         overflow: hidden;
-        background: #08131f;
+        background: #07131C;
+        box-shadow: inset 0 0 46px rgba(53, 201, 211, 0.06);
       }}
       .viewer {{
         width: 100%;
@@ -337,10 +386,10 @@ def render_martini_step4_viewer(
         left: 14px;
         bottom: 14px;
         padding: 8px 10px;
-        border: 1px solid rgba(32, 199, 201, 0.45);
-        border-radius: 8px;
-        background: rgba(8, 19, 31, 0.82);
-        color: #f5f8fa;
+        border: 1px solid rgba(53, 201, 211, 0.30);
+        border-radius: 999px;
+        background: rgba(7, 19, 28, 0.78);
+        color: #F3F7FA;
         font: 700 12px/1.2 sans-serif;
         pointer-events: none;
       }}

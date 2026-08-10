@@ -14,8 +14,13 @@ PROJECT_KEYS = [
     "merge_text",
     "dssp",
     "go",
+    "go_eps",
     "elastic",
+    "maxwarn",
+    "merge_chain_count",
     "position_restraints",
+    "surface_workflow",
+    "carbon_surface_kind",
     "surface_mode",
     "surface_geometry",
     "surface_beads",
@@ -45,6 +50,10 @@ PROJECT_KEYS = [
     "ionize",
     "salt_conc",
     "water_mix",
+    "enable_water_mix",
+    "sw_water_percent",
+    "tw_water_percent",
+    "water_mix_seed",
     "substrate_count",
     "martinize_extra",
 ]
@@ -59,5 +68,5 @@ def export_state(session_state: Any) -> str:
 def import_state(uploaded_file: Any) -> dict[str, Any]:
     data = json.loads(uploaded_file.getvalue().decode("utf-8"))
     if data.get("schema") != "martinisurf-studio-v1":
-        raise ValueError("Unsupported MartiniSurf Studio project file.")
+        raise ValueError("Unsupported MartiniSurf project file.")
     return {key: data[key] for key in PROJECT_KEYS if key in data}

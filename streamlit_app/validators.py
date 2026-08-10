@@ -15,6 +15,8 @@ def validate_config(config: BuildConfig) -> list[str]:
 
     if not config.surface_path and (config.lx <= 0 or config.ly <= 0):
         errors.append("Generated surfaces need positive X and Y dimensions.")
+    if config.surface_workflow == "Upload Surface File" and not config.surface_path:
+        errors.append("Upload Surface File needs an existing surface .gro file.")
 
     if config.orientation_mode == "Linker":
         if not config.linker_path:

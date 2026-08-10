@@ -13,21 +13,23 @@ class BuildConfig:
     moltype: str = "Protein"
     ff: str = "martini3001"
     dssp: bool = True
-    go: bool = False
+    go: bool = True
+    go_eps: float = 9.414
     elastic: bool = False
     position_restraints: str = "backbone"
     pf: float = 1000.0
-    maxwarn: int = 0
+    maxwarn: int = 1
     merge_groups: list[str] = field(default_factory=list)
+    surface_workflow: str = "Hexagonal Lattice"
     surface_mode: str = "4-1"
     surface_geometry: str = "planar"
     surface_path: Path | None = None
-    lx: float = 15.0
-    ly: float = 15.0
+    lx: float = 20.0
+    ly: float = 20.0
     dx: float = 0.47
-    surface_beads: list[str] = field(default_factory=lambda: ["P4"])
+    surface_beads: list[str] = field(default_factory=lambda: ["P4", "P4"])
     charge: float = 0.0
-    surface_layers: int | None = None
+    surface_layers: int | None = 2
     surface_stacking: str = "hcp"
     surface_dist_z: float | None = None
     graphite_layers: int | None = None
@@ -49,10 +51,11 @@ class BuildConfig:
     substrate_path: Path | None = None
     substrate_itp_path: Path | None = None
     substrate_count: int = 0
-    solvate: bool = False
-    ionize: bool = False
+    solvate: bool = True
+    ionize: bool = True
     salt_conc: float = 0.15
     water_mix: str = ""
+    water_mix_seed: int = 42
     martinize_extra_args: list[str] = field(default_factory=list)
 
 
@@ -106,6 +109,7 @@ def build_args(config: BuildConfig) -> list[str]:
 
     if config.go:
         args.append("--go")
+        _append_value(args, "--go-eps", config.go_eps)
     if config.elastic:
         args.append("--elastic")
 
@@ -161,6 +165,7 @@ def build_args(config: BuildConfig) -> list[str]:
         _append_value(args, "--salt-conc", config.salt_conc)
     if config.water_mix.strip():
         _append_value(args, "--water-mix", config.water_mix.strip())
+        _append_value(args, "--water-mix-seed", config.water_mix_seed)
 
     for extra in config.martinize_extra_args:
         if extra.strip():
