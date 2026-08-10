@@ -640,22 +640,6 @@ def _render_workspace_preview(config: BuildConfig) -> None:
     )
 
 
-def _render_orientation_quality(config: BuildConfig) -> None:
-    groups = config.linker_groups if config.orientation_mode == "Linker" else config.anchors
-    checks = [
-        ("Orientation mode selected", bool(config.orientation_mode)),
-        ("Groups provided", bool(groups)),
-        ("Target distance set", config.dist >= 0),
-        ("Orientation generated", False),
-    ]
-    st.markdown('<div class="ms-quality"><strong>Orientation quality</strong>', unsafe_allow_html=True)
-    for label, ok in checks:
-        state = "ok" if ok else "pending"
-        st.markdown(f'<div class="ms-quality-row {state}"><span></span>{html.escape(label)}</div>', unsafe_allow_html=True)
-    st.caption("These are configuration checks only. Scientific validation requires inspecting generated coordinates.")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
 def _render_environment_step() -> None:
     st.markdown('<div class="ms-panel-title">Environment</div>', unsafe_allow_html=True)
     a, b = st.columns(2)

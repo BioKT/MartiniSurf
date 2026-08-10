@@ -729,39 +729,6 @@ def apply_theme() -> None:
           transform: perspective(460px) rotateX(54deg);
           transform-origin: bottom;
         }
-        .ms-quality {
-          margin-top: 1rem;
-          border: 1px solid var(--ms-line);
-          border-radius: var(--ms-radius-lg);
-          background: rgba(12,32,44,0.62);
-          padding: 0.9rem;
-        }
-        .ms-quality strong {
-          color: var(--ms-ink);
-          display: block;
-          margin-bottom: 0.6rem;
-        }
-        .ms-quality-row {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          color: var(--ms-muted);
-          padding: 0.25rem 0;
-          font-weight: 700;
-        }
-        .ms-quality-row span {
-          width: 0.68rem;
-          height: 0.68rem;
-          border-radius: 50%;
-          background: var(--ms-muted);
-        }
-        .ms-quality-row.ok {
-          color: var(--ms-green);
-        }
-        .ms-quality-row.ok span {
-          background: var(--ms-green);
-          box-shadow: 0 0 12px rgba(91,234,137,0.55);
-        }
         .ms-hero-logo img {
           max-height: 12rem;
           object-fit: contain;
