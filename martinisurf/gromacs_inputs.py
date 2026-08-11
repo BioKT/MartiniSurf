@@ -2099,6 +2099,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--linker-resname", help="Residue name used by linker beads in immobilized_system.gro.")
     parser.add_argument("--linker-size", type=int, help="Number of beads per linker instance.")
     parser.add_argument("--linker-itp-name", default="linker.itp", help="Linker topology filename in system_itp.")
+    parser.add_argument("--linker-protein-bead", help="Linker bead attached to the biomolecule, by atom name or 1-based index.")
+    parser.add_argument("--linker-surface-bead", help="Linker bead attached to the surface, by atom name or 1-based index.")
     parser.add_argument(
         "--surface-linker-count",
         type=int,
@@ -2188,6 +2190,31 @@ def main(argv: Sequence[str] | None = None) -> None:
     linker_atom_ids: set[int] = set()
     linker_pairs: List[dict[str, List[int] | int]] = []
 
+    def _clean_linker_selector(value: str | None) -> str:
+        text = str(value or "").strip()
+        if ":" in text:
+            text = text.split(":", 1)[1].strip()
+        return text
+
+    def _resolve_instance_linker_atom(instance: List[int], selector: str | None) -> int | None:
+        clean = _clean_linker_selector(selector)
+        if not clean:
+            return None
+        if clean.isdigit():
+            wanted = int(clean)
+            for atom_id in instance:
+                atom = u.atoms[atom_id - 1]
+                if int(atom.id) == wanted:
+                    return atom_id
+            if 1 <= wanted <= len(instance):
+                return instance[wanted - 1]
+        wanted_name = clean.upper()
+        for atom_id in instance:
+            atom = u.atoms[atom_id - 1]
+            if str(atom.name).strip().upper() == wanted_name:
+                return atom_id
+        return None
+
     if linker_mode and args.linker_resname:
         linker_atom_ids = {
             int(a.index + 1)
@@ -2249,11 +2276,13 @@ def main(argv: Sequence[str] | None = None) -> None:
                     selected_centroid = u.atoms[[idx - 1 for idx in selected_atoms]].positions.mean(axis=0)
                     linker_positions = {idx: u.atoms[idx - 1].position for idx in instance}
 
-                    linker_head = min(
+                    explicit_head = _resolve_instance_linker_atom(instance, args.linker_protein_bead)
+                    explicit_tail = _resolve_instance_linker_atom(instance, args.linker_surface_bead)
+                    linker_head = explicit_head or min(
                         instance,
                         key=lambda idx: float(((linker_positions[idx] - selected_centroid) ** 2).sum()),
                     )
-                    linker_tail = min(instance, key=lambda idx: float(linker_positions[idx][2]))
+                    linker_tail = explicit_tail or min(instance, key=lambda idx: float(linker_positions[idx][2]))
 
                     if linker_tail == linker_head and len(instance) > 1:
                         linker_tail = sorted(
@@ -2287,11 +2316,13 @@ def main(argv: Sequence[str] | None = None) -> None:
             selected_centroid = u.atoms[[idx - 1 for idx in selected_atoms]].positions.mean(axis=0)
             linker_positions = {idx: u.atoms[idx - 1].position for idx in linker_ids_sorted}
 
-            linker_head = min(
+            explicit_head = _resolve_instance_linker_atom(linker_ids_sorted, args.linker_protein_bead)
+            explicit_tail = _resolve_instance_linker_atom(linker_ids_sorted, args.linker_surface_bead)
+            linker_head = explicit_head or min(
                 linker_ids_sorted,
                 key=lambda idx: float(((linker_positions[idx] - selected_centroid) ** 2).sum()),
             )
-            linker_tail = min(linker_ids_sorted, key=lambda idx: float(linker_positions[idx][2]))
+            linker_tail = explicit_tail or min(linker_ids_sorted, key=lambda idx: float(linker_positions[idx][2]))
             if linker_tail == linker_head and len(linker_ids_sorted) > 1:
                 linker_tail = sorted(
                     (idx for idx in linker_ids_sorted if idx != linker_head),

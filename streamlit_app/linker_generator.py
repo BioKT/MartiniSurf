@@ -25,6 +25,13 @@ class LinkerBead:
 
 
 @dataclass(frozen=True)
+class LinkerMappingRow:
+    bead_label: str
+    martini_type: str
+    atom_indices_1based: list[int]
+
+
+@dataclass(frozen=True)
 class LinkerGenerationResult:
     ok: bool
     gro_path: Path | None
@@ -71,6 +78,40 @@ def parse_linker_gro(path: Path) -> list[LinkerBead]:
     return beads
 
 
+def parse_martini_mapper_report(path: Path, beads: list[LinkerBead]) -> list[LinkerMappingRow]:
+    if not path.exists():
+        return []
+    bead_names = {index: bead.name for index, bead in enumerate(beads)}
+    rows: list[LinkerMappingRow] = []
+    in_beads = False
+    for raw in path.read_text(errors="replace").splitlines():
+        stripped = raw.strip()
+        if stripped == "All beads":
+            in_beads = True
+            continue
+        if stripped == "Bead connections":
+            break
+        if not in_beads or not stripped or stripped.startswith("-") or stripped.startswith("index"):
+            continue
+        parts = stripped.split()
+        if len(parts) < 9:
+            continue
+        try:
+            zero_index = int(parts[0])
+            atom_indices = [int(item) for item in parts[2].split(",") if item.strip()]
+        except ValueError:
+            continue
+        bead_name = bead_names.get(zero_index, f"C{zero_index + 1}")
+        rows.append(
+            LinkerMappingRow(
+                bead_label=f"{zero_index + 1}: {bead_name}",
+                martini_type=parts[1],
+                atom_indices_1based=[index + 1 for index in atom_indices],
+            )
+        )
+    return rows
+
+
 def smiles_to_svg(smiles: str) -> str:
     try:
         from rdkit import Chem
@@ -85,7 +126,10 @@ def smiles_to_svg(smiles: str) -> str:
     rdDepictor.Compute2DCoords(mol)
     drawer = rdMolDraw2D.MolDraw2DSVG(520, 320)
     options = drawer.drawOptions()
-    options.addAtomIndices = True
+    options.atomHighlightsAreCircles = True
+    options.annotationFontScale = 0.9
+    for atom in mol.GetAtoms():
+        atom.SetProp("atomNote", str(atom.GetIdx() + 1))
     drawer.DrawMolecule(mol)
     drawer.FinishDrawing()
     return drawer.GetDrawingText()

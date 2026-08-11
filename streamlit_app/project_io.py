@@ -52,6 +52,7 @@ PROJECT_KEYS = [
     "generated_linker_path",
     "generated_linker_itp_path",
     "generated_linker_beads",
+    "generated_linker_mapping",
     "linker_surface_bead",
     "linker_protein_bead",
     "linker_generator_log",

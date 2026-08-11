@@ -48,6 +48,37 @@ def convert_pdb_to_gro(pdb_file: str, gro_file: str) -> None:
 # ================================================================
 # GRO LOADER
 # ================================================================
+def _parse_gro_atom_line(line: str) -> tuple[int, str, str, int, float, float, float] | None:
+    try:
+        if len(line) >= 44:
+            return (
+                int(line[0:5]),
+                line[5:10].strip(),
+                line[10:15].strip(),
+                int(line[15:20]),
+                float(line[20:28]) * 10.0,
+                float(line[28:36]) * 10.0,
+                float(line[36:44]) * 10.0,
+            )
+        parts = line.split()
+        if len(parts) < 6:
+            return None
+        resid_resname = parts[0]
+        resid_text = "".join(ch for ch in resid_resname if ch.isdigit()) or "1"
+        resname = resid_resname[len(resid_text):] or "LNK"
+        return (
+            int(resid_text),
+            resname,
+            parts[1],
+            int(parts[2]),
+            float(parts[3]) * 10.0,
+            float(parts[4]) * 10.0,
+            float(parts[5]) * 10.0,
+        )
+    except (ValueError, IndexError):
+        return None
+
+
 def load_gro_coords(gro_file: str) -> Tuple[np.ndarray, List[Tuple[int, str, str, int]]]:
 
     coords = []
@@ -57,20 +88,12 @@ def load_gro_coords(gro_file: str) -> Tuple[np.ndarray, List[Tuple[int, str, str
         lines = fh.readlines()[2:-1]
 
     for line in lines:
-        try:
-            resid    = int(line[0:5])
-            resname  = line[5:10].strip()
-            atomname = line[10:15].strip()
-            atomid   = int(line[15:20])
-
-            x = float(line[20:28]) * 10.0
-            y = float(line[28:36]) * 10.0
-            z = float(line[36:44]) * 10.0
-
-            atoms.append((resid, resname, atomname, atomid))
-            coords.append([x, y, z])
-        except (ValueError, IndexError):
+        parsed = _parse_gro_atom_line(line)
+        if parsed is None:
             continue
+        resid, resname, atomname, atomid, x, y, z = parsed
+        atoms.append((resid, resname, atomname, atomid))
+        coords.append([x, y, z])
 
     return np.array(coords, float), atoms
 
@@ -359,16 +382,52 @@ def _rotation_matrix_about_axis(axis, angle):
     ])
 
 
-def _oriented_linker_coords(linker_coords: np.ndarray, target: np.ndarray) -> np.ndarray:
-    axis = linker_coords[-1] - linker_coords[0]
+def _clean_linker_selector(value: str | None) -> str:
+    text = str(value or "").strip()
+    if ":" in text:
+        text = text.split(":", 1)[1].strip()
+    return text
+
+
+def _resolve_linker_bead_index(selector: str | None, linker_atoms: list, default_index: int, label: str) -> int:
+    if not linker_atoms:
+        raise ValueError("Linker has no atoms.")
+    if selector is None or not str(selector).strip():
+        return default_index % len(linker_atoms)
+    clean = _clean_linker_selector(selector)
+    if clean.isdigit():
+        wanted = int(clean)
+        for index, (_, _, _, atomid) in enumerate(linker_atoms):
+            if int(atomid) == wanted:
+                return index
+        if 1 <= wanted <= len(linker_atoms):
+            return wanted - 1
+    wanted_name = clean.upper()
+    for index, (_, _, atomname, _) in enumerate(linker_atoms):
+        if str(atomname).strip().upper() == wanted_name:
+            return index
+    available = ", ".join(f"{i + 1}:{atom[2]}" for i, atom in enumerate(linker_atoms))
+    raise ValueError(f"Unknown {label} linker bead '{selector}'. Available beads: {available}")
+
+
+def _oriented_linker_coords(
+    linker_coords: np.ndarray,
+    target: np.ndarray,
+    protein_index: int = 0,
+    surface_index: int = -1,
+) -> np.ndarray:
+    protein_index %= len(linker_coords)
+    surface_index %= len(linker_coords)
+    if protein_index == surface_index:
+        raise ValueError("Protein-side and surface-side linker beads must be different.")
+    axis = linker_coords[surface_index] - linker_coords[protein_index]
     axis_norm = np.linalg.norm(axis)
     if axis_norm < 1e-12:
         raise ValueError(
-            "Linker has zero-length axis (first and last bead overlap). "
-            "Provide a linker with at least two distinct beads."
+            "Selected linker beads overlap. Choose two distinct beads with different coordinates."
         )
     R = _rotation_matrix_from_vectors(axis / axis_norm, target)
-    return (R @ (linker_coords - linker_coords[0]).T).T
+    return (R @ (linker_coords - linker_coords[protein_index]).T).T
 
 
 def _append_surface_linkers(
@@ -379,6 +438,8 @@ def _append_surface_linkers(
     linker_atoms: list,
     count: int,
     surface_min_dist: float,
+    protein_bead_index: int = 0,
+    surface_bead_index: int = -1,
 ) -> tuple[np.ndarray, list]:
     if count <= 0:
         return merged_coords, merged_atoms
@@ -397,17 +458,18 @@ def _append_surface_linkers(
             f"{len(top_sites)} top-layer site(s) are available. Placing {placed_count}."
         )
 
-    # Same convention as biomolecule linkers: bead 0 is the free/head side,
-    # bead -1 is the surface/tail side. --invert-linker reverses this globally
-    # before this helper is called. Surface decoration now uses one unique
-    # top-layer surface bead per linker to avoid overdecorated monolayers.
-    template = _oriented_linker_coords(linker_coords, np.array([0.0, 0.0, -1.0]))
+    template = _oriented_linker_coords(
+        linker_coords,
+        np.array([0.0, 0.0, -1.0]),
+        protein_index=protein_bead_index,
+        surface_index=surface_bead_index,
+    )
     site_order = np.random.permutation(len(top_sites))[:placed_count]
 
     for site_idx in site_order:
         vertical_linker = template.copy()
         site = top_sites[site_idx]
-        tail = vertical_linker[-1]
+        tail = vertical_linker[surface_bead_index % len(vertical_linker)]
         vertical_linker += np.array([
             site[0] - tail[0],
             site[1] - tail[1],
@@ -846,6 +908,8 @@ def main(argv=None):
     parser.add_argument("--linker-group", nargs="+", action="append")
     parser.add_argument("--linker-prot-dist", type=float, default=3.0)
     parser.add_argument("--linker-surf-dist", type=float, default=3.0)
+    parser.add_argument("--linker-protein-bead", help="Linker bead attached to the biomolecule, by atom name or 1-based index.")
+    parser.add_argument("--linker-surface-bead", help="Linker bead oriented toward/attached to the surface, by atom name or 1-based index.")
     parser.add_argument("--invert-linker", action="store_true")
 
     parser.add_argument("--surface-linkers", type=int, default=0)
@@ -889,8 +953,13 @@ def main(argv=None):
         if args.invert_linker:
             linker_coords = linker_coords[::-1].copy()
             linker_atoms = linker_atoms[::-1]
+        linker_protein_index = _resolve_linker_bead_index(args.linker_protein_bead, linker_atoms, 0, "protein-side")
+        linker_surface_index = _resolve_linker_bead_index(args.linker_surface_bead, linker_atoms, len(linker_atoms) - 1, "surface-side")
     elif args.surface_linkers > 0:
         raise ValueError("--surface-linkers requires --linker-gro.")
+    else:
+        linker_protein_index = 0
+        linker_surface_index = -1
 
     has_biomolecule_linkers = bool(args.linker_gro and args.linker_group)
 
@@ -947,6 +1016,8 @@ def main(argv=None):
             linker_atoms,
             args.surface_linkers,
             args.surface_min_dist,
+            protein_bead_index=linker_protein_index,
+            surface_bead_index=linker_surface_index,
         ) if args.surface_linkers > 0 else (oriented, sys_atoms)
 
 
@@ -1013,10 +1084,15 @@ def main(argv=None):
                 f"linker group {group[0]}"
             ).mean(axis=0)
 
-            rotated_linker = _oriented_linker_coords(linker_coords, np.array([0.0, 0.0, -1.0]))
+            rotated_linker = _oriented_linker_coords(
+                linker_coords,
+                np.array([0.0, 0.0, -1.0]),
+                protein_index=linker_protein_index,
+                surface_index=linker_surface_index,
+            )
             rotated_linker += group_centroid + np.array([0,0,-args.linker_prot_dist])
 
-            linker_tips.append(rotated_linker[-1])
+            linker_tips.append(rotated_linker[linker_surface_index % len(rotated_linker)])
 
             merged_coords = np.vstack([merged_coords, rotated_linker])
             merged_atoms  = merged_atoms + linker_atoms
@@ -1039,6 +1115,8 @@ def main(argv=None):
             linker_atoms,
             args.surface_linkers,
             args.surface_min_dist,
+            protein_bead_index=linker_protein_index,
+            surface_bead_index=linker_surface_index,
         )
 
         oriented = merged_coords

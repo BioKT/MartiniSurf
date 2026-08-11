@@ -46,6 +46,8 @@ class BuildConfig:
     linker_groups: list[str] = field(default_factory=list)
     linker_prot_dist: float | None = None
     linker_surf_dist: float | None = None
+    linker_protein_bead: str | None = None
+    linker_surface_bead: str | None = None
     invert_linker: bool = False
     surface_linkers: int = 0
     substrate_path: Path | None = None
@@ -138,6 +140,8 @@ def build_args(config: BuildConfig) -> list[str]:
             _append_group(args, "--linker-group", group)
         _append_value(args, "--linker-prot-dist", config.linker_prot_dist)
         _append_value(args, "--linker-surf-dist", config.linker_surf_dist)
+        _append_value(args, "--linker-protein-bead", config.linker_protein_bead)
+        _append_value(args, "--linker-surface-bead", config.linker_surface_bead)
         if config.invert_linker:
             args.append("--invert-linker")
         if config.surface_linkers:

@@ -8,6 +8,7 @@ import streamlit.components.v1 as components
 
 
 VIEWABLE_SUFFIXES = {".pdb": "pdb", ".gro": "gro"}
+MARTINISURF_PINK = "#FF4FA3"
 
 
 def find_viewable_structures(outdir: Path) -> list[Path]:
@@ -70,7 +71,53 @@ def render_molecule(path: Path, height: int = 520) -> None:
     components.html(script, height=height + 2)
 
 
-def render_remote_molecule(identifier: str, height: int = 430) -> None:
+def render_structure_preview(path: Path, height: int = 430) -> None:
+    mol_data = path.read_text(errors="replace")
+    fmt = VIEWABLE_SUFFIXES.get(path.suffix.lower(), "pdb")
+    element_id = "viewer_preview_" + "".join(ch if ch.isalnum() else "_" for ch in path.name)
+
+    script = f"""
+    <div class="viewer-shell">
+      <div id="{element_id}" class="viewer"></div>
+    </div>
+    <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+    <script>
+      const element = document.getElementById({json.dumps(element_id)});
+      const viewer = $3Dmol.createViewer(element, {{ backgroundColor: "#07131C" }});
+      viewer.addModel({json.dumps(mol_data)}, {json.dumps(fmt)});
+      viewer.setStyle({{}}, {{ cartoon: {{ color: {json.dumps(MARTINISURF_PINK)} }} }});
+      viewer.addStyle({{hetflag: true}}, {{ stick: {{ radius: 0.16, colorscheme: "Jmol" }} }});
+      viewer.zoomTo();
+      viewer.render();
+    </script>
+    <style>
+      html, body {{
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #07131C;
+      }}
+      .viewer-shell {{
+        width: 100%;
+        height: {height}px;
+        box-sizing: border-box;
+        border: 1px solid rgba(116, 152, 170, 0.28);
+        border-radius: 16px;
+        overflow: hidden;
+        background: #07131C;
+        box-shadow: inset 0 0 42px rgba(53, 201, 211, 0.06);
+      }}
+      .viewer {{
+        width: 100%;
+        height: {height}px;
+        overflow: hidden;
+      }}
+    </style>
+    """
+    components.html(script, height=height + 2)
+
+
+def render_remote_molecule(identifier: str, height: int = 430, color: str = MARTINISURF_PINK) -> None:
     clean_id = "".join(ch for ch in identifier.strip().upper() if ch.isalnum())
     if not clean_id:
         return
@@ -84,7 +131,7 @@ def render_remote_molecule(identifier: str, height: int = 430) -> None:
       const element = document.getElementById({json.dumps(element_id)});
       const viewer = $3Dmol.createViewer(element, {{ backgroundColor: "#07131C" }});
       $3Dmol.download("pdb:{clean_id}", viewer, {{}}, function() {{
-        viewer.setStyle({{}}, {{ cartoon: {{ color: "spectrum" }} }});
+        viewer.setStyle({{}}, {{ cartoon: {{ color: {json.dumps(color)} }} }});
         viewer.addStyle({{hetflag: true}}, {{ stick: {{ radius: 0.16, colorscheme: "Jmol" }} }});
         viewer.zoomTo();
         viewer.render();

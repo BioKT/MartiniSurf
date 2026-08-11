@@ -749,6 +749,43 @@ def test_invert_linker_switches_attachment_side(tmp_path):
     assert linker_atom_sequence(out_invert) == ["L3", "L2", "L1"]
 
 
+def test_compact_martini_mapper_gro_is_loaded(tmp_path):
+    linker = tmp_path / "mapper_linker.gro"
+    linker.write_text(
+        "1LINKER\n"
+        "3\n"
+        "    1res  C1    1    0.048  -0.169  -0.011\n"
+        "    1res  C2    2   -0.208   0.047   0.009\n"
+        "    1res  C3    3    0.118   0.131   0.004\n"
+        "  10.00000  10.00000  10.00000\n"
+    )
+
+    coords, atoms = enz.load_gro_coords(str(linker))
+
+    assert coords.shape == (3, 3)
+    assert [atom[2] for atom in atoms] == ["C1", "C2", "C3"]
+
+
+def test_selected_internal_linker_bead_can_face_surface():
+    coords = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+        ]
+    )
+
+    oriented = enz._oriented_linker_coords(
+        coords,
+        np.array([0.0, 0.0, -1.0]),
+        protein_index=0,
+        surface_index=1,
+    )
+
+    assert np.allclose(oriented[0], [0.0, 0.0, 0.0])
+    assert oriented[1][2] < oriented[0][2]
+
+
 def test_linker_mode_raises_clear_error_for_missing_group_residues(tmp_path):
     surface = tmp_path / "surface.gro"
     system = tmp_path / "system.gro"

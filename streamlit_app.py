@@ -14,7 +14,13 @@ import streamlit.components.v1 as components
 from streamlit_app.archive import make_zip
 from streamlit_app.command_builder import BuildConfig, build_args, shell_command
 from streamlit_app.logs import summarize_log
-from streamlit_app.linker_generator import generate_linker_from_smiles, parse_linker_gro, safe_molecule_name, smiles_to_svg
+from streamlit_app.linker_generator import (
+    generate_linker_from_smiles,
+    parse_linker_gro,
+    parse_martini_mapper_report,
+    safe_molecule_name,
+    smiles_to_svg,
+)
 from streamlit_app.molecular_viewer import (
     file_caption,
     find_viewable_structures,
@@ -22,6 +28,7 @@ from streamlit_app.molecular_viewer import (
     render_martini_step4_viewer,
     render_molecule,
     render_remote_molecule,
+    render_structure_preview,
 )
 from streamlit_app.project_io import export_state, import_state
 from streamlit_app.runner import run_martinisurf
@@ -88,6 +95,7 @@ PERSISTED_STATE_KEYS = {
     "generated_linker_path",
     "generated_linker_itp_path",
     "generated_linker_beads",
+    "generated_linker_mapping",
     "linker_surface_bead",
     "linker_protein_bead",
     "linker_generator_log",
@@ -211,6 +219,7 @@ def _init_state() -> None:
         "generated_linker_path": "",
         "generated_linker_itp_path": "",
         "generated_linker_beads": [],
+        "generated_linker_mapping": [],
         "linker_surface_bead": "",
         "linker_protein_bead": "",
         "linker_generator_log": "",
@@ -260,6 +269,7 @@ def _init_state() -> None:
             "generated_linker_path",
             "generated_linker_itp_path",
             "generated_linker_beads",
+            "generated_linker_mapping",
             "linker_surface_bead",
             "linker_protein_bead",
             "linker_generator_log",
@@ -558,6 +568,19 @@ def _bead_dicts(beads: list[object]) -> list[dict[str, object]]:
     return payload
 
 
+def _mapping_dicts(rows: list[object]) -> list[dict[str, object]]:
+    payload = []
+    for row in rows:
+        payload.append(
+            {
+                "Bead": str(getattr(row, "bead_label")),
+                "Martini type": str(getattr(row, "martini_type")),
+                "Atom indices": ", ".join(str(index) for index in getattr(row, "atom_indices_1based")),
+            }
+        )
+    return payload
+
+
 def _linker_bead_options() -> list[str]:
     beads = st.session_state.get("generated_linker_beads") or []
     return [str(bead.get("label") or f"{bead.get('index')}: {bead.get('name')}") for bead in beads if isinstance(bead, dict)]
@@ -571,12 +594,17 @@ def _refresh_generated_linker_from_path() -> None:
     if not path or not path.exists() or path.suffix.lower() != ".gro":
         return
     try:
-        beads = _bead_dicts(parse_linker_gro(path))
+        parsed_beads = parse_linker_gro(path)
+        beads = _bead_dicts(parsed_beads)
     except OSError:
         return
     if beads:
         st.session_state.generated_linker_path = str(path)
         st.session_state.generated_linker_beads = beads
+        report_path = path.with_suffix(".txt")
+        mapping = _mapping_dicts(parse_martini_mapper_report(report_path, parsed_beads))
+        if mapping:
+            st.session_state.generated_linker_mapping = mapping
         options = _linker_bead_options()
         if options:
             st.session_state.setdefault("linker_protein_bead", options[0])
@@ -587,6 +615,7 @@ def _sync_linker_orientation_from_selected_beads() -> None:
     options = _linker_bead_options()
     if len(options) < 2:
         return
+    st.session_state.invert_linker = False
     first, last = options[0], options[-1]
     surface_bead = st.session_state.get("linker_surface_bead", last)
     protein_bead = st.session_state.get("linker_protein_bead", first)
@@ -602,7 +631,7 @@ def _render_linker_generator() -> None:
         smiles_col, name_col = st.columns([2.2, 0.8], gap="large")
         smiles_col.text_input("SMILES", key="linker_generator_smiles", placeholder="C1CO1")
         name_col.text_input("Linker name", key="linker_generator_molname")
-        if st.button("Generar linker", type="primary", width="stretch"):
+        if st.button("Generate linker", type="primary", width="stretch"):
             molname = safe_molecule_name(st.session_state.linker_generator_molname)
             output_dir = Path(st.session_state.run_root) / "inputs" / "linker_generator" / molname
             result = generate_linker_from_smiles(st.session_state.linker_generator_smiles, molname, output_dir)
@@ -612,6 +641,9 @@ def _render_linker_generator() -> None:
                 st.session_state.generated_linker_path = str(result.gro_path)
                 st.session_state.generated_linker_itp_path = str(result.itp_path)
                 st.session_state.generated_linker_beads = _bead_dicts(result.beads)
+                st.session_state.generated_linker_mapping = _mapping_dicts(
+                    parse_martini_mapper_report(result.gro_path.with_suffix(".txt"), result.beads)
+                )
                 st.session_state.linker_path_text = str(result.gro_path)
                 st.session_state._linker_path = str(result.gro_path)
                 st.session_state._linker_itp_path = str(result.itp_path)
@@ -636,16 +668,23 @@ def _render_linker_generator() -> None:
                         f"<div style='background:#f7fbff;border-radius:16px;padding:12px;margin-bottom:12px'>{svg}</div>",
                         height=350,
                     )
+                    st.caption("Atom indices in the 2D structure and mapping table start at 1.")
                 render_linker_mapping(generated_path, st.session_state.generated_linker_beads, height=360)
             with beads_col:
-                st.dataframe(
-                    [
-                        {"Bead": bead["label"], "Residue": bead["resname"], "x": bead["x"], "y": bead["y"], "z": bead["z"]}
-                        for bead in st.session_state.generated_linker_beads
-                    ],
-                    hide_index=True,
-                    width="stretch",
-                )
+                mapping_rows = st.session_state.get("generated_linker_mapping") or []
+                if mapping_rows:
+                    st.markdown("##### Bead mapping")
+                    st.dataframe(mapping_rows, hide_index=True, width="stretch")
+                else:
+                    st.dataframe(
+                        [
+                            {"Bead": bead["label"], "Residue": bead["resname"], "x": bead["x"], "y": bead["y"], "z": bead["z"]}
+                            for bead in st.session_state.generated_linker_beads
+                        ],
+                        hide_index=True,
+                        width="stretch",
+                    )
+                    st.caption("This linker has no Martini Mapper chemistry report beside the `.gro` file.")
                 if st.session_state.linker_surface_bead not in options:
                     st.session_state.linker_surface_bead = options[-1]
                 if st.session_state.linker_protein_bead not in options:
@@ -653,14 +692,6 @@ def _render_linker_generator() -> None:
                 st.selectbox("Bead oriented toward surface", options, key="linker_surface_bead")
                 st.selectbox("Bead connected to protein", options, key="linker_protein_bead")
                 _sync_linker_orientation_from_selected_beads()
-                first, last = options[0], options[-1]
-                supported_pairs = {
-                    (first, last),
-                    (last, first),
-                }
-                selected_pair = (st.session_state.linker_protein_bead, st.session_state.linker_surface_bead)
-                if selected_pair not in supported_pairs:
-                    st.warning("Current MartiniSurf backend supports terminal linker beads only. Select the first/last beads or extend backend linker placement.")
                 st.caption(f"Linker file: `{generated_path.name}`")
         elif st.session_state.get("linker_generator_message"):
             st.info(st.session_state.linker_generator_message)
@@ -785,7 +816,7 @@ def _render_structure_summary(summary: StructureSummary, structure_path: Path | 
     preview_metrics[1].metric("Chains", len(summary.chains) if summary.chains else "-")
 
     if structure_path and structure_path.suffix.lower() in {".pdb", ".gro"}:
-        render_molecule(structure_path, height=430)
+        render_structure_preview(structure_path, height=430)
     elif summary.format == "remote":
         render_remote_molecule(summary.source, height=430)
     else:
@@ -800,7 +831,7 @@ def _render_structure_summary(summary: StructureSummary, structure_path: Path | 
         )
 
     amino_acid_rows = [
-        {"Cadena": item.chain, "Aminoacidos": item.residues}
+        {"Chain": item.chain, "Amino acids": item.residues}
         for item in summary.chains
         if item.residues
     ]
@@ -1282,6 +1313,8 @@ def _build_config(
         "linker_groups": _lines(st.session_state.linker_groups_text),
         "linker_prot_dist": st.session_state.linker_prot_dist or None,
         "linker_surf_dist": st.session_state.linker_surf_dist or None,
+        "linker_protein_bead": st.session_state.linker_protein_bead or None,
+        "linker_surface_bead": st.session_state.linker_surface_bead or None,
         "invert_linker": st.session_state.invert_linker,
         "surface_linkers": st.session_state.surface_linkers,
         "substrate_path": substrate_path,

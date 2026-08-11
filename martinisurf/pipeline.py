@@ -37,12 +37,71 @@ DEFAULT_SOLVATE_SURFACE_CLEARANCE = 0.4
 DNA_DEFAULT_SOLVATE_SURFACE_CLEARANCE = 0.4
 
 
+def _parse_gro_atom_line(line: str) -> dict | None:
+    try:
+        if len(line) >= 44:
+            return {
+                "resid": int(line[0:5]),
+                "resname": line[5:10].strip() or "SUB",
+                "atomname": line[10:15].strip() or "C1",
+                "atomid": int(line[15:20]),
+                "x": float(line[20:28]),
+                "y": float(line[28:36]),
+                "z": float(line[36:44]),
+            }
+        parts = line.split()
+        if len(parts) < 6:
+            return None
+        resid_resname = parts[0]
+        resid_text = "".join(ch for ch in resid_resname if ch.isdigit()) or "1"
+        resname = resid_resname[len(resid_text):] or "SUB"
+        return {
+            "resid": int(resid_text),
+            "resname": resname,
+            "atomname": parts[1],
+            "atomid": int(parts[2]),
+            "x": float(parts[3]),
+            "y": float(parts[4]),
+            "z": float(parts[5]),
+        }
+    except (ValueError, IndexError):
+        return None
+
+
+def _clean_linker_bead_selector(value: str | None) -> str:
+    text = str(value or "").strip()
+    if ":" in text:
+        text = text.split(":", 1)[1].strip()
+    return text
+
+
+def _read_gro_atomname_by_selector(gro_path: str, selector: str | None, default: str | None = None) -> str | None:
+    clean = _clean_linker_bead_selector(selector)
+    if not clean:
+        return default
+    _, records, _ = _read_gro_records(gro_path)
+    if clean.isdigit():
+        wanted = int(clean)
+        for rec in records:
+            if int(rec["atomid"]) == wanted:
+                return str(rec["atomname"]).strip() or default
+        if 1 <= wanted <= len(records):
+            return str(records[wanted - 1]["atomname"]).strip() or default
+    wanted_name = clean.upper()
+    for rec in records:
+        name = str(rec["atomname"]).strip()
+        if name.upper() == wanted_name:
+            return name
+    return default
+
+
 def _read_gro_first_resname(gro_path: str) -> str | None:
     with open(gro_path, "r") as fh:
         lines = fh.readlines()
     for line in lines[2:-1]:
-        if len(line) >= 10:
-            return line[5:10].strip() or None
+        rec = _parse_gro_atom_line(line)
+        if rec:
+            return str(rec["resname"]).strip() or None
     return None
 
 
@@ -50,8 +109,9 @@ def _read_gro_first_atomname(gro_path: str) -> str | None:
     with open(gro_path, "r") as fh:
         lines = fh.readlines()
     for line in lines[2:-1]:
-        if len(line) >= 15:
-            return line[10:15].strip() or None
+        rec = _parse_gro_atom_line(line)
+        if rec:
+            return str(rec["atomname"]).strip() or None
     return None
 
 
@@ -59,10 +119,9 @@ def _read_gro_last_atomname(gro_path: str) -> str | None:
     with open(gro_path, "r") as fh:
         lines = fh.readlines()[2:-1]
     for line in reversed(lines):
-        if len(line) >= 15:
-            name = line[10:15].strip()
-            if name:
-                return name
+        rec = _parse_gro_atom_line(line)
+        if rec:
+            return str(rec["atomname"]).strip() or None
     return None
 
 
@@ -70,14 +129,11 @@ def _read_gro_atomname_for_resid(gro_path: str, resid: int) -> str | None:
     with open(gro_path, "r") as fh:
         lines = fh.readlines()[2:-1]
     for line in lines:
-        if len(line) < 15:
+        rec = _parse_gro_atom_line(line)
+        if not rec:
             continue
-        try:
-            gro_resid = int(line[0:5])
-        except ValueError:
-            continue
-        if gro_resid == resid:
-            name = line[10:15].strip()
+        if int(rec["resid"]) == resid:
+            name = str(rec["atomname"]).strip()
             if name:
                 return name
     return None
@@ -179,22 +235,9 @@ def _read_gro_records(gro_path: str) -> tuple[str, list[dict], list[float]]:
 
     records: list[dict] = []
     for line in atom_lines:
-        if len(line) < 44:
-            continue
-        try:
-            records.append(
-                {
-                    "resid": int(line[0:5]),
-                    "resname": line[5:10].strip() or "SUB",
-                    "atomname": line[10:15].strip() or "C1",
-                    "atomid": int(line[15:20]),
-                    "x": float(line[20:28]),
-                    "y": float(line[28:36]),
-                    "z": float(line[36:44]),
-                }
-            )
-        except ValueError:
-            continue
+        rec = _parse_gro_atom_line(line)
+        if rec is not None:
+            records.append(rec)
     return title, records, box
 
 
@@ -1484,6 +1527,8 @@ def build_parser():
     )
     linker_group.add_argument("--linker-prot-dist", type=float, help="Linker-to-protein/DNA distance (nm). Auto if omitted.")
     linker_group.add_argument("--linker-surf-dist", type=float, help="Linker-to-surface distance (nm). Auto if omitted.")
+    linker_group.add_argument("--linker-protein-bead", help="Linker bead attached to the biomolecule, by atom name or 1-based index.")
+    linker_group.add_argument("--linker-surface-bead", help="Linker bead oriented toward/attached to the surface, by atom name or 1-based index.")
     linker_group.add_argument("--invert-linker", action="store_true", help="Reverse linker bead order before attachment.")
     linker_group.add_argument("--surface-linkers", type=int, default=0, help="Add up to this many extra linkers on unique top-layer surface sites; capped automatically by available sites.")
 
@@ -3796,8 +3841,10 @@ def main(argv=None):
         linker_first = _read_gro_first_atomname(args.linker)
         linker_last = _read_gro_last_atomname(args.linker)
         # Protein side is the first linker bead by default; swap when inverted.
-        linker_head = linker_last if args.invert_linker else linker_first
-        linker_tail = linker_first if args.invert_linker else linker_last
+        default_head = linker_last if args.invert_linker else linker_first
+        default_tail = linker_first if args.invert_linker else linker_last
+        linker_head = _read_gro_atomname_by_selector(args.linker, args.linker_protein_bead, default_head)
+        linker_tail = _read_gro_atomname_by_selector(args.linker, args.linker_surface_bead, default_tail)
         target_atom = _read_gro_atomname_for_resid(str(system_gro), first_group_resid) if first_group_resid else None
         surface_atom = _read_gro_first_atomname(str(surface_gro))
 
@@ -3841,6 +3888,10 @@ def main(argv=None):
             "--linker-surf-dist", str(linker_surf_dist_ang),
             "--surface-min-dist", str(linker_surf_dist_ang),
         ]
+        if args.linker_protein_bead:
+            orient_args += ["--linker-protein-bead", str(args.linker_protein_bead)]
+        if args.linker_surface_bead:
+            orient_args += ["--linker-surface-bead", str(args.linker_surface_bead)]
         if args.invert_linker:
             orient_args += ["--invert-linker"]
 
@@ -3901,6 +3952,10 @@ def main(argv=None):
 
     if args.linker and (resolved_linker_groups or args.surface_linkers > 0):
         final_args += ["--use-linker"]
+        if args.linker_protein_bead:
+            final_args += ["--linker-protein-bead", str(args.linker_protein_bead)]
+        if args.linker_surface_bead:
+            final_args += ["--linker-surface-bead", str(args.linker_surface_bead)]
         if args.surface_linkers > 0:
             surface_linker_count_for_topology = args.surface_linkers
             try:
