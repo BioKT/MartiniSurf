@@ -14,7 +14,7 @@ class BuildConfig:
     ff: str = "martini3001"
     dssp: bool = True
     go: bool = True
-    go_eps: float = 9.414
+    go_eps: float = 9.415
     elastic: bool = False
     position_restraints: str = "backbone"
     pf: float = 1000.0
@@ -24,9 +24,9 @@ class BuildConfig:
     surface_mode: str = "4-1"
     surface_geometry: str = "planar"
     surface_path: Path | None = None
-    lx: float = 20.0
-    ly: float = 20.0
-    dx: float = 0.47
+    lx: float = 6.0
+    ly: float = 6.0
+    dx: float = 0.5
     surface_beads: list[str] = field(default_factory=lambda: ["P4", "P4"])
     charge: float = 0.0
     surface_layers: int | None = 2

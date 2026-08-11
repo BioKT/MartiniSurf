@@ -6,3 +6,4 @@ vermouth
 mdtraj
 pytest
 streamlit==1.61.1
+git+https://github.com/eliobaby/Martini_mapper.git

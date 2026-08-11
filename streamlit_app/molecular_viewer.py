@@ -392,6 +392,86 @@ def render_martini_step4_viewer(
     return {"bonds": len(cylinders), "skipped_long": skipped_long, "highlighted": len(highlighted_resids)}
 
 
+def render_linker_mapping(path: Path, beads: list[object], height: int = 360) -> None:
+    mol_data = path.read_text(errors="replace")
+    fmt = VIEWABLE_SUFFIXES.get(path.suffix.lower(), "gro")
+    element_id = "viewer_linker_" + "".join(ch if ch.isalnum() else "_" for ch in path.name)
+    labels = []
+    for bead in beads:
+        try:
+            if isinstance(bead, dict):
+                label = str(bead.get("label") or f"{bead.get('index', '')}: {bead.get('name', '')}".strip())
+                x = bead.get("x")
+                y = bead.get("y")
+                z = bead.get("z")
+            else:
+                label = getattr(bead, "label", str(getattr(bead, "name", "")))
+                x = getattr(bead, "x")
+                y = getattr(bead, "y")
+                z = getattr(bead, "z")
+            labels.append(
+                {
+                    "label": label,
+                    "x": 10.0 * float(x),
+                    "y": 10.0 * float(y),
+                    "z": 10.0 * float(z),
+                }
+            )
+        except (TypeError, ValueError):
+            continue
+
+    script = f"""
+    <div class="viewer-shell linker">
+      <div id="{element_id}" class="viewer"></div>
+    </div>
+    <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+    <script>
+      const element = document.getElementById({json.dumps(element_id)});
+      const viewer = $3Dmol.createViewer(element, {{ backgroundColor: "#07131C" }});
+      viewer.addModel({json.dumps(mol_data)}, {json.dumps(fmt)});
+      viewer.setStyle({{}}, {{ sphere: {{ radius: 0.55, color: "#35c9d3" }} }});
+      const labels = {json.dumps(labels)};
+      for (const bead of labels) {{
+        viewer.addLabel(bead.label, {{
+          position: {{x: bead.x, y: bead.y, z: bead.z}},
+          fontColor: "#07131C",
+          backgroundColor: "#F7FBFF",
+          borderColor: "#35c9d3",
+          borderThickness: 1,
+          fontSize: 13,
+          inFront: true
+        }});
+      }}
+      viewer.zoomTo();
+      viewer.render();
+    </script>
+    <style>
+      html, body {{
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #07131C;
+      }}
+      .viewer-shell {{
+        width: 100%;
+        height: {height}px;
+        box-sizing: border-box;
+        border: 1px solid rgba(116, 152, 170, 0.28);
+        border-radius: 16px;
+        overflow: hidden;
+        background: #07131C;
+        box-shadow: inset 0 0 42px rgba(53, 201, 211, 0.06);
+      }}
+      .viewer {{
+        width: 100%;
+        height: {height}px;
+        overflow: hidden;
+      }}
+    </style>
+    """
+    components.html(script, height=height + 2)
+
+
 def file_caption(path: Path) -> str:
     size_kb = path.stat().st_size / 1024
     return f"{html.escape(path.name)} - {size_kb:.1f} KB"

@@ -9,13 +9,16 @@ from dataclasses import fields
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from streamlit_app.archive import make_zip
 from streamlit_app.command_builder import BuildConfig, build_args, shell_command
 from streamlit_app.logs import summarize_log
+from streamlit_app.linker_generator import generate_linker_from_smiles, parse_linker_gro, safe_molecule_name, smiles_to_svg
 from streamlit_app.molecular_viewer import (
     file_caption,
     find_viewable_structures,
+    render_linker_mapping,
     render_martini_step4_viewer,
     render_molecule,
     render_remote_molecule,
@@ -35,8 +38,8 @@ TOOL_DIRS = [Path(sys.executable).resolve().parent, REPO_ROOT / ".venv" / "bin"]
 STEPS = ["Structure", "Model", "Surface", "Orientation", "Environment", "Review & Build"]
 
 CHAIN_LABELS = list("ABCDEFGHI")
-PROTEIN_COLAB_DEFAULTS_VERSION = 2
-SURFACE_DEFAULTS_VERSION = 4
+PROTEIN_COLAB_DEFAULTS_VERSION = 3
+SURFACE_DEFAULTS_VERSION = 5
 PERSISTED_STATE_KEYS = {
     "project_name",
     "active_step",
@@ -75,10 +78,20 @@ PERSISTED_STATE_KEYS = {
     "histag",
     "linker_path_text",
     "linker_groups_text",
+    "linker_group_count",
     "linker_prot_dist",
     "linker_surf_dist",
     "invert_linker",
     "surface_linkers",
+    "linker_generator_smiles",
+    "linker_generator_molname",
+    "generated_linker_path",
+    "generated_linker_itp_path",
+    "generated_linker_beads",
+    "linker_surface_bead",
+    "linker_protein_bead",
+    "linker_generator_log",
+    "linker_generator_message",
     "solvate",
     "ionize",
     "salt_conc",
@@ -101,9 +114,9 @@ HEXAGONAL_SURFACE_DEFAULTS = {
     "surface_mode": "4-1",
     "surface_geometry": "planar",
     "surface_beads": "P4 P4",
-    "lx": 20.0,
-    "ly": 20.0,
-    "dx": 0.47,
+    "lx": 6.0,
+    "ly": 6.0,
+    "dx": 0.5,
     "charge": 0.0,
     "surface_layers": 2,
     "surface_stacking": "hcp",
@@ -114,8 +127,8 @@ CARBON_SURFACE_DEFAULTS = {
         "surface_mode": "graphene",
         "surface_geometry": "planar",
         "surface_beads": "C1",
-        "lx": 20.0,
-        "ly": 20.0,
+        "lx": 6.0,
+        "ly": 6.0,
         "graphite_layers": 5,
         "cnt_numrings": 24,
         "cnt_ringsize": 9,
@@ -124,8 +137,8 @@ CARBON_SURFACE_DEFAULTS = {
         "surface_mode": "graphite",
         "surface_geometry": "planar",
         "surface_beads": "C1",
-        "lx": 20.0,
-        "ly": 20.0,
+        "lx": 6.0,
+        "ly": 6.0,
         "graphite_layers": 5,
         "cnt_numrings": 24,
         "cnt_ringsize": 9,
@@ -134,8 +147,8 @@ CARBON_SURFACE_DEFAULTS = {
         "surface_mode": "cnt-martini3",
         "surface_geometry": "3d",
         "surface_beads": "C1",
-        "lx": 20.0,
-        "ly": 20.0,
+        "lx": 6.0,
+        "ly": 6.0,
         "graphite_layers": 5,
         "cnt_numrings": 24,
         "cnt_ringsize": 9,
@@ -145,16 +158,16 @@ CARBON_SURFACE_DEFAULTS = {
 
 def _init_state() -> None:
     defaults = {
-        "project_name": "MartiniSurf Protein - 1RJW",
+        "project_name": "MartiniSurf Protein - 1UBQ",
         "active_step": "Structure",
-        "remote_id": "1RJW",
+        "remote_id": "1UBQ",
         "moltype": "Protein",
         "ff": "martini3001",
-        "merge_text": "A,B,C,D",
-        "merge_chain_count": 4,
+        "merge_text": "A",
+        "merge_chain_count": 1,
         "dssp": True,
         "go": True,
-        "go_eps": 9.414,
+        "go_eps": 9.415,
         "elastic": False,
         "maxwarn": 1,
         "position_restraints": "backbone",
@@ -163,9 +176,9 @@ def _init_state() -> None:
         "surface_mode": "4-1",
         "surface_geometry": "planar",
         "surface_beads": "P4 P4",
-        "lx": 20.0,
-        "ly": 20.0,
-        "dx": 0.47,
+        "lx": 6.0,
+        "ly": 6.0,
+        "dx": 0.5,
         "charge": 0.0,
         "surface_layers": 2,
         "surface_stacking": "hcp",
@@ -174,22 +187,34 @@ def _init_state() -> None:
         "cnt_numrings": 24,
         "cnt_ringsize": 9,
         "orientation_mode": "Anchor",
-        "anchors_text": "A 8 10 11\nD 8 10 11",
-        "anchor_group_count": 2,
+        "anchors_text": "A 73",
+        "anchor_group_count": 1,
         "anchor_chain_0": "A",
-        "anchor_residues_0": "8 10 11",
-        "anchor_chain_1": "D",
-        "anchor_residues_1": "8 10 11",
+        "anchor_residues_0": "73",
+        "anchor_chain_1": "A",
+        "anchor_residues_1": "",
         "dist": 1.0,
         "balance_low_z": False,
         "balance_low_z_fraction": 0.2,
         "histag": False,
         "linker_path_text": "martinisurf/examples/protein/03_linker_surface_decoration/inputs/EPOXY.gro",
-        "linker_groups_text": "A 8 10 11\nD 8 10 11",
+        "linker_groups_text": "A 73",
+        "linker_group_count": 1,
+        "linker_group_chain_0": "A",
+        "linker_group_residues_0": "73",
         "linker_prot_dist": 0.0,
         "linker_surf_dist": 0.0,
         "invert_linker": False,
         "surface_linkers": 0,
+        "linker_generator_smiles": "",
+        "linker_generator_molname": "LINKER",
+        "generated_linker_path": "",
+        "generated_linker_itp_path": "",
+        "generated_linker_beads": [],
+        "linker_surface_bead": "",
+        "linker_protein_bead": "",
+        "linker_generator_log": "",
+        "linker_generator_message": "",
         "solvate": True,
         "ionize": True,
         "salt_conc": 0.15,
@@ -206,7 +231,7 @@ def _init_state() -> None:
     if not str(st.session_state.get("moltype", "")).strip():
         st.session_state.moltype = "Protein"
     if float(st.session_state.get("go_eps") or 0) <= 0:
-        st.session_state.go_eps = 9.414
+        st.session_state.go_eps = 9.415
     if st.session_state.get("_protein_colab_defaults_version") != PROTEIN_COLAB_DEFAULTS_VERSION:
         for key in [
             "project_name",
@@ -226,9 +251,19 @@ def _init_state() -> None:
             "anchor_residues_1",
             "dist",
             "linker_groups_text",
+            "linker_group_count",
             "surface_workflow",
             "carbon_surface_kind",
             "surface_linkers",
+            "linker_generator_smiles",
+            "linker_generator_molname",
+            "generated_linker_path",
+            "generated_linker_itp_path",
+            "generated_linker_beads",
+            "linker_surface_bead",
+            "linker_protein_bead",
+            "linker_generator_log",
+            "linker_generator_message",
             "solvate",
             "ionize",
             "salt_conc",
@@ -270,6 +305,15 @@ def _commit_transient_widget_state() -> None:
         _versioned_key("go_eps"): "go_eps",
         _versioned_key("position_restraints"): "position_restraints",
         _versioned_key("surface_workflow"): "surface_workflow",
+        _versioned_key("surface_mode_hex"): "surface_mode",
+        _versioned_key("dx_hex"): "dx",
+        _versioned_key("surface_beads_hex"): "surface_beads",
+        _versioned_key("lx_hex"): "lx",
+        _versioned_key("ly_hex"): "ly",
+        _versioned_key("surface_layers_hex"): "surface_layers",
+        _versioned_key("surface_stacking_hex"): "surface_stacking",
+        _versioned_key("charge_hex"): "charge",
+        _versioned_key("carbon_surface_kind"): "carbon_surface_kind",
         _versioned_key("surface_linkers"): "surface_linkers",
         _versioned_key("surface_geometry"): "surface_geometry",
         _versioned_key("solvate"): "solvate",
@@ -281,6 +325,12 @@ def _commit_transient_widget_state() -> None:
         _versioned_key("water_mix_seed"): "water_mix_seed",
         _versioned_key("substrate_count"): "substrate_count",
     }
+    for kind in ["Graphene", "Graphite", "Nanotubes"]:
+        aliases[_versioned_key(f"lx_carbon_{kind}")] = "lx"
+        aliases[_versioned_key(f"ly_carbon_{kind}")] = "ly"
+    aliases[_versioned_key("graphite_layers")] = "graphite_layers"
+    aliases[_versioned_key("cnt_numrings")] = "cnt_numrings"
+    aliases[_versioned_key("cnt_ringsize")] = "cnt_ringsize"
     for widget_key, state_key in aliases.items():
         if widget_key in st.session_state:
             st.session_state[state_key] = st.session_state[widget_key]
@@ -289,12 +339,19 @@ def _commit_transient_widget_state() -> None:
         and any(key.startswith("anchor_chain_") or key.startswith("anchor_residues_") for key in st.session_state)
     ):
         _sync_anchor_text()
+    if (
+        st.session_state.get("_linker_group_rows_loaded_from_text") == st.session_state.get("linker_groups_text")
+        and any(key.startswith("linker_group_chain_") or key.startswith("linker_group_residues_") for key in st.session_state)
+    ):
+        _sync_linker_group_text()
 
 
 def _preserve_app_state() -> None:
     keys = set(PERSISTED_STATE_KEYS)
     for key in list(st.session_state.keys()):
         if key.startswith("anchor_chain_") or key.startswith("anchor_residues_"):
+            keys.add(key)
+        if key.startswith("linker_group_chain_") or key.startswith("linker_group_residues_"):
             keys.add(key)
     for key in keys:
         if key in st.session_state:
@@ -393,6 +450,62 @@ def _load_anchor_rows_from_text() -> None:
     st.session_state["_anchor_rows_loaded_from_text"] = raw_text
 
 
+def _sync_linker_group_text() -> None:
+    count = int(st.session_state.get("linker_group_count", 1))
+    rows = []
+    for index in range(count):
+        chain = str(st.session_state.get(f"linker_group_chain_{index}", "")).strip().upper()
+        residues = str(st.session_state.get(f"linker_group_residues_{index}", "")).strip()
+        if chain and residues:
+            rows.append(f"{chain} {residues}")
+    st.session_state.linker_groups_text = "\n".join(rows)
+    st.session_state["_linker_group_rows_loaded_from_text"] = st.session_state.linker_groups_text
+
+
+def _remove_linker_group_row(index_to_remove: int) -> None:
+    count = int(st.session_state.get("linker_group_count", 1))
+    if count <= 1:
+        st.session_state[f"linker_group_chain_{index_to_remove}"] = "A"
+        st.session_state[f"linker_group_residues_{index_to_remove}"] = ""
+        _sync_linker_group_text()
+        return
+    for index in range(index_to_remove, count - 1):
+        st.session_state[f"linker_group_chain_{index}"] = st.session_state.get(f"linker_group_chain_{index + 1}", "A")
+        st.session_state[f"linker_group_residues_{index}"] = st.session_state.get(f"linker_group_residues_{index + 1}", "")
+    st.session_state.pop(f"linker_group_chain_{count - 1}", None)
+    st.session_state.pop(f"linker_group_residues_{count - 1}", None)
+    st.session_state.linker_group_count = count - 1
+    _sync_linker_group_text()
+
+
+def _add_linker_group_row() -> None:
+    count = int(st.session_state.get("linker_group_count", 1))
+    if count >= 20:
+        return
+    st.session_state.linker_group_count = count + 1
+    st.session_state[f"linker_group_chain_{count}"] = "A"
+    st.session_state[f"linker_group_residues_{count}"] = ""
+    _sync_linker_group_text()
+
+
+def _load_linker_group_rows_from_text() -> None:
+    raw_text = st.session_state.get("linker_groups_text", "")
+    expected_count = int(st.session_state.get("linker_group_count", 1))
+    keys_present = all(
+        f"linker_group_chain_{index}" in st.session_state and f"linker_group_residues_{index}" in st.session_state
+        for index in range(expected_count)
+    )
+    if keys_present and st.session_state.get("_linker_group_rows_loaded_from_text") == raw_text:
+        return
+    groups = _lines(raw_text) or ["A 73"]
+    st.session_state.linker_group_count = len(groups)
+    for index, group in enumerate(groups):
+        parts = group.split(maxsplit=1)
+        st.session_state[f"linker_group_chain_{index}"] = parts[0] if parts else "A"
+        st.session_state[f"linker_group_residues_{index}"] = parts[1] if len(parts) > 1 else ""
+    st.session_state["_linker_group_rows_loaded_from_text"] = raw_text
+
+
 def _apply_values(values: dict[str, object]) -> None:
     for key, value in values.items():
         st.session_state[key] = value
@@ -425,6 +538,135 @@ def _resolve_optional_path(value: str, workdir: Path) -> Path | None:
         return path
     candidate = workdir / clean
     return candidate if candidate.exists() else path
+
+
+def _bead_dicts(beads: list[object]) -> list[dict[str, object]]:
+    payload = []
+    for bead in beads:
+        payload.append(
+            {
+                "index": int(getattr(bead, "index")),
+                "name": str(getattr(bead, "name")),
+                "resid": int(getattr(bead, "resid")),
+                "resname": str(getattr(bead, "resname")),
+                "x": float(getattr(bead, "x")),
+                "y": float(getattr(bead, "y")),
+                "z": float(getattr(bead, "z")),
+                "label": str(getattr(bead, "label")),
+            }
+        )
+    return payload
+
+
+def _linker_bead_options() -> list[str]:
+    beads = st.session_state.get("generated_linker_beads") or []
+    return [str(bead.get("label") or f"{bead.get('index')}: {bead.get('name')}") for bead in beads if isinstance(bead, dict)]
+
+
+def _refresh_generated_linker_from_path() -> None:
+    path_text = st.session_state.get("generated_linker_path") or st.session_state.get("linker_path_text", "")
+    if not path_text:
+        return
+    path = _resolve_optional_path(str(path_text), Path(st.session_state.run_root))
+    if not path or not path.exists() or path.suffix.lower() != ".gro":
+        return
+    try:
+        beads = _bead_dicts(parse_linker_gro(path))
+    except OSError:
+        return
+    if beads:
+        st.session_state.generated_linker_path = str(path)
+        st.session_state.generated_linker_beads = beads
+        options = _linker_bead_options()
+        if options:
+            st.session_state.setdefault("linker_protein_bead", options[0])
+            st.session_state.setdefault("linker_surface_bead", options[-1])
+
+
+def _sync_linker_orientation_from_selected_beads() -> None:
+    options = _linker_bead_options()
+    if len(options) < 2:
+        return
+    first, last = options[0], options[-1]
+    surface_bead = st.session_state.get("linker_surface_bead", last)
+    protein_bead = st.session_state.get("linker_protein_bead", first)
+    if protein_bead == first and surface_bead == last:
+        st.session_state.invert_linker = False
+    elif protein_bead == last and surface_bead == first:
+        st.session_state.invert_linker = True
+
+
+def _render_linker_generator() -> None:
+    with st.expander("Linker Generator", expanded=False):
+        st.caption("Generate a Martini 3 linker from SMILES and select the terminal beads used by MartiniSurf.")
+        smiles_col, name_col = st.columns([2.2, 0.8], gap="large")
+        smiles_col.text_input("SMILES", key="linker_generator_smiles", placeholder="C1CO1")
+        name_col.text_input("Linker name", key="linker_generator_molname")
+        if st.button("Generar linker", type="primary", width="stretch"):
+            molname = safe_molecule_name(st.session_state.linker_generator_molname)
+            output_dir = Path(st.session_state.run_root) / "inputs" / "linker_generator" / molname
+            result = generate_linker_from_smiles(st.session_state.linker_generator_smiles, molname, output_dir)
+            st.session_state.linker_generator_message = result.message
+            st.session_state.linker_generator_log = result.log
+            if result.ok and result.gro_path and result.itp_path:
+                st.session_state.generated_linker_path = str(result.gro_path)
+                st.session_state.generated_linker_itp_path = str(result.itp_path)
+                st.session_state.generated_linker_beads = _bead_dicts(result.beads)
+                st.session_state.linker_path_text = str(result.gro_path)
+                st.session_state._linker_path = str(result.gro_path)
+                st.session_state._linker_itp_path = str(result.itp_path)
+                options = _linker_bead_options()
+                if options:
+                    st.session_state.linker_protein_bead = options[0]
+                    st.session_state.linker_surface_bead = options[-1]
+                _sync_linker_orientation_from_selected_beads()
+                st.success(f"Linker generated with {result.generator}.")
+            else:
+                st.error(result.message)
+
+        _refresh_generated_linker_from_path()
+        options = _linker_bead_options()
+        generated_path = Path(st.session_state.generated_linker_path) if st.session_state.get("generated_linker_path") else None
+        if generated_path and generated_path.exists() and options:
+            preview_col, beads_col = st.columns([1.35, 1], gap="large")
+            with preview_col:
+                svg = smiles_to_svg(st.session_state.linker_generator_smiles)
+                if svg:
+                    components.html(
+                        f"<div style='background:#f7fbff;border-radius:16px;padding:12px;margin-bottom:12px'>{svg}</div>",
+                        height=350,
+                    )
+                render_linker_mapping(generated_path, st.session_state.generated_linker_beads, height=360)
+            with beads_col:
+                st.dataframe(
+                    [
+                        {"Bead": bead["label"], "Residue": bead["resname"], "x": bead["x"], "y": bead["y"], "z": bead["z"]}
+                        for bead in st.session_state.generated_linker_beads
+                    ],
+                    hide_index=True,
+                    width="stretch",
+                )
+                if st.session_state.linker_surface_bead not in options:
+                    st.session_state.linker_surface_bead = options[-1]
+                if st.session_state.linker_protein_bead not in options:
+                    st.session_state.linker_protein_bead = options[0]
+                st.selectbox("Bead oriented toward surface", options, key="linker_surface_bead")
+                st.selectbox("Bead connected to protein", options, key="linker_protein_bead")
+                _sync_linker_orientation_from_selected_beads()
+                first, last = options[0], options[-1]
+                supported_pairs = {
+                    (first, last),
+                    (last, first),
+                }
+                selected_pair = (st.session_state.linker_protein_bead, st.session_state.linker_surface_bead)
+                if selected_pair not in supported_pairs:
+                    st.warning("Current MartiniSurf backend supports terminal linker beads only. Select the first/last beads or extend backend linker placement.")
+                st.caption(f"Linker file: `{generated_path.name}`")
+        elif st.session_state.get("linker_generator_message"):
+            st.info(st.session_state.linker_generator_message)
+        if st.session_state.get("linker_generator_log"):
+            with st.expander("Generator log"):
+                st.code(st.session_state.linker_generator_log, language="text")
 
 
 def _step_state(step: str, errors: list[str], tool_warnings: list[str], has_output: bool) -> str:
@@ -699,7 +941,15 @@ def _render_surface_step() -> None:
     else:
         st.markdown("#### Upload Surface File")
         st.info("Upload `surface.gro` in Structure > Optional auxiliary files. MartiniSurf will use that file instead of generating a local lattice.")
-    st.session_state.surface_linkers = st.number_input("Surface linkers", min_value=0, value=int(st.session_state.surface_linkers), key=_versioned_key("surface_linkers"), step=1)
+    st.session_state.surface_linkers = st.number_input(
+        "Linkers decorating the surface",
+        min_value=0,
+        value=int(st.session_state.surface_linkers),
+        key=_versioned_key("surface_linkers"),
+        step=1,
+        help="Number of linker molecules placed as surface decoration. Use 0 when the linker is only for protein immobilization.",
+    )
+    _render_linker_generator()
     with st.expander("Advanced surface options"):
         geometry_options = ["planar", "3d"]
         st.session_state.surface_geometry = st.segmented_control(
@@ -730,17 +980,50 @@ def _render_orientation_step(config: BuildConfig) -> None:
     dist_col.number_input("Target distance (nm)", min_value=0.0, key="dist", step=0.1)
     tag_col.toggle("His-tag orientation", key="histag")
     if st.session_state.orientation_mode == "Linker":
-        a, b = st.columns([1.4, 0.8], gap="large")
-        a.text_input("Linker path", key="linker_path_text")
-        b.toggle("Invert linker", key="invert_linker")
-        st.text_area("Linker groups", key="linker_groups_text", height=96)
-        c, d = st.columns(2)
-        c.number_input("Linker-protein distance (nm)", min_value=0.0, key="linker_prot_dist", step=0.1)
-        d.number_input("Linker-surface distance (nm)", min_value=0.0, key="linker_surf_dist", step=0.1)
+        _render_linker_group_editor()
+        linker_path = _resolve_optional_path(st.session_state.get("linker_path_text", ""), Path(st.session_state.run_root))
+        if linker_path and linker_path.exists():
+            st.caption(f"Active linker: `{linker_path.name}`")
+        else:
+            st.warning("Generate a linker in Surface > Linker Generator or upload a linker file in Structure before building.")
+        with st.expander("Advanced linker parameters"):
+            c, d = st.columns(2)
+            c.number_input("Linker-protein distance (nm)", min_value=0.0, key="linker_prot_dist", step=0.1)
+            d.number_input("Linker-surface distance (nm)", min_value=0.0, key="linker_surf_dist", step=0.1)
     else:
         _render_anchor_group_editor()
         if st.session_state.orientation_mode == "Adsorption":
             st.info("Adsorption uses anchor-based orientation but skips pull/restraint topology generation.")
+
+
+def _render_linker_group_editor() -> None:
+    _load_linker_group_rows_from_text()
+    count = int(st.session_state.get("linker_group_count", 1))
+    for index in range(count):
+        st.session_state.setdefault(f"linker_group_chain_{index}", "A")
+        st.session_state.setdefault(f"linker_group_residues_{index}", "73" if index == 0 else "")
+        chain_col, residue_col, remove_col, add_col = st.columns([0.45, 1.45, 0.22, 0.22], gap="small")
+        chain_col.text_input("Chain", key=f"linker_group_chain_{index}", max_chars=2, on_change=_sync_linker_group_text)
+        residue_col.text_input(
+            "Linker residues",
+            key=f"linker_group_residues_{index}",
+            placeholder="73 or 8 10 11",
+            on_change=_sync_linker_group_text,
+        )
+        remove_col.button(
+            "-",
+            key=f"remove_linker_group_{index}",
+            on_click=_remove_linker_group_row,
+            args=(index,),
+            width="stretch",
+        )
+        add_col.button(
+            "+",
+            key=f"add_linker_group_{index}",
+            on_click=_add_linker_group_row,
+            width="stretch",
+        )
+    _sync_linker_group_text()
 
 
 def _render_anchor_group_editor() -> None:
