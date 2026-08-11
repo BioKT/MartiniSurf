@@ -17,17 +17,10 @@ def find_viewable_structures(outdir: Path) -> list[Path]:
 
     preferred = [
         "immobilized_system.gro",
-        "system_final.gro",
-        "Protein_cg.pdb",
-        "Protein_cg.gro",
-        "surface.gro",
-        "cleaned_input.pdb",
     ]
     files = [path for path in system_dir.iterdir() if path.suffix.lower() in VIEWABLE_SUFFIXES]
     by_name = {path.name: path for path in files}
-    ordered = [by_name[name] for name in preferred if name in by_name]
-    ordered.extend(sorted(path for path in files if path.name not in preferred))
-    return ordered
+    return [by_name[name] for name in preferred if name in by_name]
 
 
 def render_molecule(path: Path, height: int = 520) -> None:

@@ -37,6 +37,65 @@ STEPS = ["Structure", "Model", "Surface", "Orientation", "Environment", "Review 
 CHAIN_LABELS = list("ABCDEFGHI")
 PROTEIN_COLAB_DEFAULTS_VERSION = 2
 SURFACE_DEFAULTS_VERSION = 4
+PERSISTED_STATE_KEYS = {
+    "project_name",
+    "active_step",
+    "remote_id",
+    "moltype",
+    "ff",
+    "merge_text",
+    "merge_chain_count",
+    "dssp",
+    "go",
+    "go_eps",
+    "elastic",
+    "maxwarn",
+    "position_restraints",
+    "surface_workflow",
+    "carbon_surface_kind",
+    "surface_mode",
+    "surface_geometry",
+    "surface_beads",
+    "lx",
+    "ly",
+    "dx",
+    "charge",
+    "surface_layers",
+    "surface_stacking",
+    "surface_dist_z",
+    "graphite_layers",
+    "cnt_numrings",
+    "cnt_ringsize",
+    "orientation_mode",
+    "anchors_text",
+    "anchor_group_count",
+    "dist",
+    "balance_low_z",
+    "balance_low_z_fraction",
+    "histag",
+    "linker_path_text",
+    "linker_groups_text",
+    "linker_prot_dist",
+    "linker_surf_dist",
+    "invert_linker",
+    "surface_linkers",
+    "solvate",
+    "ionize",
+    "salt_conc",
+    "water_mix",
+    "enable_water_mix",
+    "sw_water_percent",
+    "tw_water_percent",
+    "water_mix_seed",
+    "substrate_count",
+    "martinize_extra",
+    "_structure_path",
+    "_surface_path",
+    "_linker_path",
+    "_linker_itp_path",
+    "_substrate_path",
+    "_substrate_itp_path",
+}
 
 HEXAGONAL_SURFACE_DEFAULTS = {
     "surface_mode": "4-1",
@@ -202,6 +261,46 @@ def _versioned_key(name: str) -> str:
     return f"{name}_ui_colab_v{PROTEIN_COLAB_DEFAULTS_VERSION}_{SURFACE_DEFAULTS_VERSION}"
 
 
+def _commit_transient_widget_state() -> None:
+    aliases = {
+        _versioned_key("moltype"): "moltype",
+        _versioned_key("merge_chain_count"): "merge_chain_count",
+        _versioned_key("dssp"): "dssp",
+        _versioned_key("go"): "go",
+        _versioned_key("go_eps"): "go_eps",
+        _versioned_key("position_restraints"): "position_restraints",
+        _versioned_key("surface_workflow"): "surface_workflow",
+        _versioned_key("surface_linkers"): "surface_linkers",
+        _versioned_key("surface_geometry"): "surface_geometry",
+        _versioned_key("solvate"): "solvate",
+        _versioned_key("ionize"): "ionize",
+        _versioned_key("salt_conc"): "salt_conc",
+        _versioned_key("enable_water_mix"): "enable_water_mix",
+        _versioned_key("sw_water_percent"): "sw_water_percent",
+        _versioned_key("tw_water_percent"): "tw_water_percent",
+        _versioned_key("water_mix_seed"): "water_mix_seed",
+        _versioned_key("substrate_count"): "substrate_count",
+    }
+    for widget_key, state_key in aliases.items():
+        if widget_key in st.session_state:
+            st.session_state[state_key] = st.session_state[widget_key]
+    if (
+        st.session_state.get("_anchor_rows_loaded_from_text") == st.session_state.get("anchors_text")
+        and any(key.startswith("anchor_chain_") or key.startswith("anchor_residues_") for key in st.session_state)
+    ):
+        _sync_anchor_text()
+
+
+def _preserve_app_state() -> None:
+    keys = set(PERSISTED_STATE_KEYS)
+    for key in list(st.session_state.keys()):
+        if key.startswith("anchor_chain_") or key.startswith("anchor_residues_"):
+            keys.add(key)
+    for key in keys:
+        if key in st.session_state:
+            st.session_state[key] = st.session_state[key]
+
+
 def _image_data_uri(path: Path) -> str:
     if not path.exists():
         return ""
@@ -209,11 +308,18 @@ def _image_data_uri(path: Path) -> str:
     return f"data:image/png;base64,{encoded}"
 
 
-def _save_upload(uploaded_file, target_dir: Path) -> Path | None:
+def _save_upload(uploaded_file, target_dir: Path, state_key: str | None = None) -> Path | None:
     if uploaded_file is None:
+        remembered = st.session_state.get(state_key) if state_key else None
+        if remembered:
+            path = Path(str(remembered))
+            if path.exists():
+                return path
         return None
     path = target_dir / uploaded_file.name
     path.write_bytes(uploaded_file.getbuffer())
+    if state_key:
+        st.session_state[state_key] = str(path)
     return path
 
 
@@ -246,9 +352,37 @@ def _sync_anchor_text() -> None:
     st.session_state["_anchor_rows_loaded_from_text"] = st.session_state.anchors_text
 
 
+def _remove_anchor_row(remove_index: int) -> None:
+    count = int(st.session_state.get("anchor_group_count", 1))
+    if count <= 1:
+        return
+    for index in range(remove_index, count - 1):
+        st.session_state[f"anchor_chain_{index}"] = st.session_state.get(f"anchor_chain_{index + 1}", "A")
+        st.session_state[f"anchor_residues_{index}"] = st.session_state.get(f"anchor_residues_{index + 1}", "")
+    st.session_state.pop(f"anchor_chain_{count - 1}", None)
+    st.session_state.pop(f"anchor_residues_{count - 1}", None)
+    st.session_state.anchor_group_count = count - 1
+    _sync_anchor_text()
+
+
+def _add_anchor_row() -> None:
+    count = int(st.session_state.get("anchor_group_count", 1))
+    if count >= 20:
+        return
+    st.session_state.anchor_group_count = count + 1
+    st.session_state[f"anchor_chain_{count}"] = "A"
+    st.session_state[f"anchor_residues_{count}"] = ""
+    _sync_anchor_text()
+
+
 def _load_anchor_rows_from_text() -> None:
     raw_text = st.session_state.get("anchors_text", "")
-    if st.session_state.get("_anchor_rows_loaded_from_text") == raw_text:
+    expected_count = int(st.session_state.get("anchor_group_count", 1))
+    keys_present = all(
+        f"anchor_chain_{index}" in st.session_state and f"anchor_residues_{index}" in st.session_state
+        for index in range(expected_count)
+    )
+    if keys_present and st.session_state.get("_anchor_rows_loaded_from_text") == raw_text:
         return
     groups = _lines(raw_text) or ["A 73"]
     st.session_state.anchor_group_count = len(groups)
@@ -383,17 +517,17 @@ def _render_structure_step(upload_dir: Path) -> tuple[Path | None, Path | None, 
             uploaded_substrate = st.file_uploader("Substrate .gro", type=["gro"], key="substrate_upload")
             uploaded_substrate_itp = st.file_uploader("Substrate .itp", type=["itp"], key="substrate_itp_upload")
 
-    structure_path = _save_upload(uploaded_structure, upload_dir)
-    surface_path = _save_upload(uploaded_surface, upload_dir)
-    linker_path = _save_upload(uploaded_linker, upload_dir)
-    linker_itp_path = _save_upload(uploaded_linker_itp, upload_dir)
+    structure_path = _save_upload(uploaded_structure, upload_dir, "_structure_path")
+    surface_path = _save_upload(uploaded_surface, upload_dir, "_surface_path")
+    linker_path = _save_upload(uploaded_linker, upload_dir, "_linker_path")
+    linker_itp_path = _save_upload(uploaded_linker_itp, upload_dir, "_linker_itp_path")
     if linker_path and linker_itp_path:
         matching_itp = linker_path.with_suffix(".itp")
         if linker_itp_path != matching_itp:
             shutil.copyfile(linker_itp_path, matching_itp)
             linker_itp_path = matching_itp
-    substrate_path = _save_upload(uploaded_substrate, upload_dir)
-    substrate_itp_path = _save_upload(uploaded_substrate_itp, upload_dir)
+    substrate_path = _save_upload(uploaded_substrate, upload_dir, "_substrate_path")
+    substrate_itp_path = _save_upload(uploaded_substrate_itp, upload_dir, "_substrate_itp_path")
     summary = summarize_structure(structure_path, st.session_state.remote_id, upload_dir / "preview")
 
     with right:
@@ -422,6 +556,14 @@ def _render_structure_summary(summary: StructureSummary, structure_path: Path | 
             """,
             unsafe_allow_html=True,
         )
+
+    amino_acid_rows = [
+        {"Cadena": item.chain, "Aminoacidos": item.residues}
+        for item in summary.chains
+        if item.residues
+    ]
+    if amino_acid_rows:
+        st.dataframe(amino_acid_rows, hide_index=True, width="stretch")
 
     if summary.ligands:
         st.info("Ligands/cofactors detected: " + ", ".join(summary.ligands[:12]))
@@ -607,14 +749,24 @@ def _render_anchor_group_editor() -> None:
     for index in range(count):
         st.session_state.setdefault(f"anchor_chain_{index}", "A")
         st.session_state.setdefault(f"anchor_residues_{index}", "73" if index == 0 else "")
-        chain_col, residue_col, add_col = st.columns([0.45, 1.45, 0.22], gap="small")
-        chain_col.text_input("Chain", key=f"anchor_chain_{index}", max_chars=2)
-        residue_col.text_input("Anchor residues", key=f"anchor_residues_{index}", placeholder="73 or 8 10 11")
-        if index == count - 1 and add_col.button("+", key=f"add_anchor_{index}", help="Add another anchor group"):
-            st.session_state.anchor_group_count = min(count + 1, 20)
-            st.session_state[f"anchor_chain_{count}"] = "A"
-            st.session_state[f"anchor_residues_{count}"] = ""
-            st.rerun()
+        chain_col, residue_col, remove_col, add_col = st.columns([0.45, 1.45, 0.22, 0.22], gap="small")
+        chain_col.text_input("Chain", key=f"anchor_chain_{index}", max_chars=2, on_change=_sync_anchor_text)
+        residue_col.text_input(
+            "Anchor residues",
+            key=f"anchor_residues_{index}",
+            placeholder="73 or 8 10 11",
+            on_change=_sync_anchor_text,
+        )
+        remove_col.button(
+            "-",
+            key=f"remove_anchor_{index}",
+            help="Remove this anchor group",
+            disabled=count <= 1,
+            on_click=_remove_anchor_row,
+            args=(index,),
+        )
+        if index == count - 1:
+            add_col.button("+", key=f"add_anchor_{index}", help="Add another anchor group", on_click=_add_anchor_row)
     _sync_anchor_text()
 
 
@@ -706,6 +858,7 @@ def _render_review_step(config: BuildConfig, errors: list[str], tool_warnings: l
                 if result.returncode == 0:
                     status.update(label="System generated", state="complete")
                     st.session_state["zip_path"] = str(make_zip(outdir, Path(st.session_state.run_root) / "Simulation_Files.zip"))
+                    st.rerun()
                 else:
                     status.update(label="Run failed", state="error")
         _render_log()
@@ -715,12 +868,8 @@ def _render_results(outdir: Path, config: BuildConfig) -> None:
     st.markdown('<div class="ms-panel-title">Generated structure</div>', unsafe_allow_html=True)
     structures = find_viewable_structures(outdir)
     if structures:
-        labels = [file_caption(path) for path in structures]
-        current = st.session_state.get("result_structure_label")
-        if current not in labels:
-            st.session_state.result_structure_label = labels[0]
-        selected = st.selectbox("Structure", labels, key="result_structure_label")
-        structure_path = structures[labels.index(selected)]
+        structure_path = structures[0]
+        st.caption(file_caption(structure_path))
         if structure_path.suffix.lower() == ".gro":
             with st.expander("Viewer Options", expanded=False):
                 show_connectivity = st.toggle(
@@ -756,9 +905,23 @@ def _render_results(outdir: Path, config: BuildConfig) -> None:
             render_molecule(structure_path, height=520)
     else:
         st.info("No generated files yet.")
-    zip_path = Path(st.session_state["zip_path"]) if st.session_state.get("zip_path") else None
-    if zip_path and zip_path.exists():
-        st.download_button("Download Simulation_Files.zip", zip_path.read_bytes(), "Simulation_Files.zip", "application/zip", width="stretch")
+    _render_simulation_download(outdir)
+
+
+def _render_simulation_download(outdir: Path) -> None:
+    if not outdir.exists():
+        return
+    zip_path = Path(st.session_state["zip_path"]) if st.session_state.get("zip_path") else Path(st.session_state.run_root) / "Simulation_Files.zip"
+    if not zip_path.exists():
+        zip_path = make_zip(outdir, Path(st.session_state.run_root) / "Simulation_Files.zip")
+        st.session_state["zip_path"] = str(zip_path)
+    st.download_button(
+        "Download MartiniSurf simulation files",
+        zip_path.read_bytes(),
+        "Simulation_Files.zip",
+        "application/zip",
+        width="stretch",
+    )
 
 
 def _render_command(config: BuildConfig) -> None:
@@ -856,6 +1019,8 @@ def main() -> None:
     st.set_page_config(page_title="MartiniSurf", page_icon="MS", layout="wide", initial_sidebar_state="expanded")
     apply_theme()
     _init_state()
+    _commit_transient_widget_state()
+    _preserve_app_state()
     RUNS_DIR.mkdir(exist_ok=True)
     st.session_state.setdefault("run_root", tempfile.mkdtemp(prefix="martinisurf_", dir=RUNS_DIR))
     upload_dir = Path(st.session_state.run_root) / "inputs"

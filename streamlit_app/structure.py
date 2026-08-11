@@ -121,10 +121,13 @@ def _summarize_pdb(path: Path) -> StructureSummary:
         chain = line[21].strip() or "_"
         resid = line[22:26].strip()
         icode = line[26].strip()
-        residues.add((chain, resid, icode))
         residue_names.add(resname)
         chain_atoms[chain] = chain_atoms.get(chain, 0) + 1
-        chain_residues.setdefault(chain, set()).add((resid, icode))
+        if resname in AA3:
+            residues.add((chain, resid, icode))
+            chain_residues.setdefault(chain, set()).add((resid, icode))
+        else:
+            chain_residues.setdefault(chain, set())
         if record == "HETATM" and resname not in COMMON_SOLVENT:
             ligands.add(resname)
 
@@ -157,7 +160,10 @@ def _summarize_cif(path: Path) -> StructureSummary:
             chain = parts[6] if len(parts) > 6 else "_"
             resid = parts[8] if len(parts) > 8 else str(atoms)
             residue_names.add(resname)
-            chains.setdefault(chain, set()).add(resid)
+            if resname in AA3:
+                chains.setdefault(chain, set()).add(resid)
+            else:
+                chains.setdefault(chain, set())
             if record == "HETATM" and resname not in COMMON_SOLVENT:
                 ligands.add(resname)
 
