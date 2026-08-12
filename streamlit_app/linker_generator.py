@@ -135,6 +135,30 @@ def smiles_to_svg(smiles: str) -> str:
     return drawer.GetDrawingText()
 
 
+def smiles_from_martini_mapper_report(path: Path) -> str:
+    if not path.exists():
+        return ""
+    for raw in path.read_text(errors="replace").splitlines():
+        if raw.strip().lower().startswith("smiles:"):
+            return raw.split(":", 1)[1].strip()
+    return ""
+
+
+def smiles_to_svg_result(smiles: str) -> tuple[str, str]:
+    smiles = smiles.strip()
+    if not smiles:
+        return "", "No SMILES is available for the 2D preview."
+    try:
+        svg = smiles_to_svg(smiles)
+    except ImportError as exc:
+        return "", f"RDKit import failed: {exc}"
+    except Exception as exc:  # noqa: BLE001 - show drawing backend details in Streamlit.
+        return "", f"RDKit drawing failed: {exc}"
+    if not svg:
+        return "", f"RDKit is unavailable or could not parse SMILES: {smiles}"
+    return svg, ""
+
+
 def _module_exists(name: str) -> bool:
     return importlib.util.find_spec(name) is not None
 

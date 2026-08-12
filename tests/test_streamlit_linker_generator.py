@@ -1,7 +1,12 @@
 from pathlib import Path
 
 from streamlit_app.command_builder import BuildConfig, build_args
-from streamlit_app.linker_generator import parse_linker_gro, parse_martini_mapper_report, safe_molecule_name
+from streamlit_app.linker_generator import (
+    parse_linker_gro,
+    parse_martini_mapper_report,
+    safe_molecule_name,
+    smiles_from_martini_mapper_report,
+)
 from streamlit_app.validators import validate_config
 
 
@@ -63,6 +68,7 @@ def test_parse_martini_mapper_report_explains_bead_chemistry(tmp_path):
     assert rows[0].martini_type == "SN6"
     assert rows[0].atom_indices_1based == [1, 2, 3]
     assert rows[2].atom_indices_1based == [6, 7, 8]
+    assert smiles_from_martini_mapper_report(report_path) == "Oc1ccccc1O"
 
 
 def test_build_args_passes_selected_linker_beads():

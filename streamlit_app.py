@@ -20,7 +20,8 @@ from streamlit_app.linker_generator import (
     parse_linker_gro,
     parse_martini_mapper_report,
     safe_molecule_name,
-    smiles_to_svg,
+    smiles_from_martini_mapper_report,
+    smiles_to_svg_result,
 )
 from streamlit_app.molecular_viewer import (
     MAX_TRAJECTORY_GIF_FRAMES,
@@ -696,6 +697,10 @@ def _refresh_generated_linker_from_path() -> None:
         mapping = _mapping_dicts(parse_martini_mapper_report(report_path, parsed_beads))
         if mapping:
             st.session_state.generated_linker_mapping = mapping
+        if not st.session_state.get("generated_linker_smiles"):
+            report_smiles = smiles_from_martini_mapper_report(report_path)
+            if report_smiles:
+                st.session_state.generated_linker_smiles = report_smiles
         options = _linker_bead_options()
         if options:
             st.session_state.setdefault("linker_protein_bead", options[0])
@@ -755,7 +760,7 @@ def _render_linker_generator() -> None:
             preview_col, beads_col = st.columns([1.35, 1], gap="large")
             with preview_col:
                 svg_smiles = st.session_state.get("generated_linker_smiles") or st.session_state.linker_generator_smiles
-                svg = smiles_to_svg(str(svg_smiles))
+                svg, svg_error = smiles_to_svg_result(str(svg_smiles))
                 if svg:
                     components.html(
                         f"<div style='background:#f7fbff;border-radius:16px;padding:12px;margin-bottom:12px'>{svg}</div>",
@@ -763,7 +768,7 @@ def _render_linker_generator() -> None:
                     )
                     st.caption("Atom indices in the 2D structure and mapping table start at 1.")
                 else:
-                    st.info("2D RDKit preview is unavailable in this environment or the SMILES could not be rendered.")
+                    st.info(svg_error)
                 render_linker_mapping(generated_path, st.session_state.generated_linker_beads, height=360)
             with beads_col:
                 mapping_rows = st.session_state.get("generated_linker_mapping") or []
