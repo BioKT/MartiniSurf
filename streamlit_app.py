@@ -59,6 +59,7 @@ APP_DEPLOY_REVISION = "2026-08-10-local-full"
 TOOL_DIRS = [Path(sys.executable).resolve().parent, REPO_ROOT / ".venv" / "bin"]
 
 STEPS = ["Structure", "Model", "Surface", "Orientation", "Environment", "Review & Build", "Short MDs"]
+NAV_ITEMS = ["Home", *STEPS]
 
 CHAIN_LABELS = list("ABCDEFGHI")
 PROTEIN_COLAB_DEFAULTS_VERSION = 3
@@ -172,7 +173,7 @@ HEXAGONAL_SURFACE_DEFAULTS = {
     "surface_beads": "P4 P4",
     "lx": 6.0,
     "ly": 6.0,
-    "dx": 0.5,
+    "dx": 0.47,
     "charge": 0.0,
     "surface_layers": 2,
     "surface_stacking": "hcp",
@@ -215,7 +216,7 @@ CARBON_SURFACE_DEFAULTS = {
 def _init_state() -> None:
     defaults = {
         "project_name": "MartiniSurf Protein - 1UBQ",
-        "active_step": "Structure",
+        "active_step": "Home",
         "remote_id": "1UBQ",
         "moltype": "Protein",
         "ff": "martini3001",
@@ -234,7 +235,7 @@ def _init_state() -> None:
         "surface_beads": "P4 P4",
         "lx": 6.0,
         "ly": 6.0,
-        "dx": 0.5,
+        "dx": 0.47,
         "charge": 0.0,
         "surface_layers": 2,
         "surface_stacking": "hcp",
@@ -455,6 +456,10 @@ def _image_data_uri(path: Path) -> str:
         return ""
     encoded = base64.b64encode(path.read_bytes()).decode("ascii")
     return f"data:image/png;base64,{encoded}"
+
+
+def _go_to_step(step: str) -> None:
+    st.session_state.active_step = step
 
 
 def _save_upload(uploaded_file, target_dir: Path, state_key: str | None = None) -> Path | None:
@@ -783,7 +788,8 @@ def _render_linker_generator() -> None:
 
 
 def _step_state(step: str, errors: list[str], tool_warnings: list[str], has_output: bool) -> str:
-    active_index = STEPS.index(st.session_state.active_step)
+    active = st.session_state.active_step
+    active_index = STEPS.index(active) if active in STEPS else -1
     index = STEPS.index(step)
     if step == "Short MDs":
         if st.session_state.get("short_md_returncode") == 0:
@@ -808,12 +814,13 @@ def _step_state(step: str, errors: list[str], tool_warnings: list[str], has_outp
 
 def _render_sidebar(errors: list[str], tool_warnings: list[str], has_output: bool) -> None:
     with st.sidebar:
-        logo = REPO_ROOT / "logo.png"
-        st.image(str(logo), width="stretch")
-        selected = st.radio("Workflow step", STEPS, key="active_step", label_visibility="collapsed")
-        active_index = STEPS.index(selected) + 1
-        st.markdown(f'<div class="ms-progress-label">Step {active_index} of {len(STEPS)}</div>', unsafe_allow_html=True)
-        st.progress(active_index / len(STEPS))
+        if st.session_state.get("active_step") not in NAV_ITEMS:
+            st.session_state.active_step = "Home"
+        selected = st.radio("Workflow step", NAV_ITEMS, key="active_step", label_visibility="collapsed")
+        if selected in STEPS:
+            active_index = STEPS.index(selected) + 1
+            st.markdown(f'<div class="ms-progress-label">Step {active_index} of {len(STEPS)}</div>', unsafe_allow_html=True)
+            st.progress(active_index / len(STEPS))
 
 
 def _render_topbar(config: BuildConfig, errors: list[str], tool_warnings: list[str], has_output: bool) -> None:
@@ -865,6 +872,143 @@ def _render_topbar(config: BuildConfig, errors: list[str], tool_warnings: list[s
         mime="application/json",
         width="stretch",
     )
+
+
+def _render_home() -> None:
+    logo_uri = _image_data_uri(REPO_ROOT / "logo.png")
+    left, right = st.columns([1.45, 0.8], gap="large", vertical_alignment="center")
+    with left:
+        st.markdown(
+            """
+            <section class="ms-home-hero-copy">
+              <div class="ms-home-eyebrow">OPEN-SOURCE · MARTINI-BASED · GROMACS-READY</div>
+              <h1>MartiniSurf</h1>
+              <h2>Build reproducible protein–surface systems with Martini.</h2>
+              <p>MartiniSurf streamlines the preparation of surface-immobilized protein systems, from structure input and coarse-graining to controlled orientation, system assembly, and optional short MD checks.</p>
+            </section>
+            """,
+            unsafe_allow_html=True,
+        )
+        actions = st.columns([1, 1, 1], gap="small")
+        actions[0].button("Start setup", type="primary", width="stretch", on_click=_go_to_step, args=("Structure",))
+        actions[1].link_button("Documentation", "https://biokt.github.io/MartiniSurf/", width="stretch")
+        actions[2].link_button("GitHub", "https://github.com/BioKT/MartiniSurf", width="stretch")
+    with right:
+        st.markdown(
+            f"""
+            <div class="ms-home-logo-panel">
+              <img src="{logo_uri}" alt="MartiniSurf logo">
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown('<div class="ms-home-section-title">From structure to simulation-ready system</div>', unsafe_allow_html=True)
+    workflow_cols = st.columns(3, gap="medium")
+    workflow_cards = [
+        ("01 · Prepare", "Provide a protein structure and select the molecular model."),
+        ("02 · Configure", "Define the surface, immobilization mode, orientation, and environment."),
+        ("03 · Build", "Generate a reproducible GROMACS-ready system and optionally run a short MD check."),
+    ]
+    for col, (title, body) in zip(workflow_cols, workflow_cards):
+        with col:
+            st.markdown(
+                f"""
+                <div class="ms-home-workflow-card">
+                  <div>{html.escape(title)}</div>
+                  <p>{html.escape(body)}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.markdown(
+        """
+        <section class="ms-home-publications">
+          <h3>Publications & citation</h3>
+          <p>Please cite the MartiniSurf article when using the application. The methodological study provides the scientific foundation for its oriented immobilization workflow. Additional tool citations are listed when specific generators or models are used.</p>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+    citation_tabs = st.tabs(["MartiniSurf articles", "Tool citations"])
+    with citation_tabs[0]:
+        publications = [
+            {
+                "label": "CITE MARTINISURF",
+                "title": "MartiniSurf: Automated Simulations of Surface-Immobilized Biomolecular Systems with Martini",
+                "reference": "Jiménez-García, J. C.; López-Gallego, F.; López, X.; De Sancho, D. J. Chem. Inf. Model. 2026.",
+                "url": "https://pubs.acs.org/doi/10.1021/acs.jcim.6c00953",
+                "primary": True,
+            },
+            {
+                "label": "METHODOLOGICAL FOUNDATION",
+                "title": "Mechanistic Determinants of Oriented Enzyme Immobilization from Martini Simulations",
+                "reference": "Jiménez-García, J. C.; Zeballos, N.; López-Gallego, F.; López, X.; De Sancho, D. J. Phys. Chem. Lett. 2026, 17 (7), 2094–2102.",
+                "url": "https://pubs.acs.org/doi/10.1021/acs.jpclett.5c03753",
+                "primary": False,
+            },
+        ]
+        for publication in publications:
+            card_class = "ms-home-pub-card compact primary" if publication["primary"] else "ms-home-pub-card compact"
+            st.markdown(
+                f"""
+                <div class="{card_class}">
+                  <div class="ms-home-pub-label">{html.escape(publication["label"])}</div>
+                  <h4>{html.escape(publication["title"])}</h4>
+                  <p>{html.escape(publication["reference"])}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.link_button("View article", str(publication["url"]))
+    with citation_tabs[1]:
+        st.markdown(
+            """
+            <div class="ms-home-tool-note">
+              Cite the tools that were active in your workflow. If you use the Linker Generator, also cite Martini Mapper.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        tool_rows = [
+            {
+                "When to cite": "Protein coarse-graining / topology generation",
+                "Tool": "Martinize2 / Vermouth",
+                "Reference": "Kroon PC, Grünewald F, Barnoud J, et al. Martinize2 and Vermouth: Unified Framework for Topology Generation. eLife reviewed preprint v2. DOI: 10.7554/eLife.90627.2.",
+            },
+            {
+                "When to cite": "GōMartini model enabled",
+                "Tool": "GōMartini",
+                "Reference": "Poma AB, Cieplak M, Theodorakis PE. Combining the MARTINI and structure-based coarse-grained approaches for the molecular dynamics studies of conformational transitions in proteins. J. Chem. Theory Comput. 2017, 13(3), 1366-1374.",
+            },
+            {
+                "When to cite": "AutoMartini-generated linker or small molecule",
+                "Tool": "AutoMartini M3",
+                "Reference": "Szczuka M, Pereira GP, Walter LJ, Gueroult M, Poulain P, Bereau T, Souza PCT, Chavent M. Fast Parametrization of Martini3 Models for Fragments and Small Molecules. J. Chem. Theory Comput. 2025, 22(1), 610-623.",
+            },
+            {
+                "When to cite": "Graphene, graphite, or nanotube surfaces",
+                "Tool": "Martini 3 carbon nanomaterials",
+                "Reference": "Shrestha R, Alessandri R, Vögele M, Hilpert C, Souza PCT, Marrink SJ, Monticelli L. Martini 3 coarse-grained models for carbon nanomaterials. J. Chem. Theory Comput. 2025, 21(18), 9035-9053.",
+            },
+            {
+                "When to cite": "Linker Generator used",
+                "Tool": "Martini Mapper",
+                "Reference": "Bigting KV, Nag S, An Y. Martini Mapper: An Automated Fragment-Based Mapping Algorithm for Developing Coarse-Grained Models within the Martini 3 Framework. J. Chem. Inf. Model. 2026, 66(9), 5272-5286. DOI: 10.1021/acs.jcim.5c02903.",
+            },
+        ]
+        for row in tool_rows:
+            st.markdown(
+                f"""
+                <div class="ms-home-tool-card">
+                  <div class="ms-home-tool-when">{html.escape(row["When to cite"])}</div>
+                  <div class="ms-home-tool-name">{html.escape(row["Tool"])}</div>
+                  <p>{html.escape(row["Reference"])}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
 
 def _render_structure_step(upload_dir: Path) -> tuple[Path | None, Path | None, Path | None, Path | None, Path | None, Path | None, StructureSummary]:
@@ -1708,12 +1852,19 @@ def main() -> None:
     st.set_page_config(page_title="MartiniSurf", page_icon="MS", layout="wide", initial_sidebar_state="expanded")
     apply_theme()
     _init_state()
+    if st.session_state.get("active_step") not in NAV_ITEMS:
+        st.session_state.active_step = "Home"
     _commit_transient_widget_state()
     _preserve_app_state()
     RUNS_DIR.mkdir(exist_ok=True)
     st.session_state.setdefault("run_root", tempfile.mkdtemp(prefix="martinisurf_", dir=RUNS_DIR))
     upload_dir = Path(st.session_state.run_root) / "inputs"
     upload_dir.mkdir(parents=True, exist_ok=True)
+
+    if st.session_state.active_step == "Home":
+        _render_sidebar([], [], False)
+        _render_home()
+        return
 
     structure_path = st.session_state.get("_structure_path")
     surface_path = st.session_state.get("_surface_path")

@@ -26,7 +26,7 @@ class BuildConfig:
     surface_path: Path | None = None
     lx: float = 6.0
     ly: float = 6.0
-    dx: float = 0.5
+    dx: float = 0.47
     surface_beads: list[str] = field(default_factory=lambda: ["P4", "P4"])
     charge: float = 0.0
     surface_layers: int | None = 2

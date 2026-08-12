@@ -420,6 +420,16 @@ def apply_theme() -> None:
           color: var(--ms-text) !important;
           font-weight: 820;
         }
+        [data-testid="stSidebar"] div[role="radiogroup"] label:nth-of-type(2)::before {
+          content: "PROJECT WORKFLOW";
+          display: block;
+          color: var(--ms-text-muted);
+          font-size: 0.68rem;
+          font-weight: 820;
+          letter-spacing: 0.06em;
+          margin: -0.05rem 0 0.58rem;
+          text-transform: uppercase;
+        }
         .ms-control-title,
         .ms-panel-title {
           color: var(--ms-ink);
@@ -427,6 +437,169 @@ def apply_theme() -> None:
           font-weight: 820;
           margin: 0.15rem 0 0.72rem;
           letter-spacing: 0;
+        }
+        .ms-home-hero-copy {
+          min-height: 16rem;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          padding: 0.8rem 0 0.35rem;
+        }
+        .ms-home-eyebrow {
+          color: var(--ms-teal);
+          font-size: 0.72rem;
+          font-weight: 820;
+          letter-spacing: 0.06em;
+          margin-bottom: 0.7rem;
+        }
+        .ms-home-hero-copy h1 {
+          color: var(--ms-primary);
+          font-size: clamp(3rem, 6vw, 5.6rem);
+          font-weight: 950;
+          line-height: 0.92;
+          margin: 0 0 0.45rem;
+          letter-spacing: 0;
+        }
+        .ms-home-hero-copy h2 {
+          color: var(--ms-text);
+          font-size: clamp(1.15rem, 2vw, 1.55rem);
+          font-weight: 780;
+          line-height: 1.2;
+          margin: 0 0 0.8rem;
+          letter-spacing: 0;
+        }
+        .ms-home-hero-copy p,
+        .ms-home-publications p,
+        .ms-home-workflow-card p,
+        .ms-home-pub-card p {
+          color: var(--ms-text-secondary);
+          line-height: 1.55;
+          margin: 0;
+        }
+        .ms-home-hero-copy p {
+          max-width: 48rem;
+          font-size: 0.98rem;
+        }
+        .ms-home-logo-panel {
+          height: 19rem;
+          max-height: 340px;
+          border: 1px solid var(--ms-border);
+          border-radius: var(--ms-radius-lg);
+          background: var(--ms-bg-panel);
+          display: grid;
+          place-items: center;
+          padding: 1rem;
+          box-shadow: var(--ms-shadow-panel);
+        }
+        .ms-home-logo-panel img {
+          width: min(100%, 17rem);
+          height: 16rem;
+          object-fit: contain;
+        }
+        .ms-home-section-title {
+          color: var(--ms-text);
+          font-size: 1.25rem;
+          font-weight: 860;
+          margin: 1.45rem 0 0.75rem;
+          letter-spacing: 0;
+        }
+        .ms-home-workflow-card {
+          min-height: 8.4rem;
+          border: 1px solid var(--ms-border);
+          border-radius: var(--ms-radius-md);
+          background: var(--ms-bg-panel);
+          padding: 1rem;
+          box-shadow: var(--ms-shadow-panel);
+        }
+        .ms-home-workflow-card div {
+          color: var(--ms-teal);
+          font-size: 0.84rem;
+          font-weight: 840;
+          margin-bottom: 0.55rem;
+        }
+        .ms-home-publications {
+          margin-top: 1.55rem;
+          margin-bottom: 0.85rem;
+          max-width: 62rem;
+        }
+        .ms-home-publications h3 {
+          color: var(--ms-text);
+          font-size: 1.25rem;
+          font-weight: 860;
+          margin: 0 0 0.45rem;
+          letter-spacing: 0;
+        }
+        .ms-home-pub-card {
+          min-height: 8rem;
+          border: 1px solid var(--ms-border);
+          border-radius: var(--ms-radius-md);
+          background: var(--ms-bg-panel);
+          padding: 1rem;
+          box-shadow: var(--ms-shadow-panel);
+        }
+        .ms-home-pub-card.primary {
+          background: var(--ms-bg-elevated);
+          border-color: rgba(255, 79, 163, 0.36);
+        }
+        .ms-home-pub-card.compact {
+          min-height: auto;
+          padding: 0.9rem 1rem;
+          margin-bottom: 0.65rem;
+        }
+        .ms-home-pub-label {
+          color: var(--ms-teal);
+          font-size: 0.68rem;
+          font-weight: 850;
+          letter-spacing: 0.06em;
+          margin-bottom: 0.55rem;
+        }
+        .ms-home-pub-card.primary .ms-home-pub-label {
+          color: var(--ms-primary);
+        }
+        .ms-home-pub-card h4 {
+          color: var(--ms-text);
+          font-size: 1.02rem;
+          line-height: 1.25;
+          font-weight: 830;
+          margin: 0 0 0.65rem;
+          letter-spacing: 0;
+        }
+        .ms-home-pub-card.compact h4 {
+          margin-bottom: 0.4rem;
+        }
+        .ms-home-tool-note {
+          border: 1px solid rgba(66, 199, 213, 0.34);
+          border-radius: var(--ms-radius-md);
+          background: rgba(66, 199, 213, 0.08);
+          color: var(--ms-text);
+          padding: 0.82rem 0.95rem;
+          margin-bottom: 0.85rem;
+          font-weight: 650;
+        }
+        .ms-home-tool-card {
+          border: 1px solid var(--ms-border);
+          border-radius: var(--ms-radius-md);
+          background: var(--ms-bg-panel);
+          padding: 0.86rem 0.95rem;
+          margin-bottom: 0.7rem;
+          box-shadow: var(--ms-shadow-panel);
+        }
+        .ms-home-tool-when {
+          color: var(--ms-teal);
+          font-size: 0.72rem;
+          font-weight: 820;
+          margin-bottom: 0.28rem;
+        }
+        .ms-home-tool-name {
+          color: var(--ms-text);
+          font-size: 0.98rem;
+          font-weight: 840;
+          margin-bottom: 0.34rem;
+        }
+        .ms-home-tool-card p {
+          color: var(--ms-text-secondary);
+          line-height: 1.48;
+          margin: 0;
         }
         div[data-testid="stTabs"] {
           border: 1px solid var(--ms-line);
