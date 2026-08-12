@@ -811,8 +811,9 @@ def _render_sidebar(errors: list[str], tool_warnings: list[str], has_output: boo
         logo = REPO_ROOT / "logo.png"
         st.image(str(logo), width="stretch")
         selected = st.radio("Workflow step", STEPS, key="active_step", label_visibility="collapsed")
-        completed = sum(1 for step in STEPS if _step_state(step, errors, tool_warnings, has_output) == "completed")
-        st.progress(completed / len(STEPS), text=f"{completed} of {len(STEPS)}")
+        active_index = STEPS.index(selected) + 1
+        st.markdown(f'<div class="ms-progress-label">Step {active_index} of {len(STEPS)}</div>', unsafe_allow_html=True)
+        st.progress(active_index / len(STEPS))
 
 
 def _render_topbar(config: BuildConfig, errors: list[str], tool_warnings: list[str], has_output: bool) -> None:
@@ -1609,7 +1610,7 @@ def _render_simulation_download(outdir: Path) -> None:
 
 
 def _render_command(config: BuildConfig) -> None:
-    with st.expander("Reproducible command", expanded=True):
+    with st.expander("Reproducible command", expanded=False):
         st.code(shell_command(build_args(config)), language="bash")
 
 
@@ -1621,6 +1622,8 @@ def _render_log() -> None:
     stderr = st.session_state.get("last_stderr", "")
     st.markdown('<div class="ms-panel-title">Run summary</div>', unsafe_allow_html=True)
     for label, value in summarize_log(stdout, stderr, returncode):
+        if label != "Status":
+            continue
         st.markdown(
             f'<div class="ms-log-row"><div class="ms-log-label">{html.escape(label)}</div><div class="ms-log-value">{html.escape(value)}</div></div>',
             unsafe_allow_html=True,

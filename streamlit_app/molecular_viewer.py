@@ -515,27 +515,27 @@ def render_short_md_trajectory(
       viewer.setStyle({{}}, {{ sphere: {{ hidden: true }} }});
       const components = {json.dumps(component_resnames)};
       if ({json.dumps(bool(show_surface))} && components.surface.length) {{
-        viewer.setStyle({{resn: components.surface}}, {{ sphere: {{ radius: 0.85, color: "orange" }} }});
+        viewer.setStyle({{resn: components.surface}}, {{ sphere: {{ radius: 0.935, color: "orange" }} }});
       }}
       if ({json.dumps(bool(show_water))} && components.water.length) {{
-        viewer.setStyle({{resn: components.water}}, {{ sphere: {{ radius: 0.42, color: "lightgray", opacity: 0.55 }} }});
+        viewer.setStyle({{resn: components.water}}, {{ sphere: {{ radius: 0.462, color: "lightgray", opacity: 0.55 }} }});
       }}
       if ({json.dumps(bool(show_ions))} && components.ions.length) {{
-        viewer.setStyle({{resn: components.ions}}, {{ sphere: {{ radius: 0.55, color: "limegreen" }} }});
+        viewer.setStyle({{resn: components.ions}}, {{ sphere: {{ radius: 0.605, color: "limegreen" }} }});
       }}
       if ({json.dumps(bool(show_linker))} && components.linker.length) {{
-        viewer.setStyle({{resn: components.linker}}, {{ sphere: {{ radius: 0.76, color: "yellow" }} }});
+        viewer.setStyle({{resn: components.linker}}, {{ sphere: {{ radius: 0.836, color: "yellow" }} }});
       }}
       if ({json.dumps(bool(show_protein))}) {{
-        viewer.setStyle({{atom: "BB"}}, {{ sphere: {{ radius: 0.82, color: "gray" }} }});
-        viewer.setStyle({{atom: "BB1"}}, {{ sphere: {{ radius: 0.82, color: "gray" }} }});
-        viewer.setStyle({{atom: "BB2"}}, {{ sphere: {{ radius: 0.82, color: "gray" }} }});
-        viewer.setStyle({{atom: "BB3"}}, {{ sphere: {{ radius: 0.82, color: "gray" }} }});
-        viewer.setStyle({{atom: /^SC/}}, {{ sphere: {{ radius: 0.82, color: "hotpink" }} }});
+        viewer.setStyle({{atom: "BB"}}, {{ sphere: {{ radius: 0.902, color: "gray" }} }});
+        viewer.setStyle({{atom: "BB1"}}, {{ sphere: {{ radius: 0.902, color: "gray" }} }});
+        viewer.setStyle({{atom: "BB2"}}, {{ sphere: {{ radius: 0.902, color: "gray" }} }});
+        viewer.setStyle({{atom: "BB3"}}, {{ sphere: {{ radius: 0.902, color: "gray" }} }});
+        viewer.setStyle({{atom: /^SC/}}, {{ sphere: {{ radius: 0.902, color: "hotpink" }} }});
       }}
       const highlightedResids = {json.dumps(highlighted_resids)};
       if ({json.dumps(bool(show_protein))} && highlightedResids.length) {{
-        viewer.addStyle({{ resi: highlightedResids }}, {{ sphere: {{ color: "red", radius: 1.05 }} }});
+        viewer.addStyle({{ resi: highlightedResids }}, {{ sphere: {{ color: "red", radius: 1.155 }} }});
       }}
       viewer.zoomTo();
       if ({json.dumps(model_mode)} === "trajectory") {{

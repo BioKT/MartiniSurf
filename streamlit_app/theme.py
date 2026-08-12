@@ -8,38 +8,38 @@ def apply_theme() -> None:
         """
         <style>
         :root {
-          --ms-bg: #0E0D11;
-          --ms-sidebar-bg: #121016;
-          --ms-bg-elevated: #19161E;
-          --ms-bg-panel: #211C27;
-          --ms-bg-input: #17141B;
-          --ms-bg-hover: #2B2432;
-          --ms-border: rgba(229, 214, 226, 0.16);
-          --ms-border-strong: rgba(255, 108, 183, 0.50);
-          --ms-text: #FAF5F8;
-          --ms-text-secondary: #D6CAD3;
-          --ms-text-muted: #A99DA7;
-          --ms-text-on-accent: #180710;
-          --ms-primary: #FF62B4;
-          --ms-primary-hover: #FF9ED2;
-          --ms-success: #68D391;
+          --ms-bg: #0C0D12;
+          --ms-sidebar-bg: #090A0F;
+          --ms-bg-elevated: #1A1D27;
+          --ms-bg-panel: #15171F;
+          --ms-bg-input: #10121A;
+          --ms-bg-hover: #1A1D27;
+          --ms-border: #303441;
+          --ms-border-strong: #42C7D5;
+          --ms-text: #F4F5F7;
+          --ms-text-secondary: #9DA3AE;
+          --ms-text-muted: #7F8794;
+          --ms-text-on-accent: #05060A;
+          --ms-primary: #FF4FA3;
+          --ms-primary-hover: #FF78BA;
+          --ms-success: #55D68B;
           --ms-warning: #F2B86B;
           --ms-error: #F07883;
-          --ms-focus: rgba(255, 98, 180, 0.34);
-          --ms-accent: #FF62B4;
+          --ms-focus: rgba(66, 199, 213, 0.30);
+          --ms-accent: #FF4FA3;
           --ms-radius-sm: 8px;
-          --ms-radius-md: 12px;
-          --ms-radius-lg: 16px;
-          --ms-shadow-soft: 0 14px 36px rgba(0, 0, 0, 0.24);
-          --ms-shadow-panel: 0 10px 28px rgba(0, 0, 0, 0.18);
+          --ms-radius-md: 10px;
+          --ms-radius-lg: 14px;
+          --ms-shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.28);
+          --ms-shadow-panel: 0 8px 22px rgba(0, 0, 0, 0.22);
 
           --ms-ink: var(--ms-text);
           --ms-muted: var(--ms-text-secondary);
           --ms-line: var(--ms-border);
-          --ms-panel: rgba(33, 28, 39, 0.92);
-          --ms-teal: #8CDADF;
-          --ms-mint: #A5E8DC;
-          --ms-deep: #0E0D11;
+          --ms-panel: var(--ms-bg-panel);
+          --ms-teal: #42C7D5;
+          --ms-mint: #7FE1EA;
+          --ms-deep: #0C0D12;
           --ms-green: var(--ms-success);
           --ms-amber: var(--ms-warning);
         }
@@ -49,9 +49,7 @@ def apply_theme() -> None:
           box-sizing: border-box;
         }
         .stApp {
-          background:
-            linear-gradient(180deg, rgba(255, 98, 180, 0.045), transparent 18rem),
-            linear-gradient(145deg, #0E0D11 0%, #141118 52%, #0A090D 100%);
+          background: var(--ms-bg);
           color: var(--ms-text);
           font-family: Inter, "Source Sans Pro", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
@@ -71,8 +69,8 @@ def apply_theme() -> None:
         [data-testid="stHeader"],
         header[data-testid="stHeader"] {
           display: block !important;
-          height: 3rem !important;
-          min-height: 3rem !important;
+          height: 2.45rem !important;
+          min-height: 2.45rem !important;
           opacity: 1 !important;
           pointer-events: auto !important;
           background: transparent !important;
@@ -105,8 +103,8 @@ def apply_theme() -> None:
           visibility: visible !important;
           opacity: 1 !important;
           pointer-events: auto !important;
-          background: rgba(25, 22, 30, 0.96) !important;
-          border: 1px solid rgba(255, 98, 180, 0.48) !important;
+          background: var(--ms-bg-elevated) !important;
+          border: 1px solid rgba(66, 199, 213, 0.42) !important;
           border-radius: 8px !important;
           color: var(--ms-ink) !important;
           z-index: 999999 !important;
@@ -132,9 +130,9 @@ def apply_theme() -> None:
           stroke: #ffffff !important;
         }
         [data-testid="stSidebar"] {
-          background: linear-gradient(180deg, #121016 0%, #0C0B10 100%);
+          background: var(--ms-sidebar-bg);
           border-right: 1px solid var(--ms-line);
-          scrollbar-color: rgba(255, 98, 180, 0.78) rgba(20, 17, 24, 0.75);
+          scrollbar-color: rgba(66, 199, 213, 0.72) #0D0F15;
           scrollbar-width: thin;
         }
         [data-testid="stSidebarContent"] {
@@ -143,7 +141,7 @@ def apply_theme() -> None:
           padding-top: 1rem;
           padding-left: 1.05rem;
           padding-right: 1.05rem;
-          scrollbar-color: rgba(255, 98, 180, 0.78) rgba(20, 17, 24, 0.75);
+          scrollbar-color: rgba(66, 199, 213, 0.72) #0D0F15;
           scrollbar-width: thin;
         }
         [data-testid="stSidebar"]::-webkit-scrollbar,
@@ -157,21 +155,21 @@ def apply_theme() -> None:
         [data-testid="stSidebarContent"]::-webkit-scrollbar-track,
         [data-testid="stAppViewContainer"]::-webkit-scrollbar-track,
         body::-webkit-scrollbar-track {
-          background: rgba(20, 17, 24, 0.75);
+          background: #0D0F15;
         }
         [data-testid="stSidebar"]::-webkit-scrollbar-thumb,
         [data-testid="stSidebarContent"]::-webkit-scrollbar-thumb,
         [data-testid="stAppViewContainer"]::-webkit-scrollbar-thumb,
         body::-webkit-scrollbar-thumb {
-          background: linear-gradient(180deg, var(--ms-teal), var(--ms-accent));
-          border: 2px solid rgba(20, 17, 24, 0.75);
+          background: var(--ms-teal);
+          border: 2px solid #0D0F15;
           border-radius: 999px;
         }
         [data-testid="stSidebar"]::-webkit-scrollbar-thumb:hover,
         [data-testid="stSidebarContent"]::-webkit-scrollbar-thumb:hover,
         [data-testid="stAppViewContainer"]::-webkit-scrollbar-thumb:hover,
         body::-webkit-scrollbar-thumb:hover {
-          background: var(--ms-mint, #64E3C4);
+          background: var(--ms-mint);
         }
         [data-testid="stSidebar"] {
           color: var(--ms-text);
@@ -182,16 +180,16 @@ def apply_theme() -> None:
           color: inherit;
         }
         [data-testid="stSidebar"] img {
-          background: linear-gradient(180deg, rgba(33, 28, 39, 0.96), rgba(18, 16, 22, 0.90));
-          border: 1px solid rgba(255, 98, 180, 0.22);
-          border-radius: var(--ms-radius-lg);
-          padding: 0.55rem;
-          height: 13.5rem;
+          background: var(--ms-bg-panel);
+          border: 1px solid var(--ms-line);
+          border-radius: var(--ms-radius-md);
+          padding: 0.45rem;
+          height: 11.5rem;
           object-fit: contain;
           box-shadow: var(--ms-shadow-panel);
         }
         .block-container {
-          padding-top: 3rem;
+          padding-top: 2.25rem;
           padding-bottom: 2rem;
           max-width: 1500px;
         }
@@ -202,12 +200,12 @@ def apply_theme() -> None:
           color: var(--ms-ink);
         }
         div[data-testid="stMetric"] {
-          background: linear-gradient(180deg, rgba(35, 30, 41, 0.94), rgba(24, 21, 29, 0.92));
+          background: var(--ms-bg-panel);
           border: 1px solid var(--ms-line);
           border-radius: var(--ms-radius-md);
           padding: 0.58rem 0.78rem;
           min-height: 4.4rem;
-          box-shadow: 0 6px 18px rgba(0,0,0,0.13);
+          box-shadow: var(--ms-shadow-panel);
         }
         div[data-testid="stMetric"] label,
         div[data-testid="stMetric"] [data-testid="stMetricValue"] {
@@ -215,7 +213,7 @@ def apply_theme() -> None:
         }
         div[data-testid="stMetric"] label {
           color: var(--ms-text-secondary) !important;
-          font-size: 0.76rem !important;
+          font-size: 0.74rem !important;
           letter-spacing: 0;
         }
         div[data-testid="stMetric"] [data-testid="stMetricValue"] {
@@ -224,8 +222,8 @@ def apply_theme() -> None:
         }
         .ms-header {
           border-bottom: 1px solid var(--ms-line);
-          padding: 0.4rem 0 1.35rem 0;
-          margin-bottom: 1.1rem;
+          padding: 0.25rem 0 1rem 0;
+          margin-bottom: 0.9rem;
           display: grid;
           grid-template-columns: minmax(0, 1fr) 7.5rem;
           gap: 1.25rem;
@@ -233,13 +231,13 @@ def apply_theme() -> None:
         }
         .ms-kicker {
           color: var(--ms-teal);
-          font-size: 0.82rem;
-          font-weight: 700;
+          font-size: 0.74rem;
+          font-weight: 760;
           text-transform: uppercase;
         }
         .ms-brand {
           color: var(--ms-accent);
-          font-size: clamp(3.6rem, 8vw, 7.4rem);
+          font-size: clamp(3rem, 6vw, 5.8rem);
           font-weight: 900;
           line-height: 0.88;
           margin: 0.18rem 0 0.45rem;
@@ -254,9 +252,15 @@ def apply_theme() -> None:
         .ms-soft {
           color: var(--ms-muted);
         }
+        .ms-progress-label {
+          color: var(--ms-text-secondary);
+          font-size: 0.78rem;
+          font-weight: 760;
+          margin: 1.2rem 0 0.38rem;
+        }
         .ms-sidebar-title {
           color: var(--ms-text);
-          font-size: 1.22rem;
+          font-size: 1.05rem;
           font-weight: 900;
           line-height: 1;
           margin: 0;
@@ -275,10 +279,10 @@ def apply_theme() -> None:
           gap: 1rem;
           align-items: center;
           border: 1px solid var(--ms-line);
-          background: linear-gradient(180deg, rgba(33, 28, 39, 0.93), rgba(17, 15, 21, 0.90));
-          border-radius: var(--ms-radius-lg);
-          padding: 0.82rem 1rem;
-          margin-bottom: 1.05rem;
+          background: var(--ms-bg-panel);
+          border-radius: var(--ms-radius-md);
+          padding: 0.65rem 0.85rem;
+          margin-bottom: 0.95rem;
           box-shadow: var(--ms-shadow-soft);
         }
         .ms-top-brand {
@@ -291,20 +295,20 @@ def apply_theme() -> None:
           width: 3.8rem;
           height: 3.8rem;
           object-fit: contain;
-          background: rgba(24, 21, 29, 0.86);
+          background: var(--ms-bg-elevated);
           border-radius: var(--ms-radius-md);
           padding: 0.28rem;
         }
         .ms-top-title {
           color: var(--ms-primary);
-          font-size: clamp(1.65rem, 2.6vw, 2.65rem);
+          font-size: clamp(1.45rem, 2.1vw, 2.2rem);
           font-weight: 950;
           line-height: 0.98;
           letter-spacing: 0;
         }
         .ms-top-subtitle {
           color: var(--ms-muted);
-          font-size: 0.88rem;
+          font-size: 0.82rem;
           margin-top: 0.2rem;
           white-space: nowrap;
           overflow: hidden;
@@ -321,8 +325,8 @@ def apply_theme() -> None:
         .ms-ready {
           border: 1px solid var(--ms-line);
           border-radius: 999px;
-          background: rgba(255,255,255,0.045);
-          padding: 0.42rem 0.68rem;
+          background: var(--ms-bg-elevated);
+          padding: 0.36rem 0.62rem;
           color: var(--ms-ink);
           font-size: 0.82rem;
           font-weight: 760;
@@ -343,13 +347,13 @@ def apply_theme() -> None:
         }
         .ms-model-toggles + div[data-testid="stHorizontalBlock"] div[data-testid="stToggle"] {
           border: 1px solid var(--ms-line);
-          background: rgba(33, 28, 39, 0.82);
-          border-radius: var(--ms-radius-lg);
-          min-height: 4.25rem;
-          padding: 0.9rem 1rem;
+          background: var(--ms-bg-panel);
+          border-radius: var(--ms-radius-md);
+          min-height: 3.9rem;
+          padding: 0.78rem 0.9rem;
         }
         .ms-model-toggles + div[data-testid="stHorizontalBlock"] div[data-testid="stToggle"] label p {
-          font-size: 1.02rem;
+          font-size: 0.96rem;
           font-weight: 850;
         }
         .ms-ready span {
@@ -373,8 +377,8 @@ def apply_theme() -> None:
           width: 1.82rem;
           height: 1.82rem;
           border-radius: 50%;
-          border: 1px solid rgba(255, 98, 180, 0.42);
-          background: rgba(255,255,255,0.04);
+          border: 1px solid var(--ms-line);
+          background: var(--ms-bg-elevated);
         }
         .ms-step p {
           margin: 0;
@@ -382,7 +386,7 @@ def apply_theme() -> None:
         }
         .ms-step.active {
           color: var(--ms-deep);
-          background: linear-gradient(135deg, var(--ms-primary), var(--ms-primary-hover));
+          background: var(--ms-primary);
           border-radius: var(--ms-radius-md);
           padding-left: 0.7rem;
           margin: 0.25rem 0;
@@ -401,34 +405,34 @@ def apply_theme() -> None:
         [data-testid="stSidebar"] div[role="radiogroup"] label {
           border: 1px solid transparent;
           border-radius: var(--ms-radius-md);
-          padding: 0.52rem 0.58rem;
+          padding: 0.5rem 0.58rem;
           margin: 0;
           min-height: 2.65rem;
           transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
         }
         [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
-          background: rgba(255, 98, 180, 0.09);
-          border-color: rgba(255, 98, 180, 0.20);
+          background: rgba(66, 199, 213, 0.08);
+          border-color: rgba(66, 199, 213, 0.32);
         }
         [data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
-          background: linear-gradient(90deg, rgba(255, 92, 173, 0.18), rgba(126, 221, 226, 0.07));
-          border-color: rgba(255, 98, 180, 0.46);
+          background: rgba(255, 79, 163, 0.14);
+          border-color: rgba(255, 79, 163, 0.58);
           color: var(--ms-text) !important;
           font-weight: 820;
         }
         .ms-control-title,
         .ms-panel-title {
           color: var(--ms-ink);
-          font-size: 1.12rem;
-          font-weight: 850;
-          margin: 0.25rem 0 0.8rem;
+          font-size: 1.05rem;
+          font-weight: 820;
+          margin: 0.15rem 0 0.72rem;
           letter-spacing: 0;
         }
         div[data-testid="stTabs"] {
           border: 1px solid var(--ms-line);
-          border-radius: var(--ms-radius-lg);
-          background: rgba(27, 23, 32, 0.78);
-          padding: 0.75rem;
+          border-radius: var(--ms-radius-md);
+          background: var(--ms-bg-panel);
+          padding: 0.55rem;
         }
         div[data-testid="stTabs"] button {
           color: var(--ms-muted) !important;
@@ -439,8 +443,8 @@ def apply_theme() -> None:
         }
         div[data-testid="stTabs"] button[aria-selected="true"] {
           color: var(--ms-deep) !important;
-          background: linear-gradient(135deg, var(--ms-primary), var(--ms-primary-hover));
-          border-radius: var(--ms-radius-md);
+          background: var(--ms-primary);
+          border-radius: var(--ms-radius-sm);
         }
         div[data-testid="stRadio"] label,
         div[data-testid="stCheckbox"] label,
@@ -450,20 +454,41 @@ def apply_theme() -> None:
         div[data-testid="stRadio"] label:hover,
         div[data-testid="stCheckbox"] label:hover,
         div[data-testid="stToggle"] label:hover {
-          color: var(--ms-primary-hover) !important;
+          color: var(--ms-teal) !important;
         }
-        div[data-testid="stProgress"] > div > div {
-          background-color: var(--ms-primary) !important;
+        div[data-testid="stCheckbox"] label:has(input:checked),
+        div[data-testid="stToggle"] label:has(input:checked),
+        div[data-testid="stRadio"] label:has(input:checked) {
+          color: var(--ms-text) !important;
+        }
+        div[data-testid="stCheckbox"] input:focus-visible,
+        div[data-testid="stToggle"] input:focus-visible,
+        div[data-testid="stRadio"] input:focus-visible {
+          outline: 2px solid var(--ms-teal) !important;
+          outline-offset: 2px !important;
+        }
+        div[data-testid="stProgress"] div[data-testid="stProgressBarTrack"] {
+          height: 0.38rem !important;
+          background-color: var(--ms-bg-elevated) !important;
+          border-radius: 999px !important;
+          overflow: hidden !important;
+        }
+        div[data-testid="stProgress"] div[data-testid="stProgressBarTrack"] > div {
+          background-color: var(--ms-teal) !important;
+          border-radius: 999px !important;
+          box-shadow: 0 0 12px rgba(66, 199, 213, 0.24);
         }
         div[data-testid="stProgress"] p {
-          color: #06111A !important;
-          font-weight: 850 !important;
+          color: var(--ms-text-secondary) !important;
+          font-size: 0.78rem !important;
+          font-weight: 760 !important;
+          margin-bottom: 0.35rem !important;
         }
         [data-testid="stWidgetLabel"] p,
         [data-testid="stWidgetLabel"] label,
         [data-testid="stWidgetLabel"] span {
-          color: #D8E6EC !important;
-          font-size: 0.83rem;
+          color: var(--ms-text-secondary) !important;
+          font-size: 0.8rem;
           font-weight: 760;
           letter-spacing: 0;
         }
@@ -473,29 +498,58 @@ def apply_theme() -> None:
           background-color: var(--ms-bg-input) !important;
           color: var(--ms-text) !important;
           border: 1px solid var(--ms-border) !important;
-          border-radius: var(--ms-radius-md) !important;
+          border-radius: var(--ms-radius-sm) !important;
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
-          min-height: 2.55rem;
+          min-height: 2.45rem;
         }
         div[data-testid="stTextInput"] input:hover,
         div[data-testid="stTextArea"] textarea:hover,
         div[data-testid="stNumberInput"] input:hover {
           border-color: var(--ms-border-strong) !important;
-          background-color: #211B27 !important;
+          background-color: var(--ms-bg-elevated) !important;
         }
         div[data-testid="stTextInput"] input:focus,
         div[data-testid="stTextArea"] textarea:focus,
         div[data-testid="stNumberInput"] input:focus {
-          border-color: var(--ms-primary) !important;
+          border-color: var(--ms-teal) !important;
           box-shadow: 0 0 0 0.18rem var(--ms-focus) !important;
+        }
+        div[data-testid="stNumberInput"] button {
+          background: var(--ms-bg-elevated) !important;
+          border: 1px solid var(--ms-border) !important;
+          color: var(--ms-text-secondary) !important;
+          min-height: 2.45rem !important;
+          box-shadow: none !important;
+        }
+        div[data-testid="stNumberInput"] button:hover {
+          border-color: var(--ms-teal) !important;
+          color: var(--ms-teal) !important;
+          background: var(--ms-bg-hover) !important;
+        }
+        div[data-testid="stNumberInput"] button:focus {
+          box-shadow: 0 0 0 0.18rem var(--ms-focus) !important;
+          outline: none !important;
+        }
+        div[data-testid="stNumberInput"] button svg {
+          color: inherit !important;
+          fill: currentColor !important;
         }
         div[data-baseweb="select"] > div,
         div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div {
           background-color: var(--ms-bg-input) !important;
           color: var(--ms-text) !important;
           border-color: var(--ms-border) !important;
-          border-radius: var(--ms-radius-md) !important;
-          min-height: 2.55rem;
+          border-radius: var(--ms-radius-sm) !important;
+          min-height: 2.45rem;
+        }
+        div[data-baseweb="select"] > div:hover,
+        div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div:hover {
+          border-color: var(--ms-teal) !important;
+        }
+        div[data-baseweb="select"] > div:focus-within,
+        div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div:focus-within {
+          border-color: var(--ms-teal) !important;
+          box-shadow: 0 0 0 0.18rem var(--ms-focus) !important;
         }
         div[data-baseweb="select"] span,
         div[data-baseweb="select"] svg {
@@ -507,7 +561,7 @@ def apply_theme() -> None:
         ul[role="listbox"] {
           background: var(--ms-bg-elevated) !important;
           color: var(--ms-text) !important;
-          border: 1px solid var(--ms-border-strong) !important;
+          border: 1px solid rgba(66, 199, 213, 0.45) !important;
           border-radius: var(--ms-radius-md) !important;
           box-shadow: 0 18px 50px rgba(0,0,0,0.42) !important;
         }
@@ -520,12 +574,12 @@ def apply_theme() -> None:
         div[role="option"]:hover,
         li[role="option"][aria-selected="true"],
         div[role="option"][aria-selected="true"] {
-          background: #2B2432 !important;
+          background: var(--ms-bg-hover) !important;
           color: var(--ms-text) !important;
         }
         div[data-baseweb="tag"] {
-          background: rgba(255, 98, 180, 0.16) !important;
-          border: 1px solid rgba(255, 98, 180, 0.36) !important;
+          background: rgba(66, 199, 213, 0.12) !important;
+          border: 1px solid rgba(66, 199, 213, 0.34) !important;
           color: var(--ms-text) !important;
         }
         div[data-baseweb="tag"] span,
@@ -542,11 +596,16 @@ def apply_theme() -> None:
         }
         [data-testid="stFileUploader"] section,
         [data-testid="stFileUploaderDropzone"] {
-          background: linear-gradient(180deg, rgba(27, 23, 32, 0.96), rgba(16, 14, 20, 0.96)) !important;
-          border: 1px dashed rgba(255, 98, 180, 0.34) !important;
-          border-radius: var(--ms-radius-lg) !important;
+          background: var(--ms-bg-panel) !important;
+          border: 1px dashed var(--ms-border) !important;
+          border-radius: var(--ms-radius-md) !important;
           min-height: 4.55rem;
           box-shadow: inset 0 0 0 1px rgba(255,255,255,0.015);
+        }
+        [data-testid="stFileUploader"] section:hover,
+        [data-testid="stFileUploaderDropzone"]:hover {
+          border-color: var(--ms-teal) !important;
+          background: var(--ms-bg-elevated) !important;
         }
         [data-testid="stFileUploader"] section p,
         [data-testid="stFileUploader"] section span,
@@ -554,26 +613,26 @@ def apply_theme() -> None:
           color: var(--ms-text-secondary) !important;
         }
         [data-testid="stFileUploader"] button {
-          background: rgba(255, 98, 180, 0.12) !important;
-          border: 1px solid rgba(255, 98, 180, 0.38) !important;
+          background: var(--ms-bg-elevated) !important;
+          border: 1px solid var(--ms-border) !important;
           color: var(--ms-ink) !important;
-          border-radius: var(--ms-radius-md) !important;
+          border-radius: var(--ms-radius-sm) !important;
         }
         [data-testid="stExpander"] {
           border: 1px solid var(--ms-line);
-          background: rgba(33, 28, 39, 0.82);
-          border-radius: var(--ms-radius-lg);
-          box-shadow: 0 8px 22px rgba(0,0,0,0.12);
+          background: var(--ms-bg-panel);
+          border-radius: var(--ms-radius-md);
+          box-shadow: var(--ms-shadow-panel);
         }
         [data-testid="stExpander"] summary,
         [data-testid="stExpander"] summary p {
           color: var(--ms-text) !important;
-          font-weight: 750;
+          font-weight: 760;
         }
         [data-testid="stMarkdownContainer"] code,
         pre {
           color: var(--ms-text) !important;
-          background: #17141B !important;
+          background: var(--ms-bg-input) !important;
           border-color: var(--ms-border) !important;
         }
         .ms-canvas {
@@ -582,11 +641,8 @@ def apply_theme() -> None:
           border: 1px solid var(--ms-line);
           border-radius: var(--ms-radius-lg);
           overflow: hidden;
-          background:
-            radial-gradient(circle at 44% 28%, rgba(255, 98, 180, 0.20), transparent 18rem),
-            radial-gradient(circle at 70% 30%, rgba(140, 218, 223, 0.12), transparent 18rem),
-            linear-gradient(180deg, rgba(21, 18, 27, 0.82), rgba(9, 8, 12, 0.94));
-          box-shadow: inset 0 0 90px rgba(0,0,0,0.38), 0 18px 50px rgba(0,0,0,0.28);
+          background: var(--ms-bg-panel);
+          box-shadow: var(--ms-shadow-panel);
         }
         .ms-legend {
           position: absolute;
@@ -674,8 +730,8 @@ def apply_theme() -> None:
         }
         .ms-spec {
           border: 1px solid var(--ms-line);
-          border-radius: var(--ms-radius-lg);
-          background: rgba(33, 28, 39, 0.82);
+          border-radius: var(--ms-radius-md);
+          background: var(--ms-bg-panel);
           padding: 0.95rem;
         }
         .ms-spec span {
@@ -690,17 +746,15 @@ def apply_theme() -> None:
         }
         .ms-command-bar {
           border: 1px solid var(--ms-line);
-          border-radius: var(--ms-radius-lg);
-          background: rgba(18, 16, 22, 0.82);
+          border-radius: var(--ms-radius-md);
+          background: var(--ms-bg-panel);
           padding: 0.6rem;
         }
         .ms-empty-preview {
           min-height: 430px;
-          border: 1px dashed rgba(255, 98, 180, 0.28);
-          border-radius: var(--ms-radius-lg);
-          background:
-            radial-gradient(circle at center, rgba(255, 92, 173, 0.08), transparent 18rem),
-            rgba(18, 16, 22, 0.70);
+          border: 1px dashed var(--ms-border);
+          border-radius: var(--ms-radius-md);
+          background: var(--ms-bg-panel);
           display: grid;
           place-content: center;
           text-align: center;
@@ -729,24 +783,24 @@ def apply_theme() -> None:
           border: 1px solid var(--ms-line);
           border-radius: 999px;
           color: var(--ms-text);
-          background: rgba(255, 98, 180, 0.12);
+          background: var(--ms-bg-elevated);
           padding: 0.28rem 0.68rem;
           font-size: 0.82rem;
           font-weight: 650;
         }
         .ms-section {
           border: 1px solid var(--ms-line);
-          border-radius: var(--ms-radius-lg);
-          background: linear-gradient(180deg, rgba(33, 28, 39, 0.90), rgba(18, 16, 22, 0.88));
+          border-radius: var(--ms-radius-md);
+          background: var(--ms-bg-panel);
           padding: 1rem;
           margin-bottom: 1rem;
           box-shadow: var(--ms-shadow-panel);
         }
         .ms-log-row {
-          border-left: 3px solid var(--ms-accent);
-          padding: 0.35rem 0 0.35rem 0.75rem;
+          border-left: 3px solid var(--ms-teal);
+          padding: 0.42rem 0 0.42rem 0.75rem;
           margin: 0.35rem 0;
-          background: rgba(33, 28, 39, 0.72);
+          background: var(--ms-bg-panel);
           border-radius: 0 var(--ms-radius-md) var(--ms-radius-md) 0;
         }
         .ms-log-label {
@@ -761,19 +815,19 @@ def apply_theme() -> None:
           margin-top: 0.08rem;
         }
         .stButton > button, .stDownloadButton > button {
-          border-radius: var(--ms-radius-md);
+          border-radius: var(--ms-radius-sm);
           border: 1px solid var(--ms-border);
-          background: rgba(27, 23, 32, 0.92);
+          background: var(--ms-bg-elevated);
           color: var(--ms-text);
-          min-height: 2.55rem;
+          min-height: 2.45rem;
           font-weight: 780;
           box-shadow: 0 5px 16px rgba(0,0,0,0.12);
           transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
         }
         .stButton > button:hover,
         .stDownloadButton > button:hover {
-          border-color: var(--ms-primary);
-          background: #2B2432;
+          border-color: var(--ms-teal);
+          background: var(--ms-bg-hover);
           color: var(--ms-text);
           transform: translateY(-1px);
         }
@@ -785,20 +839,26 @@ def apply_theme() -> None:
         }
         .stButton > button:disabled,
         .stDownloadButton > button:disabled {
-          border-color: rgba(83, 70, 88, 0.55) !important;
-          background: rgba(27, 23, 32, 0.46) !important;
+          border-color: rgba(48, 52, 65, 0.55) !important;
+          background: rgba(21, 23, 31, 0.46) !important;
           color: var(--ms-text-muted) !important;
           cursor: not-allowed !important;
         }
         .stLinkButton > a,
         div[data-testid="stPopover"] button,
         .stDownloadButton > button {
-          border-radius: var(--ms-radius-md) !important;
+          border-radius: var(--ms-radius-sm) !important;
           border: 1px solid var(--ms-border) !important;
-          background: rgba(27, 23, 32, 0.86) !important;
+          background: var(--ms-bg-elevated) !important;
           color: var(--ms-text) !important;
           font-weight: 760 !important;
-          min-height: 2.55rem;
+          min-height: 2.45rem;
+        }
+        .stLinkButton > a:hover,
+        div[data-testid="stPopover"] button:hover,
+        .stDownloadButton > button:hover {
+          border-color: var(--ms-teal) !important;
+          background: var(--ms-bg-hover) !important;
         }
         .stLinkButton > a p,
         div[data-testid="stPopover"] button p,
@@ -809,21 +869,74 @@ def apply_theme() -> None:
           white-space: normal !important;
         }
         .stButton > button[kind="primary"] {
-          background: linear-gradient(135deg, var(--ms-accent), #FF7BBC) !important;
-          color: #180712 !important;
-          border-color: rgba(255, 98, 180, 0.74) !important;
+          background: var(--ms-primary) !important;
+          color: var(--ms-text-on-accent) !important;
+          border-color: var(--ms-primary) !important;
           font-weight: 880;
-          box-shadow: 0 12px 28px rgba(255, 98, 180, 0.22);
+          box-shadow: 0 10px 24px rgba(255, 79, 163, 0.20);
         }
         .stButton > button[kind="primary"]:hover {
-          background: linear-gradient(135deg, #FF69B1, #FF90C9) !important;
-          color: #160711 !important;
+          background: var(--ms-primary-hover) !important;
+          color: var(--ms-text-on-accent) !important;
         }
         div[data-testid="stAlert"] {
           border-radius: var(--ms-radius-md);
           border: 1px solid var(--ms-border);
-          background: rgba(33, 28, 39, 0.94);
+          background: var(--ms-bg-panel);
           color: var(--ms-text);
+        }
+        div[data-testid="stAlert"] div[data-testid="stAlertContainer"].stAlertContainer {
+          border: 1px solid var(--ms-border) !important;
+          border-color: var(--ms-border) !important;
+          background: var(--ms-bg-panel) !important;
+          background-color: var(--ms-bg-panel) !important;
+        }
+        div[data-testid="stAlert"] div[data-testid="stAlertContainer"] {
+          box-shadow: var(--ms-shadow-panel);
+        }
+        div[data-testid="stAlert"][kind="success"],
+        div[data-testid="stAlert"]:has(svg[title="Success"]),
+        div[data-testid="stAlert"]:has([data-testid="stAlertContentSuccess"]) {
+          border-color: rgba(85, 214, 139, 0.42) !important;
+          background: rgba(85, 214, 139, 0.10) !important;
+        }
+        div[data-testid="stAlert"][kind="info"],
+        div[data-testid="stAlert"]:has(svg[title="Info"]),
+        div[data-testid="stAlert"]:has([data-testid="stAlertContentInfo"]) {
+          border-color: rgba(66, 199, 213, 0.34) !important;
+          background: rgba(66, 199, 213, 0.08) !important;
+        }
+        div[data-testid="stAlert"][kind="error"],
+        div[data-testid="stAlert"]:has(svg[title="Error"]),
+        div[data-testid="stAlert"]:has([data-testid="stAlertContentError"]) {
+          border-color: rgba(240, 120, 131, 0.46) !important;
+          background: rgba(240, 120, 131, 0.10) !important;
+        }
+        div[data-testid="stAlert"][kind="warning"],
+        div[data-testid="stAlert"]:has(svg[title="Warning"]),
+        div[data-testid="stAlert"]:has([data-testid="stAlertContentWarning"]) {
+          border-color: rgba(242, 184, 107, 0.42) !important;
+          background: rgba(242, 184, 107, 0.10) !important;
+        }
+        div[data-testid="stAlert"]:has([data-testid="stAlertContentSuccess"]) div[data-testid="stAlertContainer"] {
+          border: 1px solid rgba(85, 214, 139, 0.42) !important;
+          background: rgba(85, 214, 139, 0.10) !important;
+          background-color: rgba(85, 214, 139, 0.10) !important;
+        }
+        div[data-testid="stAlert"]:has([data-testid="stAlertContentInfo"]) div[data-testid="stAlertContainer"] {
+          border: 1px solid rgba(66, 199, 213, 0.34) !important;
+          background: rgba(66, 199, 213, 0.08) !important;
+          background-color: rgba(66, 199, 213, 0.08) !important;
+        }
+        div[data-testid="stAlert"]:has([data-testid="stAlertContentError"]) div[data-testid="stAlertContainer"] {
+          border: 1px solid rgba(240, 120, 131, 0.46) !important;
+          background: rgba(240, 120, 131, 0.10) !important;
+          background-color: rgba(240, 120, 131, 0.10) !important;
+        }
+        div[data-testid="stAlert"]:has([data-testid="stAlertContentWarning"]) div[data-testid="stAlertContainer"] {
+          border: 1px solid rgba(242, 184, 107, 0.42) !important;
+          background: rgba(242, 184, 107, 0.10) !important;
+          background-color: rgba(242, 184, 107, 0.10) !important;
         }
         div[data-testid="stAlert"] p,
         div[data-testid="stAlert"] li {
@@ -832,9 +945,9 @@ def apply_theme() -> None:
         div[data-testid="stDataFrame"],
         div[data-testid="stDataEditor"] {
           border: 1px solid var(--ms-border);
-          border-radius: var(--ms-radius-lg);
+          border-radius: var(--ms-radius-md);
           overflow: hidden;
-          background: rgba(24, 21, 29, 0.86);
+          background: var(--ms-bg-panel);
           box-shadow: var(--ms-shadow-panel);
         }
         div[data-testid="stDataFrame"] *,
