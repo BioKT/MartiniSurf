@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import html
 import json
+import subprocess
+import tempfile
 from pathlib import Path
 
 import streamlit.components.v1 as components
@@ -437,6 +439,178 @@ def render_martini_step4_viewer(
     """
     components.html(script, height=height + 2)
     return {"bonds": len(cylinders), "skipped_long": skipped_long, "highlighted": len(highlighted_resids)}
+
+
+def render_short_md_trajectory(
+    gro_path: Path | None,
+    tpr_path: Path | None,
+    xtc_path: Path | None,
+    outdir: Path,
+    selection_text: str,
+    gmx_bin: str | None,
+    *,
+    frame_stride: int = 1,
+    height: int = 700,
+    show_protein: bool = True,
+    show_surface: bool = True,
+    show_linker: bool = False,
+    show_water: bool = False,
+    show_ions: bool = False,
+) -> dict[str, int | str]:
+    element_id = "viewer_short_md_" + "".join(ch if ch.isalnum() else "_" for ch in str(gro_path or tpr_path or "trajectory"))
+    highlighted_resids = immobilization_resids_from_selection(selection_text, outdir)
+    component_resnames = _short_md_component_resnames(gro_path)
+    pdb_data = ""
+    model_mode = "structure"
+    frame_count = 0
+    conversion_error = ""
+
+    if tpr_path and xtc_path and tpr_path.exists() and xtc_path.exists() and gmx_bin:
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                pdb_path = Path(tmp) / "short_md_frames.pdb"
+                cmd = [
+                    gmx_bin,
+                    "trjconv",
+                    "-s",
+                    str(tpr_path),
+                    "-f",
+                    str(xtc_path),
+                    "-o",
+                    str(pdb_path),
+                    "-skip",
+                    str(max(1, int(frame_stride))),
+                ]
+                res = subprocess.run(cmd, input="0\n", text=True, capture_output=True, check=False)
+                if res.returncode == 0 and pdb_path.exists() and pdb_path.stat().st_size > 0:
+                    pdb_data = pdb_path.read_text(errors="replace")
+                    model_mode = "trajectory"
+                    frame_count = pdb_data.count("MODEL")
+                else:
+                    conversion_error = (res.stderr or res.stdout or "Trajectory conversion failed.")[-600:]
+        except OSError as exc:
+            conversion_error = str(exc)
+
+    if not pdb_data and gro_path and gro_path.exists():
+        pdb_data = gro_path.read_text(errors="replace")
+
+    if not pdb_data:
+        return {"frames": 0, "mode": "missing", "error": conversion_error or "No viewable Short MD structure was found."}
+
+    script = f"""
+    <div class="viewer-shell short-md">
+      <div id="{element_id}" class="viewer"></div>
+      <div class="viewer-badge">{'Production trajectory' if model_mode == 'trajectory' else 'Final production structure'}</div>
+    </div>
+    <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+    <script>
+      const element = document.getElementById({json.dumps(element_id)});
+      const viewer = $3Dmol.createViewer(element, {{ backgroundColor: "#0E0D11" }});
+      const data = {json.dumps(pdb_data)};
+      if ({json.dumps(model_mode)} === "trajectory") {{
+        viewer.addModelsAsFrames(data, "pdb");
+      }} else {{
+        viewer.addModel(data, {json.dumps(VIEWABLE_SUFFIXES.get((gro_path or Path('x.gro')).suffix.lower(), 'gro'))});
+      }}
+      viewer.setStyle({{}}, {{ sphere: {{ hidden: true }} }});
+      const components = {json.dumps(component_resnames)};
+      if ({json.dumps(bool(show_surface))} && components.surface.length) {{
+        viewer.setStyle({{resn: components.surface}}, {{ sphere: {{ radius: 0.85, color: "orange" }} }});
+      }}
+      if ({json.dumps(bool(show_water))} && components.water.length) {{
+        viewer.setStyle({{resn: components.water}}, {{ sphere: {{ radius: 0.42, color: "lightgray", opacity: 0.55 }} }});
+      }}
+      if ({json.dumps(bool(show_ions))} && components.ions.length) {{
+        viewer.setStyle({{resn: components.ions}}, {{ sphere: {{ radius: 0.55, color: "limegreen" }} }});
+      }}
+      if ({json.dumps(bool(show_linker))} && components.linker.length) {{
+        viewer.setStyle({{resn: components.linker}}, {{ sphere: {{ radius: 0.76, color: "yellow" }} }});
+      }}
+      if ({json.dumps(bool(show_protein))}) {{
+        viewer.setStyle({{atom: "BB"}}, {{ sphere: {{ radius: 0.82, color: "gray" }} }});
+        viewer.setStyle({{atom: "BB1"}}, {{ sphere: {{ radius: 0.82, color: "gray" }} }});
+        viewer.setStyle({{atom: "BB2"}}, {{ sphere: {{ radius: 0.82, color: "gray" }} }});
+        viewer.setStyle({{atom: "BB3"}}, {{ sphere: {{ radius: 0.82, color: "gray" }} }});
+        viewer.setStyle({{atom: /^SC/}}, {{ sphere: {{ radius: 0.82, color: "hotpink" }} }});
+      }}
+      const highlightedResids = {json.dumps(highlighted_resids)};
+      if ({json.dumps(bool(show_protein))} && highlightedResids.length) {{
+        viewer.addStyle({{ resi: highlightedResids }}, {{ sphere: {{ color: "red", radius: 1.05 }} }});
+      }}
+      viewer.zoomTo();
+      if ({json.dumps(model_mode)} === "trajectory") {{
+        viewer.animate({{loop: "forward", reps: 0}});
+      }}
+      viewer.render();
+    </script>
+    <style>
+      html, body {{
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #0E0D11;
+      }}
+      .viewer-shell {{
+        position: relative;
+        width: 100%;
+        height: {height}px;
+        box-sizing: border-box;
+        border: 1px solid rgba(255, 98, 180, 0.28);
+        border-radius: 16px;
+        overflow: hidden;
+        background: #0E0D11;
+        box-shadow: inset 0 0 46px rgba(255, 98, 180, 0.08);
+      }}
+      .viewer {{
+        width: 100%;
+        height: {height}px;
+        overflow: hidden;
+      }}
+      .viewer-badge {{
+        position: absolute;
+        left: 14px;
+        bottom: 14px;
+        padding: 8px 10px;
+        border: 1px solid rgba(255, 98, 180, 0.35);
+        border-radius: 999px;
+        background: rgba(14, 13, 17, 0.78);
+        color: #FAF5F8;
+        font: 700 12px/1.2 sans-serif;
+        pointer-events: none;
+      }}
+    </style>
+    """
+    components.html(script, height=height + 2)
+    return {"frames": frame_count, "mode": model_mode, "error": conversion_error}
+
+
+def _short_md_component_resnames(gro_path: Path | None) -> dict[str, list[str]]:
+    surface_resn = {"SRF", "GRA", "CNT"}
+    water_resn = {"W", "WF", "SW", "TW", "SOL"}
+    ion_resn = {"NA", "CL", "ION", "K", "CA", "MG", "ZN", "LI", "RB", "CS", "BA", "SR", "F", "BR", "I"}
+    groups = {"surface": set(), "water": set(), "ions": set(), "protein": set(), "linker": set()}
+    if not gro_path or not gro_path.exists():
+        return {key: sorted(value) for key, value in groups.items()}
+
+    by_residue: dict[tuple[int, str], set[str]] = {}
+    for atom in _parse_gro_atoms(gro_path):
+        resid = int(atom["resid"])
+        resn = str(atom["resn"]).strip()
+        name = str(atom["name"]).strip().upper()
+        by_residue.setdefault((resid, resn), set()).add(name)
+
+    for (_resid, resn), names in by_residue.items():
+        if resn in surface_resn:
+            groups["surface"].add(resn)
+        elif resn in water_resn:
+            groups["water"].add(resn)
+        elif resn in ion_resn:
+            groups["ions"].add(resn)
+        elif "BB" in names or any(name.startswith("SC") for name in names) or any(name.startswith("BB") and name[2:].isdigit() for name in names):
+            groups["protein"].add(resn)
+        else:
+            groups["linker"].add(resn)
+    return {key: sorted(value) for key, value in groups.items()}
 
 
 def render_linker_mapping(path: Path, beads: list[object], height: int = 360) -> None:

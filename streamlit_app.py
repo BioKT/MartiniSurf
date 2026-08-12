@@ -5,7 +5,7 @@ import html
 import shutil
 import sys
 import tempfile
-from dataclasses import fields
+from dataclasses import asdict, fields
 from pathlib import Path
 
 import streamlit as st
@@ -28,10 +28,26 @@ from streamlit_app.molecular_viewer import (
     render_martini_step4_viewer,
     render_molecule,
     render_remote_molecule,
+    render_short_md_trajectory,
     render_structure_preview,
 )
 from streamlit_app.project_io import export_state, import_state
 from streamlit_app.runner import run_martinisurf
+from streamlit_app.short_md import (
+    DEFAULT_GROMPP_MAXWARN,
+    DEFAULT_OUTPUT_TAG,
+    DEFAULT_STAGE_SETTINGS,
+    DEFAULT_XTC_WRITE_EVERY_PS,
+    STAGE_ORDER,
+    ShortMDConfig,
+    ShortMDStage,
+    detect_gmx,
+    format_elapsed,
+    preview_rows,
+    run_short_md,
+    selected_stages,
+    validate_stage_order,
+)
 from streamlit_app.structure import StructureSummary, summarize_structure
 from streamlit_app.theme import apply_theme
 from streamlit_app.validators import check_external_tools, validate_config
@@ -42,7 +58,7 @@ RUNS_DIR = REPO_ROOT / "streamlit_runs"
 APP_DEPLOY_REVISION = "2026-08-10-local-full"
 TOOL_DIRS = [Path(sys.executable).resolve().parent, REPO_ROOT / ".venv" / "bin"]
 
-STEPS = ["Structure", "Model", "Surface", "Orientation", "Environment", "Review & Build"]
+STEPS = ["Structure", "Model", "Surface", "Orientation", "Environment", "Review & Build", "Short MDs"]
 
 CHAIN_LABELS = list("ABCDEFGHI")
 PROTEIN_COLAB_DEFAULTS_VERSION = 3
@@ -110,6 +126,38 @@ PERSISTED_STATE_KEYS = {
     "water_mix_seed",
     "substrate_count",
     "martinize_extra",
+    "short_md_output_tag",
+    "short_md_xtc_write_every_ps",
+    "short_md_grompp_maxwarn",
+    "short_md_run_nvt",
+    "short_md_nvt_timestep_ps",
+    "short_md_nvt_time_ns",
+    "short_md_run_npt",
+    "short_md_npt_timestep_ps",
+    "short_md_npt_time_ns",
+    "short_md_run_deposition",
+    "short_md_deposition_timestep_ps",
+    "short_md_deposition_time_ns",
+    "short_md_run_production",
+    "short_md_production_timestep_ps",
+    "short_md_production_time_ns",
+    "short_md_returncode",
+    "short_md_stdout",
+    "short_md_stderr",
+    "short_md_work_dir",
+    "short_md_last_gro",
+    "short_md_last_tpr",
+    "short_md_last_xtc",
+    "short_md_stage_results",
+    "short_md_command_log",
+    "short_md_zip_path",
+    "short_md_view_stage",
+    "short_md_view_protein",
+    "short_md_view_surface",
+    "short_md_view_linker",
+    "short_md_view_water",
+    "short_md_view_ions",
+    "short_md_view_frame_stride",
     "_structure_path",
     "_surface_path",
     "_linker_path",
@@ -234,9 +282,43 @@ def _init_state() -> None:
         "water_mix_seed": 42,
         "substrate_count": 0,
         "martinize_extra": "",
+        "short_md_output_tag": DEFAULT_OUTPUT_TAG,
+        "short_md_xtc_write_every_ps": DEFAULT_XTC_WRITE_EVERY_PS,
+        "short_md_grompp_maxwarn": DEFAULT_GROMPP_MAXWARN,
+        "short_md_run_nvt": DEFAULT_STAGE_SETTINGS["nvt"]["enabled"],
+        "short_md_nvt_timestep_ps": DEFAULT_STAGE_SETTINGS["nvt"]["dt_ps"],
+        "short_md_nvt_time_ns": DEFAULT_STAGE_SETTINGS["nvt"]["time_ns"],
+        "short_md_run_npt": DEFAULT_STAGE_SETTINGS["npt"]["enabled"],
+        "short_md_npt_timestep_ps": DEFAULT_STAGE_SETTINGS["npt"]["dt_ps"],
+        "short_md_npt_time_ns": DEFAULT_STAGE_SETTINGS["npt"]["time_ns"],
+        "short_md_run_deposition": DEFAULT_STAGE_SETTINGS["deposition"]["enabled"],
+        "short_md_deposition_timestep_ps": DEFAULT_STAGE_SETTINGS["deposition"]["dt_ps"],
+        "short_md_deposition_time_ns": DEFAULT_STAGE_SETTINGS["deposition"]["time_ns"],
+        "short_md_run_production": DEFAULT_STAGE_SETTINGS["production"]["enabled"],
+        "short_md_production_timestep_ps": DEFAULT_STAGE_SETTINGS["production"]["dt_ps"],
+        "short_md_production_time_ns": DEFAULT_STAGE_SETTINGS["production"]["time_ns"],
+        "short_md_returncode": None,
+        "short_md_stdout": "",
+        "short_md_stderr": "",
+        "short_md_work_dir": "",
+        "short_md_last_gro": "",
+        "short_md_last_tpr": "",
+        "short_md_last_xtc": "",
+        "short_md_stage_results": [],
+        "short_md_command_log": [],
+        "short_md_zip_path": "",
+        "short_md_view_stage": "production",
+        "short_md_view_protein": True,
+        "short_md_view_surface": True,
+        "short_md_view_linker": False,
+        "short_md_view_water": False,
+        "short_md_view_ions": False,
+        "short_md_view_frame_stride": 1,
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
+    if st.session_state.get("short_md_output_tag") == "colab_md":
+        st.session_state.short_md_output_tag = DEFAULT_OUTPUT_TAG
     if not str(st.session_state.get("moltype", "")).strip():
         st.session_state.moltype = "Protein"
     if float(st.session_state.get("go_eps") or 0) <= 0:
@@ -703,6 +785,14 @@ def _render_linker_generator() -> None:
 def _step_state(step: str, errors: list[str], tool_warnings: list[str], has_output: bool) -> str:
     active_index = STEPS.index(st.session_state.active_step)
     index = STEPS.index(step)
+    if step == "Short MDs":
+        if st.session_state.get("short_md_returncode") == 0:
+            return "completed"
+        if index == active_index:
+            return "active"
+        if has_output:
+            return "pending"
+        return "pending"
     if has_output:
         return "completed"
     if step == "Review & Build" and errors:
@@ -989,19 +1079,6 @@ def _render_surface_step() -> None:
             default=_choice(st.session_state.surface_geometry, "planar"),
             key=_versioned_key("surface_geometry"),
         )
-    _render_surface_preview()
-
-
-def _render_surface_preview() -> None:
-    st.markdown(
-        """
-        <div class="ms-surface-preview">
-          <span>Lightweight geometric preview</span>
-          <div></div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
 
 def _render_orientation_step(config: BuildConfig) -> None:
@@ -1176,6 +1253,299 @@ def _render_review_step(config: BuildConfig, errors: list[str], tool_warnings: l
                 else:
                     status.update(label="Run failed", state="error")
         _render_log()
+
+
+def _short_md_config_from_state() -> ShortMDConfig:
+    stages = []
+    for stage_name in STAGE_ORDER:
+        stages.append(
+            ShortMDStage(
+                name=stage_name,
+                enabled=bool(st.session_state.get(f"short_md_run_{stage_name}", True)),
+                dt_ps=float(st.session_state.get(f"short_md_{stage_name}_timestep_ps", DEFAULT_STAGE_SETTINGS[stage_name]["dt_ps"])),
+                time_ns=float(st.session_state.get(f"short_md_{stage_name}_time_ns", DEFAULT_STAGE_SETTINGS[stage_name]["time_ns"])),
+            )
+        )
+    return ShortMDConfig(
+        output_tag=str(st.session_state.short_md_output_tag),
+        xtc_write_every_ps=float(st.session_state.short_md_xtc_write_every_ps),
+        grompp_maxwarn=int(st.session_state.short_md_grompp_maxwarn),
+        stages=tuple(stages),
+    )
+
+
+def _short_md_stage_label(stage_name: str) -> str:
+    labels = {
+        "nvt": "NVT",
+        "npt": "NPT",
+        "deposition": "Deposition",
+        "production": "Production",
+    }
+    clean = str(stage_name).strip().lower()
+    return labels.get(clean, clean.replace("_", " ").capitalize())
+
+
+def _render_short_md_step(outdir: Path) -> None:
+    st.markdown('<div class="ms-panel-title">Short MDs</div>', unsafe_allow_html=True)
+    st.caption("Optional GROMACS fast check based on the MartiniSurf_Protein Colab short MD protocol.")
+
+    if not outdir.exists():
+        st.info("Build the MartiniSurf system first. Short MDs use the generated `Simulation_Files` folder.")
+        if st.button("Go to Review & Build", width="stretch"):
+            st.session_state.active_step = "Review & Build"
+            st.rerun()
+        return
+
+    gmx = detect_gmx(TOOL_DIRS)
+    if not gmx:
+        st.warning("GROMACS is not available in this environment.")
+
+    top_a, top_b, top_c = st.columns(3)
+    top_a.text_input(
+        "Simulation name",
+        key="short_md_output_tag",
+        help="Used as the prefix for the short MD output files.",
+    )
+    top_b.number_input(
+        "XTC write every (ps)",
+        min_value=0.001,
+        step=1.0,
+        format="%.4f",
+        key="short_md_xtc_write_every_ps",
+    )
+    top_c.number_input(
+        "GROMPP max warnings",
+        min_value=0,
+        step=1,
+        key="short_md_grompp_maxwarn",
+    )
+
+    with st.expander("Short MD protocol", expanded=True):
+        for stage_name in STAGE_ORDER:
+            defaults = DEFAULT_STAGE_SETTINGS[stage_name]
+            enabled_key = f"short_md_run_{stage_name}"
+            dt_key = f"short_md_{stage_name}_timestep_ps"
+            time_key = f"short_md_{stage_name}_time_ns"
+            cols = st.columns([0.85, 1, 1])
+            cols[0].toggle(
+                _short_md_stage_label(stage_name),
+                key=enabled_key,
+            )
+            cols[1].number_input(
+                f"{_short_md_stage_label(stage_name)} timestep (ps)",
+                min_value=0.000001,
+                step=float(defaults["dt_ps"]),
+                format="%.4f",
+                key=dt_key,
+            )
+            cols[2].number_input(
+                f"{_short_md_stage_label(stage_name)} time (ns)",
+                min_value=0.000001,
+                step=float(defaults["time_ns"]),
+                format="%.4f",
+                key=time_key,
+            )
+
+    md_config = _short_md_config_from_state()
+    stage_errors = validate_stage_order(selected_stages(md_config))
+    has_selected_stages = bool(preview_rows(md_config))
+    if not has_selected_stages:
+        st.info("No MD stage selected. Enable at least one stage to run the fast check.")
+    for error in stage_errors:
+        st.error(error)
+
+    run_disabled = not gmx or bool(stage_errors) or not has_selected_stages
+    run_button = st.button("Run Short MD", type="primary", width="stretch", disabled=run_disabled)
+    if run_button:
+        st.session_state["short_md_running"] = True
+        with st.status("Running Short MD", expanded=True) as status:
+            try:
+                result = run_short_md(outdir, md_config, REPO_ROOT, TOOL_DIRS)
+            except Exception as exc:  # noqa: BLE001 - display scientific workflow failures to the user.
+                st.session_state["short_md_returncode"] = 1
+                st.session_state["short_md_stdout"] = ""
+                st.session_state["short_md_stderr"] = str(exc)
+                st.session_state["short_md_running"] = False
+                status.update(label="Short MD failed", state="error")
+            else:
+                _store_short_md_result(result)
+                st.session_state["short_md_running"] = False
+                if result.returncode == 0:
+                    status.update(label="Short MD completed", state="complete")
+                else:
+                    status.update(label="Short MD failed", state="error")
+            st.rerun()
+
+    _render_short_md_results()
+
+
+def _store_short_md_result(result) -> None:
+    st.session_state["short_md_returncode"] = result.returncode
+    st.session_state["short_md_stdout"] = result.stdout
+    st.session_state["short_md_stderr"] = result.stderr
+    st.session_state["short_md_work_dir"] = str(result.work_dir)
+    st.session_state["short_md_last_gro"] = str(result.last_gro or "")
+    st.session_state["short_md_last_tpr"] = str(result.last_tpr or "")
+    st.session_state["short_md_last_xtc"] = str(result.last_xtc or "")
+    st.session_state["short_md_stage_results"] = [asdict(stage) for stage in result.stage_results]
+    st.session_state["short_md_command_log"] = result.command_log
+    if result.work_dir.exists():
+        zip_path = make_zip(result.work_dir, result.work_dir.parent / "Short_MD_Files.zip")
+        st.session_state["short_md_zip_path"] = str(zip_path)
+
+
+def _render_short_md_results() -> None:
+    returncode = st.session_state.get("short_md_returncode")
+    if returncode is None:
+        return
+    if returncode == 0:
+        st.success("Short MD finished successfully.")
+    else:
+        st.error("Short MD failed.")
+
+    stage_rows = st.session_state.get("short_md_stage_results") or []
+    performance = _short_md_summary_performance(stage_rows)
+    if performance:
+        ns_day = performance.get("ns_day")
+        hour_ns = performance.get("hour_ns")
+        wall_time = format_elapsed(float(performance.get("mdrun_elapsed_s") or 0.0))
+        st.markdown(
+            f"""
+            <div class="ms-section">
+              <div class="ms-log-label">Production performance</div>
+              <div class="ms-brand-small">{float(ns_day):.4f} ns/day</div>
+              <div class="ms-soft">Production mdrun wall time: {html.escape(wall_time)}
+              {f" | {float(hour_ns):.4f} h/ns" if hour_ns is not None else ""}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    if returncode == 0:
+        _render_short_md_viewer()
+
+    zip_path_text = st.session_state.get("short_md_zip_path")
+    if zip_path_text:
+        zip_path = Path(str(zip_path_text))
+        if zip_path.exists():
+            st.download_button(
+                "Download Short MD files",
+                zip_path.read_bytes(),
+                "Short_MD_Files.zip",
+                "application/zip",
+                width="stretch",
+            )
+
+    with st.expander("Short MD execution log", expanded=returncode != 0):
+        stdout = st.session_state.get("short_md_stdout", "")
+        stderr = st.session_state.get("short_md_stderr", "")
+        command_log = st.session_state.get("short_md_command_log") or []
+        if command_log:
+            st.code("\n".join(command_log), language="bash")
+        st.code((stdout + "\n" + stderr).strip() or "No Short MD log yet.", language="text")
+
+
+def _short_md_summary_performance(stage_rows: list[dict[str, object]]) -> dict[str, object] | None:
+    if not stage_rows:
+        return None
+    for row in reversed(stage_rows):
+        if str(row.get("name", "")).lower() == "production" and row.get("ns_day") is not None:
+            return row
+    for row in reversed(stage_rows):
+        if row.get("ns_day") is not None:
+            return row
+    return None
+
+
+def _render_short_md_viewer() -> None:
+    artifacts = _short_md_stage_artifacts()
+    if not artifacts:
+        st.info("No Short MD stage is available for visualization yet.")
+        return
+    stage_names = list(artifacts.keys())
+    preferred = st.session_state.get("short_md_view_stage", "production")
+    if preferred not in artifacts:
+        preferred = stage_names[-1]
+        st.session_state.short_md_view_stage = preferred
+
+    controls = st.columns([1.2, 0.8, 0.8, 0.8])
+    controls[0].selectbox(
+        "Stage to view",
+        stage_names,
+        format_func=_short_md_stage_label,
+        key="short_md_view_stage",
+    )
+    controls[1].number_input("Frame stride", min_value=1, step=1, key="short_md_view_frame_stride")
+
+    toggle_a, toggle_b, toggle_c, toggle_d, toggle_e = st.columns(5)
+    toggle_a.toggle("Protein", key="short_md_view_protein")
+    toggle_b.toggle("Surface", key="short_md_view_surface")
+    toggle_c.toggle("Linker", key="short_md_view_linker")
+    toggle_d.toggle("Water", key="short_md_view_water")
+    toggle_e.toggle("Ions", key="short_md_view_ions")
+
+    selected = artifacts[str(st.session_state.short_md_view_stage)]
+    gro = selected.get("gro")
+    tpr = selected.get("tpr")
+    xtc = selected.get("xtc")
+    outdir = Path(st.session_state.run_root) / "Simulation_Files"
+    selection_text = st.session_state.linker_groups_text if st.session_state.orientation_mode == "Linker" else st.session_state.anchors_text
+    viewer_stats = render_short_md_trajectory(
+        gro,
+        tpr,
+        xtc,
+        outdir,
+        selection_text,
+        detect_gmx(TOOL_DIRS),
+        frame_stride=int(st.session_state.short_md_view_frame_stride),
+        height=700,
+        show_protein=bool(st.session_state.short_md_view_protein),
+        show_surface=bool(st.session_state.short_md_view_surface),
+        show_linker=bool(st.session_state.short_md_view_linker),
+        show_water=bool(st.session_state.short_md_view_water),
+        show_ions=bool(st.session_state.short_md_view_ions),
+    )
+    if viewer_stats.get("mode") == "missing":
+        st.info(str(viewer_stats.get("error", "No Short MD structure was available for visualization.")))
+    elif viewer_stats.get("mode") == "trajectory":
+        frames = int(viewer_stats.get("frames") or 0)
+        st.caption(f"{_short_md_stage_label(str(st.session_state.short_md_view_stage))} trajectory preview: {frames} displayed frames.")
+    else:
+        st.caption(f"{_short_md_stage_label(str(st.session_state.short_md_view_stage))} structure preview.")
+
+
+def _short_md_stage_artifacts() -> dict[str, dict[str, Path | None]]:
+    work_dir = _existing_path(st.session_state.get("short_md_work_dir"))
+    if not work_dir or not work_dir.is_dir():
+        return {}
+    tag = str(st.session_state.get("short_md_output_tag") or "Protein MD")
+    safe_tag = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in tag.strip()) or "Protein_MD"
+    artifacts: dict[str, dict[str, Path | None]] = {}
+    for stage in STAGE_ORDER:
+        base = work_dir / f"{safe_tag}_{stage}"
+        gro = _first_existing_path([base.with_suffix(".gro"), *sorted(work_dir.glob(f"*{stage}.gro"))])
+        if not gro:
+            continue
+        artifacts[stage] = {
+            "gro": gro,
+            "tpr": _first_existing_path([base.with_suffix(".tpr"), *sorted(work_dir.glob(f"*{stage}.tpr"))]),
+            "xtc": _first_existing_path([base.with_suffix(".xtc"), *sorted(work_dir.glob(f"*{stage}.xtc"))]),
+        }
+    return artifacts
+
+
+def _first_existing_path(paths: list[Path]) -> Path | None:
+    for path in paths:
+        if path.exists():
+            return path
+    return None
+
+
+def _existing_path(value: object) -> Path | None:
+    if not value:
+        return None
+    path = Path(str(value))
+    return path if path.exists() else None
 
 
 def _render_results(outdir: Path, config: BuildConfig) -> None:
@@ -1387,8 +1757,10 @@ def main() -> None:
         _render_orientation_step(config)
     elif st.session_state.active_step == "Environment":
         _render_environment_step()
-    else:
+    elif st.session_state.active_step == "Review & Build":
         _render_review_step(config, errors, tool_warnings, outdir)
+    else:
+        _render_short_md_step(outdir)
 
 
 if __name__ == "__main__":

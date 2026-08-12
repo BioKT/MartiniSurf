@@ -8,25 +8,25 @@ def apply_theme() -> None:
         """
         <style>
         :root {
-          --ms-bg: #07131C;
-          --ms-sidebar-bg: #06111A;
-          --ms-bg-elevated: #0C202C;
-          --ms-bg-panel: #102735;
-          --ms-bg-input: #0B1D28;
-          --ms-bg-hover: #143040;
-          --ms-border: rgba(116, 152, 170, 0.24);
-          --ms-border-strong: rgba(125, 179, 197, 0.42);
-          --ms-text: #F3F7FA;
-          --ms-text-secondary: #B4C5CE;
-          --ms-text-muted: #94A9B5;
-          --ms-text-on-accent: #04151c;
-          --ms-primary: #35C9D3;
-          --ms-primary-hover: #63DCE3;
-          --ms-success: #55D98A;
-          --ms-warning: #f3b45b;
-          --ms-error: #ef6a72;
-          --ms-focus: rgba(53, 201, 211, 0.34);
-          --ms-accent: #FF4FA3;
+          --ms-bg: #0E0D11;
+          --ms-sidebar-bg: #121016;
+          --ms-bg-elevated: #19161E;
+          --ms-bg-panel: #211C27;
+          --ms-bg-input: #17141B;
+          --ms-bg-hover: #2B2432;
+          --ms-border: rgba(229, 214, 226, 0.16);
+          --ms-border-strong: rgba(255, 108, 183, 0.50);
+          --ms-text: #FAF5F8;
+          --ms-text-secondary: #D6CAD3;
+          --ms-text-muted: #A99DA7;
+          --ms-text-on-accent: #180710;
+          --ms-primary: #FF62B4;
+          --ms-primary-hover: #FF9ED2;
+          --ms-success: #68D391;
+          --ms-warning: #F2B86B;
+          --ms-error: #F07883;
+          --ms-focus: rgba(255, 98, 180, 0.34);
+          --ms-accent: #FF62B4;
           --ms-radius-sm: 8px;
           --ms-radius-md: 12px;
           --ms-radius-lg: 16px;
@@ -36,10 +36,10 @@ def apply_theme() -> None:
           --ms-ink: var(--ms-text);
           --ms-muted: var(--ms-text-secondary);
           --ms-line: var(--ms-border);
-          --ms-panel: rgba(14, 33, 51, 0.82);
-          --ms-teal: var(--ms-primary);
-          --ms-mint: #64E3C4;
-          --ms-deep: #06111d;
+          --ms-panel: rgba(33, 28, 39, 0.92);
+          --ms-teal: #8CDADF;
+          --ms-mint: #A5E8DC;
+          --ms-deep: #0E0D11;
           --ms-green: var(--ms-success);
           --ms-amber: var(--ms-warning);
         }
@@ -50,11 +50,14 @@ def apply_theme() -> None:
         }
         .stApp {
           background:
-            radial-gradient(circle at 18% 8%, rgba(53, 201, 211, 0.08), transparent 24rem),
-            radial-gradient(circle at 88% 4%, rgba(255, 79, 163, 0.07), transparent 24rem),
-            linear-gradient(145deg, var(--ms-bg) 0%, #091924 58%, #0A1C22 100%);
+            linear-gradient(180deg, rgba(255, 98, 180, 0.045), transparent 18rem),
+            linear-gradient(145deg, #0E0D11 0%, #141118 52%, #0A090D 100%);
           color: var(--ms-text);
           font-family: Inter, "Source Sans Pro", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        [data-testid="stAppViewContainer"],
+        [data-testid="stMain"] {
+          background: transparent !important;
         }
         html,
         body,
@@ -102,8 +105,8 @@ def apply_theme() -> None:
           visibility: visible !important;
           opacity: 1 !important;
           pointer-events: auto !important;
-          background: rgba(14, 33, 51, 0.92) !important;
-          border: 1px solid rgba(40, 213, 245, 0.45) !important;
+          background: rgba(25, 22, 30, 0.96) !important;
+          border: 1px solid rgba(255, 98, 180, 0.48) !important;
           border-radius: 8px !important;
           color: var(--ms-ink) !important;
           z-index: 999999 !important;
@@ -129,9 +132,9 @@ def apply_theme() -> None:
           stroke: #ffffff !important;
         }
         [data-testid="stSidebar"] {
-          background: rgba(6, 17, 26, 0.98);
+          background: linear-gradient(180deg, #121016 0%, #0C0B10 100%);
           border-right: 1px solid var(--ms-line);
-          scrollbar-color: rgba(40, 213, 245, 0.78) rgba(8, 19, 31, 0.65);
+          scrollbar-color: rgba(255, 98, 180, 0.78) rgba(20, 17, 24, 0.75);
           scrollbar-width: thin;
         }
         [data-testid="stSidebarContent"] {
@@ -140,7 +143,7 @@ def apply_theme() -> None:
           padding-top: 1rem;
           padding-left: 1.05rem;
           padding-right: 1.05rem;
-          scrollbar-color: rgba(40, 213, 245, 0.78) rgba(8, 19, 31, 0.65);
+          scrollbar-color: rgba(255, 98, 180, 0.78) rgba(20, 17, 24, 0.75);
           scrollbar-width: thin;
         }
         [data-testid="stSidebar"]::-webkit-scrollbar,
@@ -154,14 +157,14 @@ def apply_theme() -> None:
         [data-testid="stSidebarContent"]::-webkit-scrollbar-track,
         [data-testid="stAppViewContainer"]::-webkit-scrollbar-track,
         body::-webkit-scrollbar-track {
-          background: rgba(8, 19, 31, 0.72);
+          background: rgba(20, 17, 24, 0.75);
         }
         [data-testid="stSidebar"]::-webkit-scrollbar-thumb,
         [data-testid="stSidebarContent"]::-webkit-scrollbar-thumb,
         [data-testid="stAppViewContainer"]::-webkit-scrollbar-thumb,
         body::-webkit-scrollbar-thumb {
           background: linear-gradient(180deg, var(--ms-teal), var(--ms-accent));
-          border: 2px solid rgba(8, 19, 31, 0.72);
+          border: 2px solid rgba(20, 17, 24, 0.75);
           border-radius: 999px;
         }
         [data-testid="stSidebar"]::-webkit-scrollbar-thumb:hover,
@@ -179,8 +182,8 @@ def apply_theme() -> None:
           color: inherit;
         }
         [data-testid="stSidebar"] img {
-          background: linear-gradient(180deg, rgba(12, 32, 44, 0.92), rgba(8, 22, 32, 0.76));
-          border: 1px solid rgba(53, 201, 211, 0.18);
+          background: linear-gradient(180deg, rgba(33, 28, 39, 0.96), rgba(18, 16, 22, 0.90));
+          border: 1px solid rgba(255, 98, 180, 0.22);
           border-radius: var(--ms-radius-lg);
           padding: 0.55rem;
           height: 13.5rem;
@@ -199,7 +202,7 @@ def apply_theme() -> None:
           color: var(--ms-ink);
         }
         div[data-testid="stMetric"] {
-          background: linear-gradient(180deg, rgba(16, 39, 53, 0.92), rgba(12, 32, 44, 0.88));
+          background: linear-gradient(180deg, rgba(35, 30, 41, 0.94), rgba(24, 21, 29, 0.92));
           border: 1px solid var(--ms-line);
           border-radius: var(--ms-radius-md);
           padding: 0.58rem 0.78rem;
@@ -241,6 +244,13 @@ def apply_theme() -> None:
           line-height: 0.88;
           margin: 0.18rem 0 0.45rem;
         }
+        .ms-brand-small {
+          color: var(--ms-primary);
+          font-size: clamp(2rem, 4vw, 3.8rem);
+          font-weight: 950;
+          line-height: 1;
+          margin: 0.25rem 0 0.35rem;
+        }
         .ms-soft {
           color: var(--ms-muted);
         }
@@ -265,7 +275,7 @@ def apply_theme() -> None:
           gap: 1rem;
           align-items: center;
           border: 1px solid var(--ms-line);
-          background: linear-gradient(180deg, rgba(12, 32, 44, 0.86), rgba(7, 19, 28, 0.78));
+          background: linear-gradient(180deg, rgba(33, 28, 39, 0.93), rgba(17, 15, 21, 0.90));
           border-radius: var(--ms-radius-lg);
           padding: 0.82rem 1rem;
           margin-bottom: 1.05rem;
@@ -281,12 +291,12 @@ def apply_theme() -> None:
           width: 3.8rem;
           height: 3.8rem;
           object-fit: contain;
-          background: rgba(12, 32, 44, 0.72);
+          background: rgba(24, 21, 29, 0.86);
           border-radius: var(--ms-radius-md);
           padding: 0.28rem;
         }
         .ms-top-title {
-          color: #FF5BA9;
+          color: var(--ms-primary);
           font-size: clamp(1.65rem, 2.6vw, 2.65rem);
           font-weight: 950;
           line-height: 0.98;
@@ -319,7 +329,7 @@ def apply_theme() -> None:
         }
         .ms-top-pills span:nth-child(2) {
           color: var(--ms-teal);
-          border-color: rgba(40, 213, 245, 0.4);
+          border-color: rgba(140, 218, 223, 0.40);
         }
         .ms-top-pills span:nth-child(3) {
           color: var(--ms-green);
@@ -333,7 +343,7 @@ def apply_theme() -> None:
         }
         .ms-model-toggles + div[data-testid="stHorizontalBlock"] div[data-testid="stToggle"] {
           border: 1px solid var(--ms-line);
-          background: rgba(12, 32, 44, 0.76);
+          background: rgba(33, 28, 39, 0.82);
           border-radius: var(--ms-radius-lg);
           min-height: 4.25rem;
           padding: 0.9rem 1rem;
@@ -363,7 +373,7 @@ def apply_theme() -> None:
           width: 1.82rem;
           height: 1.82rem;
           border-radius: 50%;
-          border: 1px solid rgba(40, 213, 245, 0.45);
+          border: 1px solid rgba(255, 98, 180, 0.42);
           background: rgba(255,255,255,0.04);
         }
         .ms-step p {
@@ -372,7 +382,7 @@ def apply_theme() -> None:
         }
         .ms-step.active {
           color: var(--ms-deep);
-          background: linear-gradient(135deg, var(--ms-teal), #7ce7f4);
+          background: linear-gradient(135deg, var(--ms-primary), var(--ms-primary-hover));
           border-radius: var(--ms-radius-md);
           padding-left: 0.7rem;
           margin: 0.25rem 0;
@@ -397,12 +407,12 @@ def apply_theme() -> None:
           transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
         }
         [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
-          background: rgba(53, 201, 211, 0.08);
-          border-color: rgba(53, 201, 211, 0.18);
+          background: rgba(255, 98, 180, 0.09);
+          border-color: rgba(255, 98, 180, 0.20);
         }
         [data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
-          background: linear-gradient(90deg, rgba(53, 201, 211, 0.18), rgba(53, 201, 211, 0.06));
-          border-color: rgba(53, 201, 211, 0.38);
+          background: linear-gradient(90deg, rgba(255, 92, 173, 0.18), rgba(126, 221, 226, 0.07));
+          border-color: rgba(255, 98, 180, 0.46);
           color: var(--ms-text) !important;
           font-weight: 820;
         }
@@ -417,7 +427,7 @@ def apply_theme() -> None:
         div[data-testid="stTabs"] {
           border: 1px solid var(--ms-line);
           border-radius: var(--ms-radius-lg);
-          background: rgba(12, 32, 44, 0.66);
+          background: rgba(27, 23, 32, 0.78);
           padding: 0.75rem;
         }
         div[data-testid="stTabs"] button {
@@ -464,14 +474,14 @@ def apply_theme() -> None:
           color: var(--ms-text) !important;
           border: 1px solid var(--ms-border) !important;
           border-radius: var(--ms-radius-md) !important;
-          box-shadow: none !important;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
           min-height: 2.55rem;
         }
         div[data-testid="stTextInput"] input:hover,
         div[data-testid="stTextArea"] textarea:hover,
         div[data-testid="stNumberInput"] input:hover {
           border-color: var(--ms-border-strong) !important;
-          background-color: var(--ms-bg-hover) !important;
+          background-color: #211B27 !important;
         }
         div[data-testid="stTextInput"] input:focus,
         div[data-testid="stTextArea"] textarea:focus,
@@ -510,12 +520,12 @@ def apply_theme() -> None:
         div[role="option"]:hover,
         li[role="option"][aria-selected="true"],
         div[role="option"][aria-selected="true"] {
-          background: var(--ms-bg-hover) !important;
+          background: #2B2432 !important;
           color: var(--ms-text) !important;
         }
         div[data-baseweb="tag"] {
-          background: rgba(32, 199, 201, 0.18) !important;
-          border: 1px solid rgba(32, 199, 201, 0.38) !important;
+          background: rgba(255, 98, 180, 0.16) !important;
+          border: 1px solid rgba(255, 98, 180, 0.36) !important;
           color: var(--ms-text) !important;
         }
         div[data-baseweb="tag"] span,
@@ -532,8 +542,8 @@ def apply_theme() -> None:
         }
         [data-testid="stFileUploader"] section,
         [data-testid="stFileUploaderDropzone"] {
-          background: linear-gradient(180deg, rgba(11, 29, 40, 0.96), rgba(9, 24, 34, 0.96)) !important;
-          border: 1px dashed rgba(53, 201, 211, 0.34) !important;
+          background: linear-gradient(180deg, rgba(27, 23, 32, 0.96), rgba(16, 14, 20, 0.96)) !important;
+          border: 1px dashed rgba(255, 98, 180, 0.34) !important;
           border-radius: var(--ms-radius-lg) !important;
           min-height: 4.55rem;
           box-shadow: inset 0 0 0 1px rgba(255,255,255,0.015);
@@ -544,26 +554,26 @@ def apply_theme() -> None:
           color: var(--ms-text-secondary) !important;
         }
         [data-testid="stFileUploader"] button {
-          background: rgba(53, 201, 211, 0.10) !important;
-          border: 1px solid rgba(53, 201, 211, 0.36) !important;
+          background: rgba(255, 98, 180, 0.12) !important;
+          border: 1px solid rgba(255, 98, 180, 0.38) !important;
           color: var(--ms-ink) !important;
           border-radius: var(--ms-radius-md) !important;
         }
         [data-testid="stExpander"] {
           border: 1px solid var(--ms-line);
-          background: rgba(12, 32, 44, 0.70);
+          background: rgba(33, 28, 39, 0.82);
           border-radius: var(--ms-radius-lg);
           box-shadow: 0 8px 22px rgba(0,0,0,0.12);
         }
         [data-testid="stExpander"] summary,
         [data-testid="stExpander"] summary p {
-          color: #D8E6EC !important;
+          color: var(--ms-text) !important;
           font-weight: 750;
         }
         [data-testid="stMarkdownContainer"] code,
         pre {
           color: var(--ms-text) !important;
-          background: #07111c !important;
+          background: #17141B !important;
           border-color: var(--ms-border) !important;
         }
         .ms-canvas {
@@ -573,9 +583,9 @@ def apply_theme() -> None:
           border-radius: var(--ms-radius-lg);
           overflow: hidden;
           background:
-            radial-gradient(circle at 44% 28%, rgba(40, 213, 245, 0.22), transparent 18rem),
-            radial-gradient(circle at 70% 30%, rgba(255, 79, 167, 0.16), transparent 18rem),
-            linear-gradient(180deg, rgba(5,16,28,0.78), rgba(2,8,15,0.92));
+            radial-gradient(circle at 44% 28%, rgba(255, 98, 180, 0.20), transparent 18rem),
+            radial-gradient(circle at 70% 30%, rgba(140, 218, 223, 0.12), transparent 18rem),
+            linear-gradient(180deg, rgba(21, 18, 27, 0.82), rgba(9, 8, 12, 0.94));
           box-shadow: inset 0 0 90px rgba(0,0,0,0.38), 0 18px 50px rgba(0,0,0,0.28);
         }
         .ms-legend {
@@ -648,7 +658,7 @@ def apply_theme() -> None:
           z-index: 4;
         }
         .ms-anchor-callout.left { left: 9%; }
-        .ms-anchor-callout.right { right: 8%; color: var(--ms-teal); border-color: rgba(40,213,245,0.45); }
+        .ms-anchor-callout.right { right: 8%; color: var(--ms-teal); border-color: rgba(140, 218, 223, 0.45); }
         .ms-axis {
           position: absolute;
           left: 2rem;
@@ -665,7 +675,7 @@ def apply_theme() -> None:
         .ms-spec {
           border: 1px solid var(--ms-line);
           border-radius: var(--ms-radius-lg);
-          background: rgba(12, 32, 44, 0.72);
+          background: rgba(33, 28, 39, 0.82);
           padding: 0.95rem;
         }
         .ms-spec span {
@@ -681,16 +691,16 @@ def apply_theme() -> None:
         .ms-command-bar {
           border: 1px solid var(--ms-line);
           border-radius: var(--ms-radius-lg);
-          background: rgba(7, 19, 28, 0.72);
+          background: rgba(18, 16, 22, 0.82);
           padding: 0.6rem;
         }
         .ms-empty-preview {
           min-height: 430px;
-          border: 1px dashed rgba(53, 201, 211, 0.28);
+          border: 1px dashed rgba(255, 98, 180, 0.28);
           border-radius: var(--ms-radius-lg);
           background:
-            radial-gradient(circle at center, rgba(53, 201, 211, 0.09), transparent 18rem),
-            rgba(7, 19, 28, 0.60);
+            radial-gradient(circle at center, rgba(255, 92, 173, 0.08), transparent 18rem),
+            rgba(18, 16, 22, 0.70);
           display: grid;
           place-content: center;
           text-align: center;
@@ -704,30 +714,6 @@ def apply_theme() -> None:
           color: var(--ms-muted);
           max-width: 32rem;
           margin-top: 0.45rem;
-        }
-        .ms-surface-preview {
-          margin-top: 1rem;
-          border: 1px solid var(--ms-line);
-          border-radius: var(--ms-radius-lg);
-          background: rgba(12,32,44,0.64);
-          padding: 1rem;
-          box-shadow: var(--ms-shadow-panel);
-        }
-        .ms-surface-preview span {
-          display: block;
-          color: var(--ms-muted);
-          font-weight: 700;
-          margin-bottom: 0.8rem;
-        }
-        .ms-surface-preview div {
-          height: 9rem;
-          border-radius: var(--ms-radius-md);
-          background:
-            radial-gradient(circle, rgba(53, 201, 211, 0.62) 0 0.32rem, transparent 0.34rem) 0 0 / 1.35rem 1.05rem,
-            radial-gradient(circle, rgba(148, 169, 181, 0.42) 0 0.30rem, transparent 0.34rem) 0.68rem 0.52rem / 1.35rem 1.05rem,
-            linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.18));
-          transform: perspective(460px) rotateX(54deg);
-          transform-origin: bottom;
         }
         .ms-hero-logo img {
           max-height: 12rem;
@@ -743,7 +729,7 @@ def apply_theme() -> None:
           border: 1px solid var(--ms-line);
           border-radius: 999px;
           color: var(--ms-text);
-          background: rgba(53, 201, 211, 0.10);
+          background: rgba(255, 98, 180, 0.12);
           padding: 0.28rem 0.68rem;
           font-size: 0.82rem;
           font-weight: 650;
@@ -751,7 +737,7 @@ def apply_theme() -> None:
         .ms-section {
           border: 1px solid var(--ms-line);
           border-radius: var(--ms-radius-lg);
-          background: linear-gradient(180deg, rgba(12,32,44,0.88), rgba(8,22,32,0.84));
+          background: linear-gradient(180deg, rgba(33, 28, 39, 0.90), rgba(18, 16, 22, 0.88));
           padding: 1rem;
           margin-bottom: 1rem;
           box-shadow: var(--ms-shadow-panel);
@@ -760,7 +746,7 @@ def apply_theme() -> None:
           border-left: 3px solid var(--ms-accent);
           padding: 0.35rem 0 0.35rem 0.75rem;
           margin: 0.35rem 0;
-          background: rgba(12,32,44,0.68);
+          background: rgba(33, 28, 39, 0.72);
           border-radius: 0 var(--ms-radius-md) var(--ms-radius-md) 0;
         }
         .ms-log-label {
@@ -777,7 +763,7 @@ def apply_theme() -> None:
         .stButton > button, .stDownloadButton > button {
           border-radius: var(--ms-radius-md);
           border: 1px solid var(--ms-border);
-          background: rgba(12, 32, 44, 0.92);
+          background: rgba(27, 23, 32, 0.92);
           color: var(--ms-text);
           min-height: 2.55rem;
           font-weight: 780;
@@ -787,7 +773,7 @@ def apply_theme() -> None:
         .stButton > button:hover,
         .stDownloadButton > button:hover {
           border-color: var(--ms-primary);
-          background: var(--ms-bg-hover);
+          background: #2B2432;
           color: var(--ms-text);
           transform: translateY(-1px);
         }
@@ -799,8 +785,8 @@ def apply_theme() -> None:
         }
         .stButton > button:disabled,
         .stDownloadButton > button:disabled {
-          border-color: rgba(40, 69, 91, 0.55) !important;
-          background: rgba(16, 38, 56, 0.46) !important;
+          border-color: rgba(83, 70, 88, 0.55) !important;
+          background: rgba(27, 23, 32, 0.46) !important;
           color: var(--ms-text-muted) !important;
           cursor: not-allowed !important;
         }
@@ -809,7 +795,7 @@ def apply_theme() -> None:
         .stDownloadButton > button {
           border-radius: var(--ms-radius-md) !important;
           border: 1px solid var(--ms-border) !important;
-          background: rgba(12, 32, 44, 0.86) !important;
+          background: rgba(27, 23, 32, 0.86) !important;
           color: var(--ms-text) !important;
           font-weight: 760 !important;
           min-height: 2.55rem;
@@ -825,9 +811,9 @@ def apply_theme() -> None:
         .stButton > button[kind="primary"] {
           background: linear-gradient(135deg, var(--ms-accent), #FF7BBC) !important;
           color: #180712 !important;
-          border-color: rgba(255, 79, 163, 0.72) !important;
+          border-color: rgba(255, 98, 180, 0.74) !important;
           font-weight: 880;
-          box-shadow: 0 12px 28px rgba(255, 79, 163, 0.16);
+          box-shadow: 0 12px 28px rgba(255, 98, 180, 0.22);
         }
         .stButton > button[kind="primary"]:hover {
           background: linear-gradient(135deg, #FF69B1, #FF90C9) !important;
@@ -836,7 +822,7 @@ def apply_theme() -> None:
         div[data-testid="stAlert"] {
           border-radius: var(--ms-radius-md);
           border: 1px solid var(--ms-border);
-          background: rgba(12, 32, 44, 0.92);
+          background: rgba(33, 28, 39, 0.94);
           color: var(--ms-text);
         }
         div[data-testid="stAlert"] p,
@@ -848,7 +834,7 @@ def apply_theme() -> None:
           border: 1px solid var(--ms-border);
           border-radius: var(--ms-radius-lg);
           overflow: hidden;
-          background: rgba(12, 32, 44, 0.74);
+          background: rgba(24, 21, 29, 0.86);
           box-shadow: var(--ms-shadow-panel);
         }
         div[data-testid="stDataFrame"] *,
