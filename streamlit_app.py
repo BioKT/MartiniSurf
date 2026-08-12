@@ -111,6 +111,7 @@ PERSISTED_STATE_KEYS = {
     "surface_linkers",
     "linker_generator_smiles",
     "linker_generator_molname",
+    "generated_linker_smiles",
     "generated_linker_path",
     "generated_linker_itp_path",
     "generated_linker_beads",
@@ -267,6 +268,7 @@ def _init_state() -> None:
         "surface_linkers": 0,
         "linker_generator_smiles": "",
         "linker_generator_molname": "LINKER",
+        "generated_linker_smiles": "",
         "generated_linker_path": "",
         "generated_linker_itp_path": "",
         "generated_linker_beads": [],
@@ -727,6 +729,7 @@ def _render_linker_generator() -> None:
             st.session_state.linker_generator_message = result.message
             st.session_state.linker_generator_log = result.log
             if result.ok and result.gro_path and result.itp_path:
+                st.session_state.generated_linker_smiles = st.session_state.linker_generator_smiles
                 st.session_state.generated_linker_path = str(result.gro_path)
                 st.session_state.generated_linker_itp_path = str(result.itp_path)
                 st.session_state.generated_linker_beads = _bead_dicts(result.beads)
@@ -751,13 +754,16 @@ def _render_linker_generator() -> None:
         if generated_path and generated_path.exists() and options:
             preview_col, beads_col = st.columns([1.35, 1], gap="large")
             with preview_col:
-                svg = smiles_to_svg(st.session_state.linker_generator_smiles)
+                svg_smiles = st.session_state.get("generated_linker_smiles") or st.session_state.linker_generator_smiles
+                svg = smiles_to_svg(str(svg_smiles))
                 if svg:
                     components.html(
                         f"<div style='background:#f7fbff;border-radius:16px;padding:12px;margin-bottom:12px'>{svg}</div>",
                         height=350,
                     )
                     st.caption("Atom indices in the 2D structure and mapping table start at 1.")
+                else:
+                    st.info("2D RDKit preview is unavailable in this environment or the SMILES could not be rendered.")
                 render_linker_mapping(generated_path, st.session_state.generated_linker_beads, height=360)
             with beads_col:
                 mapping_rows = st.session_state.get("generated_linker_mapping") or []
