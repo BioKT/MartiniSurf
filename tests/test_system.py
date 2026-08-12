@@ -1706,3 +1706,53 @@ def test_surface_linkers_merge_into_surface_itp_with_surface_tail_bond(tmp_path)
     assert "3     C1" in text or "     3     C1" in text
     assert "4     C1" in text or "     4     C1" in text
     assert "1      4 1 0.5300 1250.0" in text or "     1      4 1 0.5300 1250.0" in text
+
+
+def test_surface_linkers_bond_selected_surface_bead_not_lowest_z(tmp_path):
+    gro = tmp_path / "decorated_selected.gro"
+    gro.write_text(
+        "surface linker selected bead bond test\n"
+        "    5\n"
+        "    1LNK     C1    1   0.000   0.000   1.000\n"
+        "    1LNK     C2    2   0.000   0.000   0.530\n"
+        "    1LNK     C3    3   0.200   0.000   0.200\n"
+        "    2SRF     P4    4   0.000   0.000   0.000\n"
+        "    2SRF     P4    5   1.000   0.000   0.000\n"
+        "   4.00000   4.00000   4.00000\n"
+    )
+    surface_itp = tmp_path / "surface.itp"
+    surface_itp.write_text(
+        "[ moleculetype ]\nSRF 1\n\n"
+        "[ atoms ]\n"
+        "1 P4 1 SRF P4 1 0.0\n"
+        "2 P4 1 SRF P4 2 0.0\n"
+    )
+    linker_itp = tmp_path / "LNK.itp"
+    linker_itp.write_text(
+        "[ moleculetype ]\nLNK 1\n\n"
+        "[ atoms ]\n"
+        "1 C1 1 LNK C1 1 0.0\n"
+        "2 C1 1 LNK C2 2 0.0\n"
+        "3 C1 1 LNK C3 3 0.0\n\n"
+        "[ bonds ]\n"
+        "1 2 1 0.470 1250\n"
+        "2 3 1 0.470 1250\n"
+    )
+    universe = gms.mda.Universe(str(gro))
+
+    count = gms._merge_surface_linker_itp(
+        surface_itp_path=surface_itp,
+        linker_itp_path=linker_itp,
+        universe=universe,
+        surface_resname="SRF",
+        linker_resname="LNK",
+        linker_size=3,
+        surface_linker_count=1,
+        bond_length_nm=0.53,
+        linker_surface_bead="2: C2",
+    )
+
+    text = surface_itp.read_text()
+    assert count == 1
+    assert "1      4 1 0.5300 1250.0" in text or "     1      4 1 0.5300 1250.0" in text
+    assert "1      5 1 0.5300 1250.0" not in text
