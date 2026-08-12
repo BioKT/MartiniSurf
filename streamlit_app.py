@@ -1064,8 +1064,11 @@ def _render_structure_summary(summary: StructureSummary, structure_path: Path | 
     preview_metrics[0].metric("Source", summary.source)
     preview_metrics[1].metric("Chains", len(summary.chains) if summary.chains else "-")
 
+    preview_path = getattr(summary, "preview_path", None)
     if structure_path and structure_path.suffix.lower() in {".pdb", ".gro"}:
         render_structure_preview(structure_path, height=430)
+    elif preview_path and Path(preview_path).exists():
+        render_structure_preview(Path(preview_path), height=430)
     elif summary.format == "remote":
         render_remote_molecule(summary.source, height=430)
     else:

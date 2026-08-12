@@ -199,6 +199,30 @@ def test_anchor_landmarks_for_groups_returns_one_centroid_per_group():
     )
 
 
+def test_single_anchor_group_is_treated_as_one_orientation_point():
+    atom_records = [
+        (1, "ALA", "BB", 1),
+        (2, "ALA", "BB", 2),
+        (3, "ALA", "BB", 3),
+    ]
+    coords = np.array([
+        [0.0, 0.0, 8.0],
+        [2.0, 0.0, 10.0],
+        [4.0, 0.0, 12.0],
+    ])
+    groups = [("1", [1, 2, 3])]
+
+    landmarks = enz._orientation_landmarks_for_anchor_groups(
+        groups,
+        atom_records,
+        coords,
+        "residue",
+    )
+
+    assert landmarks.shape == (1, 3)
+    assert np.allclose(landmarks[0], [2.0, 0.0, 10.0])
+
+
 # --------------------------------------------------------------
 # Test auto_orient_from_anchor_residues
 # --------------------------------------------------------------

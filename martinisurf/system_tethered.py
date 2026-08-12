@@ -211,6 +211,24 @@ def _anchor_landmarks_for_groups(group_defs, atom_records, coords, mode, prefilt
 
     return np.vstack(residue_centroids)
 
+
+def _orientation_landmarks_for_anchor_groups(
+    group_defs,
+    atom_records,
+    coords,
+    mode,
+    prefilter_z_consistency=False,
+):
+    effective_mode = "group" if len(group_defs) == 1 else mode
+    return _anchor_landmarks_for_groups(
+        group_defs,
+        atom_records,
+        coords,
+        effective_mode,
+        prefilter_z_consistency=prefilter_z_consistency,
+    )
+
+
 def _residue_centroid(resid, atom_records, coords):
     selected = [c for (r, _, _, _), c in zip(atom_records, coords) if int(r) == int(resid)]
     if not selected:
@@ -1020,7 +1038,7 @@ def main(argv=None):
             raise ValueError("No anchors provided.")
 
         anchor_groups = _parse_group_residues(args.anchor, "--anchor")
-        centroids = _anchor_landmarks_for_groups(
+        centroids = _orientation_landmarks_for_anchor_groups(
             anchor_groups,
             sys_atoms,
             sys_coords,

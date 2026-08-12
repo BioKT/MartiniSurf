@@ -23,6 +23,7 @@ class StructureSummary:
     atom_count: int
     ligands: list[str]
     notes: list[str]
+    preview_path: Path | None = None
 
 
 AA3 = {
@@ -67,6 +68,7 @@ def _summarize_remote_preview(identifier: str, preview_dir: Path) -> StructureSu
     if not clean_id:
         return None
 
+    preview_dir = Path(".streamlit_cache") / "pdb_preview"
     preview_dir.mkdir(parents=True, exist_ok=True)
     try:
         if len(clean_id) == 4:
@@ -101,6 +103,7 @@ def _summarize_remote_preview(identifier: str, preview_dir: Path) -> StructureSu
         summary.atom_count,
         summary.ligands,
         summary.notes,
+        preview_path,
     )
 
 
