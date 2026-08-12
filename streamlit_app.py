@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import html
+import math
 import shutil
 import sys
 import tempfile
@@ -22,8 +23,9 @@ from streamlit_app.linker_generator import (
     smiles_to_svg,
 )
 from streamlit_app.molecular_viewer import (
-    file_caption,
+    MAX_TRAJECTORY_GIF_FRAMES,
     find_viewable_structures,
+    generate_short_md_trajectory_gif,
     render_linker_mapping,
     render_martini_step4_viewer,
     render_molecule,
@@ -931,84 +933,85 @@ def _render_home() -> None:
         """,
         unsafe_allow_html=True,
     )
-    citation_tabs = st.tabs(["MartiniSurf articles", "Tool citations"])
-    with citation_tabs[0]:
-        publications = [
-            {
-                "label": "CITE MARTINISURF",
-                "title": "MartiniSurf: Automated Simulations of Surface-Immobilized Biomolecular Systems with Martini",
-                "reference": "Jiménez-García, J. C.; López-Gallego, F.; López, X.; De Sancho, D. J. Chem. Inf. Model. 2026.",
-                "url": "https://pubs.acs.org/doi/10.1021/acs.jcim.6c00953",
-                "primary": True,
-            },
-            {
-                "label": "METHODOLOGICAL FOUNDATION",
-                "title": "Mechanistic Determinants of Oriented Enzyme Immobilization from Martini Simulations",
-                "reference": "Jiménez-García, J. C.; Zeballos, N.; López-Gallego, F.; López, X.; De Sancho, D. J. Phys. Chem. Lett. 2026, 17 (7), 2094–2102.",
-                "url": "https://pubs.acs.org/doi/10.1021/acs.jpclett.5c03753",
-                "primary": False,
-            },
-        ]
-        for publication in publications:
-            card_class = "ms-home-pub-card compact primary" if publication["primary"] else "ms-home-pub-card compact"
+    with st.expander("View publications and tool citations", expanded=False):
+        citation_tabs = st.tabs(["MartiniSurf articles", "Tool citations"])
+        with citation_tabs[0]:
+            publications = [
+                {
+                    "label": "CITE MARTINISURF",
+                    "title": "MartiniSurf: Automated Simulations of Surface-Immobilized Biomolecular Systems with Martini",
+                    "reference": "Jiménez-García, J. C.; López-Gallego, F.; López, X.; De Sancho, D. J. Chem. Inf. Model. 2026.",
+                    "url": "https://pubs.acs.org/doi/10.1021/acs.jcim.6c00953",
+                    "primary": True,
+                },
+                {
+                    "label": "METHODOLOGICAL FOUNDATION",
+                    "title": "Mechanistic Determinants of Oriented Enzyme Immobilization from Martini Simulations",
+                    "reference": "Jiménez-García, J. C.; Zeballos, N.; López-Gallego, F.; López, X.; De Sancho, D. J. Phys. Chem. Lett. 2026, 17 (7), 2094–2102.",
+                    "url": "https://pubs.acs.org/doi/10.1021/acs.jpclett.5c03753",
+                    "primary": False,
+                },
+            ]
+            for publication in publications:
+                card_class = "ms-home-pub-card compact primary" if publication["primary"] else "ms-home-pub-card compact"
+                st.markdown(
+                    f"""
+                    <div class="{card_class}">
+                      <div class="ms-home-pub-label">{html.escape(publication["label"])}</div>
+                      <h4>{html.escape(publication["title"])}</h4>
+                      <p>{html.escape(publication["reference"])}</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                st.link_button("View article", str(publication["url"]))
+        with citation_tabs[1]:
             st.markdown(
-                f"""
-                <div class="{card_class}">
-                  <div class="ms-home-pub-label">{html.escape(publication["label"])}</div>
-                  <h4>{html.escape(publication["title"])}</h4>
-                  <p>{html.escape(publication["reference"])}</p>
+                """
+                <div class="ms-home-tool-note">
+                  Cite the tools that were active in your workflow. If you use the Linker Generator, also cite Martini Mapper.
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
-            st.link_button("View article", str(publication["url"]))
-    with citation_tabs[1]:
-        st.markdown(
-            """
-            <div class="ms-home-tool-note">
-              Cite the tools that were active in your workflow. If you use the Linker Generator, also cite Martini Mapper.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        tool_rows = [
-            {
-                "When to cite": "Protein coarse-graining / topology generation",
-                "Tool": "Martinize2 / Vermouth",
-                "Reference": "Kroon PC, Grünewald F, Barnoud J, et al. Martinize2 and Vermouth: Unified Framework for Topology Generation. eLife reviewed preprint v2. DOI: 10.7554/eLife.90627.2.",
-            },
-            {
-                "When to cite": "GōMartini model enabled",
-                "Tool": "GōMartini",
-                "Reference": "Poma AB, Cieplak M, Theodorakis PE. Combining the MARTINI and structure-based coarse-grained approaches for the molecular dynamics studies of conformational transitions in proteins. J. Chem. Theory Comput. 2017, 13(3), 1366-1374.",
-            },
-            {
-                "When to cite": "AutoMartini-generated linker or small molecule",
-                "Tool": "AutoMartini M3",
-                "Reference": "Szczuka M, Pereira GP, Walter LJ, Gueroult M, Poulain P, Bereau T, Souza PCT, Chavent M. Fast Parametrization of Martini3 Models for Fragments and Small Molecules. J. Chem. Theory Comput. 2025, 22(1), 610-623.",
-            },
-            {
-                "When to cite": "Graphene, graphite, or nanotube surfaces",
-                "Tool": "Martini 3 carbon nanomaterials",
-                "Reference": "Shrestha R, Alessandri R, Vögele M, Hilpert C, Souza PCT, Marrink SJ, Monticelli L. Martini 3 coarse-grained models for carbon nanomaterials. J. Chem. Theory Comput. 2025, 21(18), 9035-9053.",
-            },
-            {
-                "When to cite": "Linker Generator used",
-                "Tool": "Martini Mapper",
-                "Reference": "Bigting KV, Nag S, An Y. Martini Mapper: An Automated Fragment-Based Mapping Algorithm for Developing Coarse-Grained Models within the Martini 3 Framework. J. Chem. Inf. Model. 2026, 66(9), 5272-5286. DOI: 10.1021/acs.jcim.5c02903.",
-            },
-        ]
-        for row in tool_rows:
-            st.markdown(
-                f"""
-                <div class="ms-home-tool-card">
-                  <div class="ms-home-tool-when">{html.escape(row["When to cite"])}</div>
-                  <div class="ms-home-tool-name">{html.escape(row["Tool"])}</div>
-                  <p>{html.escape(row["Reference"])}</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            tool_rows = [
+                {
+                    "When to cite": "Protein coarse-graining / topology generation",
+                    "Tool": "Martinize2 / Vermouth",
+                    "Reference": "Kroon PC, Grünewald F, Barnoud J, et al. Martinize2 and Vermouth: Unified Framework for Topology Generation. eLife reviewed preprint v2. DOI: 10.7554/eLife.90627.2.",
+                },
+                {
+                    "When to cite": "GōMartini model enabled",
+                    "Tool": "GōMartini",
+                    "Reference": "Poma AB, Cieplak M, Theodorakis PE. Combining the MARTINI and structure-based coarse-grained approaches for the molecular dynamics studies of conformational transitions in proteins. J. Chem. Theory Comput. 2017, 13(3), 1366-1374.",
+                },
+                {
+                    "When to cite": "AutoMartini-generated linker or small molecule",
+                    "Tool": "AutoMartini M3",
+                    "Reference": "Szczuka M, Pereira GP, Walter LJ, Gueroult M, Poulain P, Bereau T, Souza PCT, Chavent M. Fast Parametrization of Martini3 Models for Fragments and Small Molecules. J. Chem. Theory Comput. 2025, 22(1), 610-623.",
+                },
+                {
+                    "When to cite": "Graphene, graphite, or nanotube surfaces",
+                    "Tool": "Martini 3 carbon nanomaterials",
+                    "Reference": "Shrestha R, Alessandri R, Vögele M, Hilpert C, Souza PCT, Marrink SJ, Monticelli L. Martini 3 coarse-grained models for carbon nanomaterials. J. Chem. Theory Comput. 2025, 21(18), 9035-9053.",
+                },
+                {
+                    "When to cite": "Linker Generator used",
+                    "Tool": "Martini Mapper",
+                    "Reference": "Bigting KV, Nag S, An Y. Martini Mapper: An Automated Fragment-Based Mapping Algorithm for Developing Coarse-Grained Models within the Martini 3 Framework. J. Chem. Inf. Model. 2026, 66(9), 5272-5286. DOI: 10.1021/acs.jcim.5c02903.",
+                },
+            ]
+            for row in tool_rows:
+                st.markdown(
+                    f"""
+                    <div class="ms-home-tool-card">
+                      <div class="ms-home-tool-when">{html.escape(row["When to cite"])}</div>
+                      <div class="ms-home-tool-name">{html.escape(row["Tool"])}</div>
+                      <p>{html.escape(row["Reference"])}</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
 
 def _render_structure_step(upload_dir: Path) -> tuple[Path | None, Path | None, Path | None, Path | None, Path | None, Path | None, StructureSummary]:
@@ -1658,6 +1661,76 @@ def _render_short_md_viewer() -> None:
     else:
         st.caption(f"{_short_md_stage_label(str(st.session_state.short_md_view_stage))} structure preview.")
 
+    _render_short_md_gif_controls(selected, outdir, selection_text)
+
+
+def _render_short_md_gif_controls(selected: dict[str, Path | None], outdir: Path, selection_text: str) -> None:
+    stage_name = str(st.session_state.short_md_view_stage)
+    stage_label = _short_md_stage_label(stage_name)
+    gro = selected.get("gro")
+    tpr = selected.get("tpr")
+    xtc = selected.get("xtc")
+    gmx = detect_gmx(TOOL_DIRS)
+    gif_available = bool(gro and tpr and xtc and gmx)
+    signature = (
+        stage_name,
+        str(gro or ""),
+        str(tpr or ""),
+        str(xtc or ""),
+        bool(st.session_state.short_md_view_protein),
+        bool(st.session_state.short_md_view_surface),
+        bool(st.session_state.short_md_view_linker),
+        bool(st.session_state.short_md_view_water),
+        bool(st.session_state.short_md_view_ions),
+    )
+
+    controls = st.columns([0.45, 0.55])
+    if controls[0].button("Generate trajectory GIF", width="stretch", disabled=not gif_available):
+        with st.spinner("Generating compact trajectory GIF"):
+            gif_bytes, error, frame_count = generate_short_md_trajectory_gif(
+                gro,
+                tpr,
+                xtc,
+                outdir,
+                selection_text,
+                gmx,
+                frame_count_hint=_short_md_frame_count_hint(stage_name),
+                show_protein=bool(st.session_state.short_md_view_protein),
+                show_surface=bool(st.session_state.short_md_view_surface),
+                show_linker=bool(st.session_state.short_md_view_linker),
+                show_water=bool(st.session_state.short_md_view_water),
+                show_ions=bool(st.session_state.short_md_view_ions),
+            )
+        st.session_state["short_md_gif_signature"] = signature
+        st.session_state["short_md_gif_error"] = error or ""
+        st.session_state["short_md_gif_frames"] = frame_count
+        st.session_state["short_md_gif_bytes"] = gif_bytes or b""
+        st.session_state["short_md_gif_name"] = f"MartiniSurf_{stage_label.replace(' ', '_')}_trajectory.gif"
+
+    if not gif_available:
+        controls[1].caption("Run a trajectory stage first to enable GIF export.")
+        return
+
+    if st.session_state.get("short_md_gif_signature") == signature and st.session_state.get("short_md_gif_bytes"):
+        frame_count = int(st.session_state.get("short_md_gif_frames") or 0)
+        controls[1].download_button(
+            f"Download GIF ({frame_count} frames)",
+            data=bytes(st.session_state.short_md_gif_bytes),
+            file_name=str(st.session_state.short_md_gif_name),
+            mime="image/gif",
+            width="stretch",
+        )
+    elif st.session_state.get("short_md_gif_signature") == signature and st.session_state.get("short_md_gif_error"):
+        controls[1].warning(str(st.session_state.short_md_gif_error))
+
+
+def _short_md_frame_count_hint(stage_name: str) -> int:
+    time_ns = float(st.session_state.get(f"short_md_{stage_name}_time_ns", DEFAULT_STAGE_SETTINGS.get(stage_name, {}).get("time_ns", 0.0)) or 0.0)
+    write_ps = float(st.session_state.get("short_md_xtc_write_every_ps", DEFAULT_XTC_WRITE_EVERY_PS) or DEFAULT_XTC_WRITE_EVERY_PS)
+    if write_ps <= 0:
+        return MAX_TRAJECTORY_GIF_FRAMES
+    return max(1, int(math.floor((time_ns * 1000.0) / write_ps)) + 1)
+
 
 def _short_md_stage_artifacts() -> dict[str, dict[str, Path | None]]:
     work_dir = _existing_path(st.session_state.get("short_md_work_dir"))
@@ -1698,14 +1771,13 @@ def _render_results(outdir: Path, config: BuildConfig) -> None:
     structures = find_viewable_structures(outdir)
     if structures:
         structure_path = structures[0]
-        st.caption(file_caption(structure_path))
         if structure_path.suffix.lower() == ".gro":
             with st.expander("Viewer Options", expanded=False):
                 show_connectivity = st.toggle(
                     "Show protein topology connectivity",
                     value=True,
                     key="viewer_show_connectivity",
-                    help="Draws short protein bonds as thin green cylinders. Surface lattice bonds are not drawn.",
+                    help="Draws short protein bonds as thin white cylinders. Surface lattice bonds are not drawn.",
                 )
                 a, b = st.columns(2)
                 bead_radius = a.number_input("Bead radius", min_value=0.05, max_value=3.0, value=0.85, step=0.05, key="viewer_bead_radius")
