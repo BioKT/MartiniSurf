@@ -26,6 +26,8 @@ def validate_config(config: BuildConfig) -> list[str]:
     else:
         if not config.anchors:
             errors.append("Anchor or adsorption mode needs at least one anchor group.")
+    if config.surface_linkers > 0 and not config.linker_path:
+        errors.append("Surface linker decoration needs a linker .gro file.")
 
     if config.ionize and not config.solvate:
         errors.append("Ionization requires solvation.")

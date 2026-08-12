@@ -2,6 +2,7 @@ from pathlib import Path
 
 from streamlit_app.command_builder import BuildConfig, build_args
 from streamlit_app.linker_generator import parse_linker_gro, parse_martini_mapper_report, safe_molecule_name
+from streamlit_app.validators import validate_config
 
 
 def test_parse_linker_gro_reads_bead_labels():
@@ -80,3 +81,37 @@ def test_build_args_passes_selected_linker_beads():
     assert args[args.index("--linker-protein-bead") + 1] == "1: C1"
     assert "--linker-surface-bead" in args
     assert args[args.index("--linker-surface-bead") + 1] == "2: C2"
+
+
+def test_surface_linker_decoration_is_available_in_anchor_mode():
+    args = build_args(
+        BuildConfig(
+            input_path="1UBQ",
+            orientation_mode="Anchor",
+            anchors=["A 73"],
+            linker_path=Path("linker.gro"),
+            linker_surface_bead="2: C2",
+            surface_linkers=4,
+        )
+    )
+
+    assert "--anchor" in args
+    assert "--linker" in args
+    assert args[args.index("--linker") + 1] == "linker.gro"
+    assert "--surface-linkers" in args
+    assert args[args.index("--surface-linkers") + 1] == "4"
+    assert "--linker-surface-bead" in args
+    assert args[args.index("--linker-surface-bead") + 1] == "2: C2"
+
+
+def test_surface_linker_decoration_requires_linker_file():
+    errors = validate_config(
+        BuildConfig(
+            input_path="1UBQ",
+            orientation_mode="Anchor",
+            anchors=["A 73"],
+            surface_linkers=4,
+        )
+    )
+
+    assert "Surface linker decoration needs a linker .gro file." in errors

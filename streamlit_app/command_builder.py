@@ -134,18 +134,18 @@ def build_args(config: BuildConfig) -> list[str]:
     for merge_group in config.merge_groups:
         _append_value(args, "--merge", merge_group)
 
-    if config.orientation_mode == "Linker":
+    needs_linker_file = config.orientation_mode == "Linker" or bool(config.surface_linkers)
+    if needs_linker_file:
         _append_value(args, "--linker", config.linker_path)
+        _append_value(args, "--linker-surface-bead", config.linker_surface_bead)
+    if config.orientation_mode == "Linker":
         for group in config.linker_groups:
             _append_group(args, "--linker-group", group)
         _append_value(args, "--linker-prot-dist", config.linker_prot_dist)
         _append_value(args, "--linker-surf-dist", config.linker_surf_dist)
         _append_value(args, "--linker-protein-bead", config.linker_protein_bead)
-        _append_value(args, "--linker-surface-bead", config.linker_surface_bead)
         if config.invert_linker:
             args.append("--invert-linker")
-        if config.surface_linkers:
-            _append_value(args, "--surface-linkers", config.surface_linkers)
     else:
         for anchor in config.anchors:
             _append_group(args, "--anchor", anchor)
@@ -156,6 +156,8 @@ def build_args(config: BuildConfig) -> list[str]:
             _append_value(args, "--balance-low-z-fraction", config.balance_low_z_fraction)
         if config.histag:
             args.append("--histag")
+    if config.surface_linkers:
+        _append_value(args, "--surface-linkers", config.surface_linkers)
 
     if config.substrate_path and config.substrate_count > 0:
         _append_value(args, "--substrate", config.substrate_path)
