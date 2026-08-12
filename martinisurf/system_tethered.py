@@ -558,6 +558,45 @@ def _finalize_anchor_pose(
     return rot, anchors_rot, ref_rot
 
 
+def _finalize_single_anchor_pose_exact(
+    system_coords,
+    anchor_coords,
+    surface_coords,
+    target_z,
+    reference_coords,
+    min_reference_dist=1.0,
+):
+    z_surface = surface_coords[:, 2].max()
+    target_anchor_z = z_surface + target_z
+
+    rot = np.array(system_coords, float, copy=True)
+    anchors_rot = np.array(anchor_coords, float, copy=True)
+    ref_rot = np.array(reference_coords, float, copy=True)
+
+    dz = target_anchor_z - float(anchors_rot[:, 2].mean())
+    rot[:, 2] += dz
+    anchors_rot[:, 2] += dz
+    ref_rot[:, 2] += dz
+
+    required_min_z = z_surface + float(min_reference_dist)
+    min_ref_z = float(ref_rot[:, 2].min())
+    if min_ref_z < required_min_z:
+        shortfall = required_min_z - min_ref_z
+        raise ValueError(
+            "Single-anchor orientation cannot satisfy both constraints: "
+            f"anchor at {target_z / 10.0:.3f} nm from the surface and full "
+            f"reference clearance of {float(min_reference_dist) / 10.0:.3f} nm. "
+            f"The reference structure would cross the clearance plane by "
+            f"{shortfall / 10.0:.3f} nm."
+        )
+
+    xy_shift = surface_coords[:, :2].mean(0) - ref_rot[:, :2].mean(0)
+    rot[:, 0] += xy_shift[0]
+    rot[:, 1] += xy_shift[1]
+
+    return rot
+
+
 def _lowest_z_subset(coords, fraction):
     if len(coords) == 0:
         return np.array(coords, float, copy=True)
@@ -612,14 +651,23 @@ def auto_orient_from_anchor_residues(system_coords,
             system_coords = _apply_rotation(system_coords, R_up, center)
             anchors = _apply_rotation(anchors, R_up, center)
             ref = _apply_rotation(ref, R_up, center)
-        return _finalize_anchor_pose(
+        if orient_single_anchor_up and float(target_z) < float(min_reference_dist):
+            return _finalize_anchor_pose(
+                system_coords,
+                anchors,
+                surface_coords,
+                target_z,
+                ref,
+                min_reference_dist=min_reference_dist,
+            )[0]
+        return _finalize_single_anchor_pose_exact(
             system_coords,
             anchors,
             surface_coords,
             target_z,
             ref,
             min_reference_dist=min_reference_dist,
-        )[0]
+        )
 
     if len(anchors) == 2:
         center = anchors.mean(0)

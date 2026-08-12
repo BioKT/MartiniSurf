@@ -246,7 +246,7 @@ def test_classical_anchor_orientation_keeps_residue_1_near_surface_for_10_residu
     assert abs(residue_z[1] - 1.0) < 1e-6
 
 
-def test_single_anchor_without_upward_reorientation_can_leave_anchor_far_from_surface():
+def test_single_anchor_reports_when_clearance_would_move_anchor_far_from_surface():
     # 2A3D-like geometry: selected anchor sits at the top end of the protein.
     system = np.array([
         [56.15, 9.18, 15.95],   # residue 1 BB
@@ -263,18 +263,20 @@ def test_single_anchor_without_upward_reorientation_can_leave_anchor_far_from_su
         [20.0, 20.0, 30.0],
     ])
 
-    result = enz.auto_orient_from_anchor_residues(
-        system,
-        anchors,
-        surface,
-        target_z=10.0,
-        reference_coords=system,
-        min_reference_dist=1.0,
-        orient_single_anchor_up=False,
-    )
-
-    anchor_mean_z = float(result[:2, 2].mean()) / 10.0
-    assert anchor_mean_z > 6.0
+    try:
+        enz.auto_orient_from_anchor_residues(
+            system,
+            anchors,
+            surface,
+            target_z=10.0,
+            reference_coords=system,
+            min_reference_dist=1.0,
+            orient_single_anchor_up=False,
+        )
+    except ValueError as exc:
+        assert "Single-anchor orientation cannot satisfy both constraints" in str(exc)
+    else:
+        raise AssertionError("Expected single-anchor orientation to reject impossible clearance.")
 
 
 def test_auto_orient_prevents_surface_penetration_when_anchors_are_high():
@@ -290,12 +292,40 @@ def test_auto_orient_prevents_surface_penetration_when_anchors_are_high():
         [2.0, 2.0, 0.0],
     ])
 
+    try:
+        enz.auto_orient_from_anchor_residues(
+            enzyme, anchors, surface, target_z=10.0
+        )
+    except ValueError as exc:
+        assert "Single-anchor orientation cannot satisfy both constraints" in str(exc)
+    else:
+        raise AssertionError("Expected single-anchor orientation to reject impossible clearance.")
+
+
+def test_single_anchor_exact_pose_keeps_anchor_at_target_distance():
+    enzyme = np.array([
+        [0.0, 0.0, 0.0],
+        [1.0, 1.0, 4.0],
+        [2.0, 1.0, 6.0],
+    ])
+    anchors = np.array([[0.0, 0.0, 0.0]])
+    surface = np.array([
+        [0.0, 0.0, 0.0],
+        [2.0, 2.0, 0.0],
+    ])
+
     result = enz.auto_orient_from_anchor_residues(
-        enzyme, anchors, surface, target_z=10.0
+        enzyme,
+        anchors,
+        surface,
+        target_z=10.0,
+        reference_coords=enzyme,
+        min_reference_dist=1.0,
+        orient_single_anchor_up=True,
     )
 
-    # Even with very high anchors, the full system must stay above the surface.
-    assert result[:, 2].min() >= 1.0
+    assert abs(float(result[0, 2]) - 10.0) < 1e-6
+    assert float(result[:, 2].min()) >= 1.0
 
 
 def test_auto_orient_respects_anchor_distance_after_flip():
@@ -525,27 +555,32 @@ def test_auto_orient_single_anchor_can_orient_reference_upward():
         [2.0, 2.0, 0.0],
     ])
 
-    default_pose = enz.auto_orient_from_anchor_residues(
-        system,
-        anchors,
-        surface,
-        target_z=0.0,
-        reference_coords=system,
-        min_reference_dist=1.0,
-        orient_single_anchor_up=False,
-    )
+    try:
+        enz.auto_orient_from_anchor_residues(
+            system,
+            anchors,
+            surface,
+            target_z=0.0,
+            reference_coords=system,
+            min_reference_dist=1.0,
+            orient_single_anchor_up=False,
+        )
+    except ValueError as exc:
+        assert "Single-anchor orientation cannot satisfy both constraints" in str(exc)
+    else:
+        raise AssertionError("Expected impossible single-anchor orientation to be rejected.")
+
     upward_pose = enz.auto_orient_from_anchor_residues(
         system,
         anchors,
         surface,
-        target_z=0.0,
+        target_z=1.0,
         reference_coords=system,
         min_reference_dist=1.0,
         orient_single_anchor_up=True,
     )
 
     # Anchor atom is index 0.
-    assert default_pose[1:, 2].mean() < default_pose[0, 2]
     assert upward_pose[1:, 2].mean() > upward_pose[0, 2]
 
 
