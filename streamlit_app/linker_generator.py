@@ -149,13 +149,31 @@ def smiles_to_svg_result(smiles: str) -> tuple[str, str]:
     if not smiles:
         return "", "No SMILES is available for the 2D preview."
     try:
-        svg = smiles_to_svg(smiles)
+        from rdkit import Chem
+        from rdkit.Chem import rdDepictor
+        from rdkit.Chem.Draw import rdMolDraw2D
     except ImportError as exc:
         return "", f"RDKit import failed: {exc}"
+
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            return "", f"RDKit could not parse SMILES: {smiles}"
+        rdDepictor.Compute2DCoords(mol)
+        drawer = rdMolDraw2D.MolDraw2DSVG(520, 320)
+        options = drawer.drawOptions()
+        options.atomHighlightsAreCircles = True
+        options.annotationFontScale = 0.9
+        for atom in mol.GetAtoms():
+            atom.SetProp("atomNote", str(atom.GetIdx() + 1))
+        drawer.DrawMolecule(mol)
+        drawer.FinishDrawing()
+        svg = drawer.GetDrawingText()
     except Exception as exc:  # noqa: BLE001 - show drawing backend details in Streamlit.
         return "", f"RDKit drawing failed: {exc}"
+
     if not svg:
-        return "", f"RDKit is unavailable or could not parse SMILES: {smiles}"
+        return "", "RDKit generated an empty 2D preview."
     return svg, ""
 
 

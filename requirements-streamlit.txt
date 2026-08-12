@@ -1,3 +1,3 @@
 -r requirements.txt
 streamlit>=1.37
-rdkit
+rdkit==2026.3.5
