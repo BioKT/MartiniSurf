@@ -1386,9 +1386,6 @@ def _render_environment_step() -> None:
 
 def _render_review_step(config: BuildConfig, errors: list[str], tool_warnings: list[str], outdir: Path) -> None:
     left, right = st.columns([1.2, 0.9], gap="large")
-    with left:
-        _render_results(outdir, config)
-        _render_command(config)
     with right:
         for error in errors:
             st.error(error)
@@ -1411,10 +1408,12 @@ def _render_review_step(config: BuildConfig, errors: list[str], tool_warnings: l
                 if result.returncode == 0:
                     status.update(label="System generated", state="complete")
                     st.session_state["zip_path"] = str(make_zip(outdir, Path(st.session_state.run_root) / "Simulation_Files.zip"))
-                    st.rerun()
                 else:
                     status.update(label="Run failed", state="error")
         _render_log()
+    with left:
+        _render_results(outdir, config)
+        _render_command(config)
 
 
 def _short_md_config_from_state() -> ShortMDConfig:
