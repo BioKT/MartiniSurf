@@ -22,7 +22,7 @@ Toolkit for automated Martini protein/DNA surface-system setup, including linker
   <a href="https://colab.research.google.com/github/BioKT/MartiniSurf/blob/master/martinisurf/examples/MartiniSurf_DNA.ipynb">
     <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open MartiniSurf_DNA">
   </a>
-  <a href="https://martinisurface.streamlit.app/">
+  <a href="https://martinisurf.streamlit.app/">
     <img src="https://img.shields.io/badge/Streamlit-launch%20app-FF4B4B?logo=streamlit&logoColor=white" alt="Launch MartiniSurf Streamlit app">
   </a>
 </p>
